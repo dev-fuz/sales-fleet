@@ -4,6 +4,8 @@ namespace Modules\Lists\Providers;
 
 use Modules\Core\Facades\Innoclapps;
 use Illuminate\Support\ServiceProvider;
+use Modules\Core\Settings\SettingsMenu;
+use Modules\Core\Settings\SettingsMenuItem;
 
 class ListsServiceProvider extends ServiceProvider
 {
@@ -78,6 +80,14 @@ class ListsServiceProvider extends ServiceProvider
     protected function bootModule() : void
     {
         Innoclapps::booting($this->shareDataToScript(...));
+
+        // Register lists menu in settings
+        Innoclapps::booting(function () {
+            SettingsMenu::register(
+                SettingsMenuItem::make('Lists', '/settings/lists', 'Bars3CenterLeft')->order(12),
+                'lists'
+            );
+        });
     }
 
     /**
