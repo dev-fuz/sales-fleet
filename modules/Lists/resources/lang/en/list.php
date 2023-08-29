@@ -11,8 +11,8 @@
  */
 
 return [
-    'brand' => 'List',
-    'brands' => 'Lists',
+    'list' => 'List',
+    'lists' => 'Lists',
     'create' => 'Create List',
     'update' => 'Update List',
     'created' => 'List successfully created.',
