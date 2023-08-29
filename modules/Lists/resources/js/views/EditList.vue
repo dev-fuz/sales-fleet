@@ -281,106 +281,106 @@
     </ICard>
   </template>
   <script setup>
-  import { ref, computed } from 'vue'
-  import FormVisibilityGroup from '~/Core/resources/js/components/FormVisibilityGroup.vue'
-  import CropsAndUploadsImage from '~/Core/resources/js/components/CropsAndUploadsImage.vue'
-  import { useI18n } from 'vue-i18n'
-  import { useRoute } from 'vue-router'
-  import { useBrands } from '../composables/useBrands'
-  import { useForm } from '~/Core/resources/js/composables/useForm'
+//   import { ref, computed } from 'vue'
+//   import FormVisibilityGroup from '~/Core/resources/js/components/FormVisibilityGroup.vue'
+//   import CropsAndUploadsImage from '~/Core/resources/js/components/CropsAndUploadsImage.vue'
+//   import { useI18n } from 'vue-i18n'
+//   import { useRoute } from 'vue-router'
+//   import { useBrands } from '../composables/useBrands'
+//   import { useForm } from '~/Core/resources/js/composables/useForm'
   
-  const { t } = useI18n()
-  const route = useRoute()
-  const { brands, setBrand, fetchBrand, patchBrand } = useBrands()
+//   const { t } = useI18n()
+//   const route = useRoute()
+//   const { brands, setBrand, fetchBrand, patchBrand } = useBrands()
   
-  const componentReady = ref(false)
-  const brand = ref(null)
+//   const componentReady = ref(false)
+//   const brand = ref(null)
   
-  const swatches = Innoclapps.config('favourite_colors')
-  const fonts = Innoclapps.config('contentbuilder.fonts')
+//   const swatches = Innoclapps.config('favourite_colors')
+//   const fonts = Innoclapps.config('contentbuilder.fonts')
   
-  const { form } = useForm({
-    visibility_group: {
-      type: 'all',
-      depends_on: [],
-    },
-  })
+//   const { form } = useForm({
+//     visibility_group: {
+//       type: 'all',
+//       depends_on: [],
+//     },
+//   })
   
-  const fontNames = computed(() => fonts.map(font => font['font-family']))
+//   const fontNames = computed(() => fonts.map(font => font['font-family']))
   
-  const canChangeDefaultState = computed(() => {
-    // Allow to set as default on the last dashboard which is not default
-    if (brands.value.length === 1 && brand.value.is_default === false) {
-      return true
-    }
+//   const canChangeDefaultState = computed(() => {
+//     // Allow to set as default on the last dashboard which is not default
+//     if (brands.value.length === 1 && brand.value.is_default === false) {
+//       return true
+//     }
   
-    return brands.value.length > 1 && brand.value.is_default === false
-  })
+//     return brands.value.length > 1 && brand.value.is_default === false
+//   })
   
-  function prepareComponent(id) {
-    fetchBrand(id, {
-      params: {
-        with: 'visibilityGroup.users;visibilityGroup.teams',
-      },
-    })
-      .then(data => {
-        let braindBeingEdited = data
+//   function prepareComponent(id) {
+//     fetchBrand(id, {
+//       params: {
+//         with: 'visibilityGroup.users;visibilityGroup.teams',
+//       },
+//     })
+//       .then(data => {
+//         let braindBeingEdited = data
   
-        form.set({
-          name: braindBeingEdited.name,
-          display_name: braindBeingEdited.display_name,
-          config: braindBeingEdited.config,
-          is_default: braindBeingEdited.is_default,
-        })
+//         form.set({
+//           name: braindBeingEdited.name,
+//           display_name: braindBeingEdited.display_name,
+//           config: braindBeingEdited.config,
+//           is_default: braindBeingEdited.is_default,
+//         })
   
-        if (braindBeingEdited.visibility_group) {
-          form.set('visibility_group', braindBeingEdited.visibility_group)
-        }
+//         if (braindBeingEdited.visibility_group) {
+//           form.set('visibility_group', braindBeingEdited.visibility_group)
+//         }
   
-        brand.value = braindBeingEdited
-      })
-      .finally(() => (componentReady.value = true))
-  }
+//         brand.value = braindBeingEdited
+//       })
+//       .finally(() => (componentReady.value = true))
+//   }
   
-  function save() {
-    form
-      .put(`/brands/${brand.value.id}`, {
-        params: {
-          with: 'visibilityGroup.users;visibilityGroup.teams',
-        },
-      })
-      .then(updatedBrand => {
-        brand.value = updatedBrand
-        setBrand(updatedBrand.id, updatedBrand)
-        Innoclapps.success(t('brands::brand.updated'))
-      })
-  }
+//   function save() {
+//     form
+//       .put(`/brands/${brand.value.id}`, {
+//         params: {
+//           with: 'visibilityGroup.users;visibilityGroup.teams',
+//         },
+//       })
+//       .then(updatedBrand => {
+//         brand.value = updatedBrand
+//         setBrand(updatedBrand.id, updatedBrand)
+//         Innoclapps.success(t('brands::brand.updated'))
+//       })
+//   }
   
-  function deleteLogo(type) {
-    Innoclapps.request()
-      .delete(`/brands/${brand.value.id}/logo/${type}`)
-      .then(() => {
-        updateCurrentBrandLogo(type, null)
-      })
-  }
+//   function deleteLogo(type) {
+//     Innoclapps.request()
+//       .delete(`/brands/${brand.value.id}/logo/${type}`)
+//       .then(() => {
+//         updateCurrentBrandLogo(type, null)
+//       })
+//   }
   
-  function logoUploadedHandler(response, type) {
-    // TODO
-    // Not reactive, vuejs cannot detect the update for some reason?
-    // But that's okay as the user can re-upload new logo if needed without deleting the current
-    updateCurrentBrandLogo(type, response.path)
-  }
+//   function logoUploadedHandler(response, type) {
+//     // TODO
+//     // Not reactive, vuejs cannot detect the update for some reason?
+//     // But that's okay as the user can re-upload new logo if needed without deleting the current
+//     updateCurrentBrandLogo(type, response.path)
+//   }
   
-  function updateCurrentBrandLogo(type, value) {
-    brand.value['logo_' + type] = value
-    brand.value['logo_' + type + '_url'] = value
+//   function updateCurrentBrandLogo(type, value) {
+//     brand.value['logo_' + type] = value
+//     brand.value['logo_' + type + '_url'] = value
   
-    patchBrand(brand.value.id, {
-      ['logo_' + type]: value,
-      ['logo_' + type + '_url']: value,
-    })
-  }
+//     patchBrand(brand.value.id, {
+//       ['logo_' + type]: value,
+//       ['logo_' + type + '_url']: value,
+//     })
+//   }
   
-  prepareComponent(route.params.id)
+//   prepareComponent(route.params.id)
   </script>
   

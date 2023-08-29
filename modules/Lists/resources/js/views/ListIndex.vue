@@ -1,6 +1,6 @@
 <template>
     <ICard
-      :header="$t('lists::list.lists')"
+      :header="$t('brands::brand.brands')"
       :overlay="brandsAreBeingFetched"
       no-body
     >
