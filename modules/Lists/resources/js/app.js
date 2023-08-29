@@ -1,5 +1,7 @@
 import i18n from '~/Core/resources/js/i18n'
 import SettingsBrands from './components/SettingsLists.vue'
+import CreateList from './views/CreateList.vue'
+import EditList from './views/EditList.vue'
 
 
 if (window.Innoclapps) {
@@ -11,14 +13,14 @@ if (window.Innoclapps) {
             meta: { title: i18n.t('lists::list.lists') },
         })
         router.addRoute('settings', {
-            path: '/settings/brands/create',
-            component: CreateBrand,
-            name: 'create-brand',
+            path: '/settings/lists/create',
+            component: CreateList,
+            name: 'create-list',
         })
         router.addRoute('settings', {
-            path: '/settings/brands/:id/edit',
-            component: EditBrand,
-            name: 'edit-brand',
+            path: '/settings/lists/:id/edit',
+            component: EditList,
+            name: 'edit-list',
         })
     })
 }
