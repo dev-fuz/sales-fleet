@@ -10,7 +10,7 @@ if (window.Innoclapps) {
         router.addRoute('settings', {
             path: '/settings/lists',
             component: SettingsBrands,
-            meta: { title: i18n.t('lists::list.lists') },
+            meta: { title: "Lists" },
         })
         router.addRoute('settings', {
             path: '/settings/lists/create',

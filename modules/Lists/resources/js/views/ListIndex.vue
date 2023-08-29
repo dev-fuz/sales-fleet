@@ -1,6 +1,6 @@
 <template>
     <ICard
-      :header="$t('brands::brand.brands')"
+      header="Lists"
       :overlay="brandsAreBeingFetched"
       no-body
     >
@@ -9,14 +9,14 @@
           :to="{ name: 'create-list' }"
           icon="plus"
           size="sm"
-          :text="$t('lists::list.create')"
+          text="Create List"
         />
       </template>
       <ITable class="-mt-px">
         <thead>
           <tr>
             <th class="text-left" v-t="'core::app.id'" width="5%"></th>
-            <th class="text-left" v-t="'brands::brand.brand'"></th>
+            <th class="text-left">List</th>
             <th></th>
           </tr>
         </thead>
