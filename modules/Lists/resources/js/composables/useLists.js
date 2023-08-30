@@ -9,6 +9,8 @@ export const useLists = createGlobalState(() => {
 
   const lists = ref([])
 
+  //console.log(lists);
+
   const listsByName = computed(() => orderBy(lists.value, 'name'))
 
   // Only excuted once
