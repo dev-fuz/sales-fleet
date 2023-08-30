@@ -84,7 +84,7 @@ class ListsServiceProvider extends ServiceProvider
         // Register lists menu in settings
         Innoclapps::booting(function () {
             SettingsMenu::register(
-                SettingsMenuItem::make(__('lists::list.lists'), '/settings/lists', 'Bars3CenterLeft')->order(12),
+                SettingsMenuItem::make("Lists", '/settings/lists', 'Bars3CenterLeft')->order(12),
                 'lists'
             );
         });

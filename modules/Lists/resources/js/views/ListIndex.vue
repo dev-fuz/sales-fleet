@@ -1,7 +1,7 @@
 <template>
     <ICard
       header="Lists"
-      :overlay="brandsAreBeingFetched"
+      :overlay="listsAreBeingFetched"
       no-body
     >
       <template #actions>
@@ -21,25 +21,25 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="brand in brandsByName" :key="brand.id">
-            <td v-text="brand.id"></td>
+          <tr v-for="list in listsByName" :key="list.id">
+            <td v-text="list.id"></td>
             <td>
               <router-link
                 class="link"
-                :to="{ name: 'edit-brand', params: { id: brand.id } }"
+                :to="{ name: 'edit-list', params: { id: list.id } }"
               >
-                {{ brand.name }}
+                {{ list.name }}
               </router-link>
             </td>
             <td class="flex justify-end">
               <IMinimalDropdown>
                 <IDropdownItem
-                  :to="{ name: 'edit-brand', params: { id: brand.id } }"
+                  :to="{ name: 'edit-list', params: { id: list.id } }"
                   :text="$t('core::app.edit')"
                 />
   
                 <IDropdownItem
-                  @click="destroy(brand.id)"
+                  @click="destroy(list.id)"
                   :text="$t('core::app.delete')"
                 />
               </IMinimalDropdown>
@@ -50,13 +50,13 @@
     </ICard>
   </template>
   <script setup>
-//   import { useBrands } from '../composables/useBrands'
+  import { useLists } from '../composables/useLists'
   
-//   const { brandsByName, brandsAreBeingFetched, deleteBrand } = useBrands()
+  const { listsByName, listsAreBeingFetched, deleteList } = useLists()
   
-//   async function destroy(id) {
-//     await Innoclapps.dialog().confirm()
-//     deleteBrand(id)
-//   }
+  async function destroy(id) {
+    await Innoclapps.dialog().confirm()
+    deleteList(id)
+  }
   </script>
   
