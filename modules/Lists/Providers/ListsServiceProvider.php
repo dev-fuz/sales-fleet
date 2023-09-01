@@ -2,6 +2,7 @@
 
 namespace Modules\Lists\Providers;
 
+use Illuminate\Support\Facades\Log;
 use Modules\Core\Facades\Innoclapps;
 use Illuminate\Support\ServiceProvider;
 use Modules\Core\Settings\SettingsMenu;
@@ -26,6 +27,7 @@ class ListsServiceProvider extends ServiceProvider
         $this->app->booted(function () {
             Innoclapps::whenReadyForServing($this->bootModule(...));
         });
+
     }
 
     /**
@@ -88,6 +90,9 @@ class ListsServiceProvider extends ServiceProvider
                 'lists'
             );
         });
+
+
+        Log::info('Testing 1');
     }
 
     /**

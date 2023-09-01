@@ -22,7 +22,7 @@ use Modules\Brands\Models\Brand;
 use Modules\Brands\Services\BrandService;
 
 
-class BrandController extends ApiController
+class ListController extends ApiController
 {
     /**
      * Display a listing of the company brands.
