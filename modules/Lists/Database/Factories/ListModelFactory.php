@@ -18,8 +18,15 @@ class ListModelFactory extends Factory
      */
     public function definition(): array
     {
+
+        $listNameComponents = [
+            'Marketing', 'Sales', 'Promotion', 'Customer', 'Target', 'Lead',
+            'Engagement', 'Campaign', 'Audience', 'Conversion', 'Prospect', 'Retention'
+        ];
+        
         return [
-            //
+            'name' => $this->faker->randomElement($listNameComponents),
+            'description' => $this->faker->paragraph()
         ];
     }
 }

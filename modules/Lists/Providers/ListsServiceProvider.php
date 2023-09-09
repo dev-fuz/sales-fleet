@@ -91,8 +91,6 @@ class ListsServiceProvider extends ServiceProvider
             );
         });
 
-
-        Log::info('Testing 1');
     }
 
     /**

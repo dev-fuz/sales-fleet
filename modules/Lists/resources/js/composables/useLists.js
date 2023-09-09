@@ -54,6 +54,7 @@ export const useLists = createGlobalState(() => {
       .get('/lists')
       .then(({ data }) => (lists.value = data))
       .finally(() => setLoading(false))
+
   }
 
   return {

@@ -61,45 +61,45 @@
     </IModal>
   </template>
   <script setup>
-//   import FormVisibilityGroup from '~/Core/resources/js/components/FormVisibilityGroup.vue'
-//   import { useI18n } from 'vue-i18n'
-//   import { useRouter } from 'vue-router'
-//   import { useBrands } from '../composables/useBrands'
-//   import { useForm } from '~/Core/resources/js/composables/useForm'
+  import FormVisibilityGroup from '~/Core/resources/js/components/FormVisibilityGroup.vue'
+  import { useI18n } from 'vue-i18n'
+  import { useRouter } from 'vue-router'
+  import { useBrands } from '../composables/useBrands'
+  import { useForm } from '~/Core/resources/js/composables/useForm'
   
-//   const { t } = useI18n()
-//   const router = useRouter()
+  const { t } = useI18n()
+  const router = useRouter()
   
-//   const { addBrand } = useBrands()
+  const { addBrand } = useBrands()
   
-//   const swatches = Innoclapps.config('favourite_colors')
+  const swatches = Innoclapps.config('favourite_colors')
   
-//   const { form } = useForm({
-//     name: '',
-//     display_name: '',
-//     is_default: false,
-//     config: {
-//       primary_color: '#4f46e5',
-//     },
-//     visibility_group: {
-//       type: 'all',
-//       depends_on: [],
-//     },
-//   })
+  const { form } = useForm({
+    name: '',
+    display_name: '',
+    is_default: false,
+    config: {
+      primary_color: '#4f46e5',
+    },
+    visibility_group: {
+      type: 'all',
+      depends_on: [],
+    },
+  })
   
-//   function create() {
-//     form.post('/brands').then(brand => {
-//       addBrand(brand)
+  function create() {
+    form.post('/brands').then(brand => {
+      addBrand(brand)
   
-//       Innoclapps.success(t('brands::brand.created'))
+      Innoclapps.success(t('brands::brand.created'))
   
-//       router.push({
-//         name: 'edit-brand',
-//         params: {
-//           id: brand.id,
-//         },
-//       })
-//     })
-//   }
+      router.push({
+        name: 'edit-brand',
+        params: {
+          id: brand.id,
+        },
+      })
+    })
+  }
   </script>
   

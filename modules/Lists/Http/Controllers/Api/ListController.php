@@ -16,6 +16,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Core\Http\Controllers\ApiController;
 
+
+
 use Modules\Brands\Http\Requests\BrandRequest;
 use Modules\Brands\Http\Resources\BrandResource;
 use Modules\Brands\Models\Brand;

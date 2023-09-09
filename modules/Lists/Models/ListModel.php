@@ -9,7 +9,7 @@ use Modules\Lists\Database\factories\ListModelFactory;
 class ListModel extends Model {
     use HasFactory;
 
-    protected $fillable = ['name', 'description', 'type'];
+    protected $fillable = ['name', 'description'];
     
     protected static function newFactory()
     {
