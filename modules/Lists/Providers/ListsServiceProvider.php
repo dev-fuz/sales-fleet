@@ -2,7 +2,6 @@
 
 namespace Modules\Lists\Providers;
 
-use Illuminate\Support\Facades\Log;
 use Modules\Core\Facades\Innoclapps;
 use Illuminate\Support\ServiceProvider;
 use Modules\Core\Settings\SettingsMenu;
@@ -43,12 +42,9 @@ class ListsServiceProvider extends ServiceProvider
      */
     protected function registerConfig() : void
     {
-        $this->publishes([
-            module_path($this->moduleName, 'config/config.php') => config_path($this->moduleNameLower . '.php'),
-        ], 'config');
-
         $this->mergeConfigFrom(
-            module_path($this->moduleName, 'config/config.php'), $this->moduleNameLower
+            module_path($this->moduleName, 'config/config.php'),
+            $this->moduleNameLower
         );
     }
 
@@ -57,13 +53,7 @@ class ListsServiceProvider extends ServiceProvider
      */
     public function registerViews() : void
     {
-        $viewPath = resource_path('views/modules/' . $this->moduleNameLower);
-
         $sourcePath = module_path($this->moduleName, 'resources/views');
-
-        $this->publishes([
-            $sourcePath => $viewPath
-        ], ['views', $this->moduleNameLower . '-module-views']);
 
         $this->loadViewsFrom(array_merge($this->getPublishableViewPaths(), [$sourcePath]), $this->moduleNameLower);
     }
@@ -81,7 +71,6 @@ class ListsServiceProvider extends ServiceProvider
      */
     protected function bootModule() : void
     {
-        Innoclapps::booting($this->shareDataToScript(...));
 
         // Register lists menu in settings
         Innoclapps::booting(function () {
@@ -94,21 +83,13 @@ class ListsServiceProvider extends ServiceProvider
     }
 
     /**
-     * Share data to script.
-     */
-    protected function shareDataToScript() : void
-    {
-        Innoclapps::provideToScript([
-            'lists' => []
-        ]);
-    }
-
-    /**
      * Get the services provided by the provider.
      */
     public function provides() : array
     {
-        return [];
+        return [
+            RouteServiceProvider::class
+        ];
     }
 
     /**

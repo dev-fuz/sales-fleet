@@ -64,13 +64,13 @@
   import FormVisibilityGroup from '~/Core/resources/js/components/FormVisibilityGroup.vue'
   import { useI18n } from 'vue-i18n'
   import { useRouter } from 'vue-router'
-  import { useBrands } from '../composables/useBrands'
+  import { useLists } from '../composables/useLists.js'
   import { useForm } from '~/Core/resources/js/composables/useForm'
   
   const { t } = useI18n()
   const router = useRouter()
   
-  const { addBrand } = useBrands()
+  const { addList } = useLists()
   
   const swatches = Innoclapps.config('favourite_colors')
   
@@ -88,15 +88,15 @@
   })
   
   function create() {
-    form.post('/brands').then(brand => {
-      addBrand(brand)
+    form.post('/lists').then(list => {
+      addList(list)
   
-      Innoclapps.success(t('brands::brand.created'))
+      Innoclapps.success("List created succussfully!")
   
       router.push({
-        name: 'edit-brand',
+        name: 'edit-list',
         params: {
-          id: brand.id,
+          id: list.id,
         },
       })
     })

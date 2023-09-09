@@ -12,15 +12,15 @@ if (window.Innoclapps) {
             component: SettingsLists,
             meta: { title: "Lists" },
         })
-        // router.addRoute('settings', {
-        //     path: '/settings/lists/create',
-        //     component: CreateList,
-        //     name: 'create-list',
-        // })
-        // router.addRoute('settings', {
-        //     path: '/settings/lists/:id/edit',
-        //     component: EditList,
-        //     name: 'edit-list',
-        // })
+        router.addRoute('settings', {
+            path: '/settings/lists/create',
+            component: CreateList,
+            name: 'create-list',
+        })
+        router.addRoute('settings', {
+            path: '/settings/lists/:id/edit',
+            component: EditList,
+            name: 'edit-list',
+        })
     })
 }

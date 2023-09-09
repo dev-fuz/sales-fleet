@@ -18,10 +18,10 @@ use Modules\Core\Http\Controllers\ApiController;
 
 
 
-use Modules\Brands\Http\Requests\BrandRequest;
-use Modules\Brands\Http\Resources\BrandResource;
-use Modules\Brands\Models\Brand;
-use Modules\Brands\Services\BrandService;
+use Modules\Lists\Http\Requests\ListRequest;
+use Modules\Lists\Http\Resources\ListResource;
+use Modules\Lists\Models\List;
+// use Modules\Lists\Services\ListService;
 
 
 class ListController extends ApiController
@@ -42,59 +42,59 @@ class ListController extends ApiController
     /**
      * Display the specified company brand.
      */
-    public function show(Brand $brand, Request $request): JsonResponse
-    {
-        $this->authorize('view', $brand);
+    // public function show(Brand $brand, Request $request): JsonResponse
+    // {
+    //     $this->authorize('view', $brand);
 
-        $brand->loadMissing($request->getWith());
+    //     $brand->loadMissing($request->getWith());
 
-        return $this->response(new BrandResource($brand));
-    }
+    //     return $this->response(new BrandResource($brand));
+    // }
 
-    /**
-     * Store a newly created company brand in storage.
-     */
-    public function store(BrandRequest $request, BrandService $service): JsonResponse
-    {
-        $this->authorize('create', Brand::class);
+    // /**
+    //  * Store a newly created company brand in storage.
+    //  */
+    // public function store(BrandRequest $request, BrandService $service): JsonResponse
+    // {
+    //     $this->authorize('create', Brand::class);
 
-        $brand = $service->create($request->input());
+    //     $brand = $service->create($request->input());
 
-        return $this->response(
-            new BrandResource($brand),
-            201
-        );
-    }
+    //     return $this->response(
+    //         new BrandResource($brand),
+    //         201
+    //     );
+    // }
 
-    /**
-     * Update the specified company brand in storage.
-     */
-    public function update(Brand $brand, BrandRequest $request, BrandService $service): JsonResponse
-    {
-        $this->authorize('update', $brand);
+    // /**
+    //  * Update the specified company brand in storage.
+    //  */
+    // public function update(Brand $brand, BrandRequest $request, BrandService $service): JsonResponse
+    // {
+    //     $this->authorize('update', $brand);
 
-        $brand = $service->update($request->input(), $brand);
+    //     $brand = $service->update($request->input(), $brand);
 
-        $brand->loadMissing($request->getWith());
+    //     $brand->loadMissing($request->getWith());
 
-        return $this->response(
-            new BrandResource($brand)
-        );
-    }
+    //     return $this->response(
+    //         new BrandResource($brand)
+    //     );
+    // }
 
-    /**
-     * Remove the specified company brand from storage.
-     */
-    public function destroy(Brand $brand): JsonResponse
-    {
-        if (Brand::count() === 1) {
-            abort(409, 'There must be at least one brand.');
-        }
+    // /**
+    //  * Remove the specified company brand from storage.
+    //  */
+    // public function destroy(Brand $brand): JsonResponse
+    // {
+    //     if (Brand::count() === 1) {
+    //         abort(409, 'There must be at least one brand.');
+    //     }
 
-        $this->authorize('delete', $brand);
+    //     $this->authorize('delete', $brand);
 
-        $brand->delete();
+    //     $brand->delete();
 
-        return $this->response('', 204);
-    }
+    //     return $this->response('', 204);
+    // }
 }

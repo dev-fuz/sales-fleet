@@ -19,6 +19,8 @@ class RouteServiceProvider extends ServiceProvider
     {
         $this->mapApiRoutes();
 
+        dd('InshaAllah will work');
+
         // $this->mapWebRoutes();
     }
 
@@ -32,6 +34,7 @@ class RouteServiceProvider extends ServiceProvider
         Route::middleware('web')
             ->namespace($this->moduleNamespace)
             ->group(module_path('Lists', 'routes/web.php'));
+            dd('test');
     }
 
     /**
@@ -41,6 +44,9 @@ class RouteServiceProvider extends ServiceProvider
      */
     protected function mapApiRoutes() : void
     {
+
+        dd('test');
+
         Route::prefix(\Modules\Core\Application::API_PREFIX)
             ->middleware('api')
             ->namespace($this->moduleNamespace)

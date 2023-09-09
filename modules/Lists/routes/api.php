@@ -14,6 +14,7 @@ use Modules\Lists\Http\Controllers\Api\ListController;
 |
 */
 
+
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('lists', ListController::class);
