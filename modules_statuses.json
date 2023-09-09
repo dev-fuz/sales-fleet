@@ -14,5 +14,6 @@
     "Brands": true,
     "Comments": true,
     "ThemeStyle": true,
-    "Lists": true
+    "Lists": true,
+    "Templates": true
 }
