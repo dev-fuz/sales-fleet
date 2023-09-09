@@ -12,6 +12,7 @@
 
 namespace Modules\Lists\Http\Controllers\Api;
 
+use Illuminate\Foundation\Mix;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Core\Http\Controllers\ApiController;
@@ -20,7 +21,7 @@ use Modules\Core\Http\Controllers\ApiController;
 
 use Modules\Lists\Http\Requests\ListRequest;
 use Modules\Lists\Http\Resources\ListResource;
-use Modules\Lists\Models\List;
+use Modules\Lists\Models\ListModel;
 // use Modules\Lists\Services\ListService;
 
 
@@ -29,14 +30,15 @@ class ListController extends ApiController
     /**
      * Display a listing of the company brands.
      */
-    public function index(): JsonResponse
+    public function index(): Mixed
     {
-        $brands = Brand::visible()
-            ->orderBy('is_default', 'desc')
-            ->orderBy('name')
+        $lists = ListModel::visible()
+            ->orderBy('name', 'desc')
             ->get();
 
-        return $this->response(BrandResource::collection($brands));
+        dd($lists);
+
+        // return $this->response(BrandResource::collection($brands));
     }
 
     /**
