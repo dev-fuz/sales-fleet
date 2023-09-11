@@ -20,9 +20,9 @@ use Modules\Core\Http\Controllers\ApiController;
 
 
 use Modules\Lists\Http\Requests\ListRequest;
-use Modules\Lists\Http\Resources\ListResource;
 use Modules\Lists\Models\ListModel;
-// use Modules\Lists\Services\ListService;
+use Modules\Lists\Services\ListService;
+use Modules\Lists\Http\Resources\ListResource;
 
 
 class ListController extends ApiController
@@ -36,9 +36,7 @@ class ListController extends ApiController
             ->orderBy('name', 'desc')
             ->get();
 
-        dd($lists);
-
-        // return $this->response(BrandResource::collection($brands));
+        return $this->response(ListResource::collection($lists));
     }
 
     /**
@@ -53,20 +51,21 @@ class ListController extends ApiController
     //     return $this->response(new BrandResource($brand));
     // }
 
-    // /**
-    //  * Store a newly created company brand in storage.
-    //  */
-    // public function store(BrandRequest $request, BrandService $service): JsonResponse
-    // {
-    //     $this->authorize('create', Brand::class);
+    /**
+     * Store a newly created list in storage.
+     */
+    public function store(ListRequest $request, ListService $service): JsonResponse
+    {
 
-    //     $brand = $service->create($request->input());
+        $this->authorize('create', ListModel::class);
 
-    //     return $this->response(
-    //         new BrandResource($brand),
-    //         201
-    //     );
-    // }
+        $list = $service->create($request->input());
+
+        return $this->response(
+            new ListResource($list),
+            201
+        );
+    }
 
     // /**
     //  * Update the specified company brand in storage.

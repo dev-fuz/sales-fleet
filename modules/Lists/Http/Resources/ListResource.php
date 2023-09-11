@@ -10,13 +10,13 @@
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
 
-namespace Modules\Brands\Http\Resources;
+namespace Modules\Lists\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /** @mixin \Modules\Brands\Models\Brand */
-class BrandResource extends JsonResource
+class ListResource extends JsonResource
 {
     /**
      * Transform the resource collection into an array.
@@ -26,16 +26,7 @@ class BrandResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'display_name' => $this->display_name,
-            'is_default' => $this->is_default,
-            'config' => $this->config,
-            'logo_view' => $this->logo_view,
-            'logo_view_url' => $this->logoViewUrl,
-            'logo_mail' => $this->logo_mail,
-            'logo_mail_url' => $this->logoMailUrl,
-            $this->mergeWhen(! $request->isZapier(), [
-                'visibility_group' => $this->visibilityGroupData(),
-            ]),
+            'description' => $this->display_name,
         ];
     }
 }
