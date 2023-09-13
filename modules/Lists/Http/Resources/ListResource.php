@@ -26,7 +26,7 @@ class ListResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'description' => $this->display_name,
+            'description' => $this->description,
         ];
     }
 }

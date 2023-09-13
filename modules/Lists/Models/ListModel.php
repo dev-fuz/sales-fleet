@@ -6,12 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Modules\Lists\Database\factories\ListModelFactory;
 
-use Modules\Core\VisibilityGroup\HasVisibilityGroups;
-use Modules\Core\VisibilityGroup\RestrictsModelVisibility;
 
-class ListModel extends Model implements HasVisibilityGroups {
+class ListModel extends Model {
 
-    use HasFactory, RestrictsModelVisibility;
+    use HasFactory;
 
     protected $fillable = ['name', 'description'];
 

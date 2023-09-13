@@ -17,18 +17,9 @@ class ListService
     /**
      * Update the given brand in storage.
      */
-    // public function update(array $attributes, Brand $brand): Brand
-    // {
-    //     $brand->fill($attributes)->save();
-
-    //     if ($attributes['visibility_group'] ?? false) {
-    //         $brand->saveVisibilityGroup($attributes['visibility_group']);
-    //     }
-
-    //     if ($brand->wasChanged('is_default') && $brand->is_default === true) {
-    //         $this->ensureNoOtherBrandIsDefaultThan($brand);
-    //     }
-
-    //     return $brand;
-    // }
+    public function update(array $attributes, ListModel $listModel): ListModel
+    {
+        $listModel->fill($attributes)->save();
+        return $listModel;
+    }
 }

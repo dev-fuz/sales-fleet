@@ -12,7 +12,6 @@
 
 namespace Modules\Lists\Http\Controllers\Api;
 
-use Illuminate\Foundation\Mix;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Core\Http\Controllers\ApiController;
@@ -28,28 +27,23 @@ use Modules\Lists\Http\Resources\ListResource;
 class ListController extends ApiController
 {
     /**
-     * Display a listing of the company brands.
+     * Display a list.
      */
     public function index(): Mixed
     {
-        $lists = ListModel::visible()
-            ->orderBy('name', 'desc')
-            ->get();
+        $lists = ListModel::all();
 
         return $this->response(ListResource::collection($lists));
     }
 
     /**
-     * Display the specified company brand.
+     * Display the specified list.
      */
-    // public function show(Brand $brand, Request $request): JsonResponse
-    // {
-    //     $this->authorize('view', $brand);
-
-    //     $brand->loadMissing($request->getWith());
-
-    //     return $this->response(new BrandResource($brand));
-    // }
+    public function show($id): JsonResponse
+    {
+        $list = ListModel::findOrFail($id);
+        return $this->response(new ListResource($list));
+    }
 
     /**
      * Store a newly created list in storage.
@@ -67,35 +61,33 @@ class ListController extends ApiController
         );
     }
 
-    // /**
-    //  * Update the specified company brand in storage.
-    //  */
-    // public function update(Brand $brand, BrandRequest $request, BrandService $service): JsonResponse
-    // {
-    //     $this->authorize('update', $brand);
+    /**
+     * Update the specified list.
+     */
+    public function update(ListModel $list, ListRequest $request, ListService $service): JsonResponse
+    {
+        $this->authorize('update', $list);
 
-    //     $brand = $service->update($request->input(), $brand);
+        $list = $service->update($request->input(), $list);
 
-    //     $brand->loadMissing($request->getWith());
+        $list->loadMissing($request->getWith());
 
-    //     return $this->response(
-    //         new BrandResource($brand)
-    //     );
-    // }
+        return $this->response(
+            new ListResource($list)
+        );
+    }
 
-    // /**
-    //  * Remove the specified company brand from storage.
-    //  */
-    // public function destroy(Brand $brand): JsonResponse
-    // {
-    //     if (Brand::count() === 1) {
-    //         abort(409, 'There must be at least one brand.');
-    //     }
-
-    //     $this->authorize('delete', $brand);
-
-    //     $brand->delete();
-
-    //     return $this->response('', 204);
-    // }
+    /**
+     * Remove the specified list from storage.
+     */
+    public function destroy($id)
+    {
+        $list = ListModel::findOrFail($id);
+        if($list){
+            $list->delete();
+            return $this->response('', 204);
+        } else {
+            abort(409, 'There must be at least one list.');
+        }
+    }
 }
