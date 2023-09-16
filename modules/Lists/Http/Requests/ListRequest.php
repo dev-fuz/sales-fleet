@@ -29,6 +29,10 @@ class ListRequest extends FormRequest
                 'string',
                 'max:191',
             ],
+            'description' => [
+                'required',
+                'string'
+            ],
         ];
     }
 }
