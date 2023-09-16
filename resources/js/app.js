@@ -45,6 +45,9 @@ import '~/Users/resources/js/app.js'
 import '~/WebForms/resources/js/app.js'
 import '~/ThemeStyle/resources/js/app.js'
 
+// Custom Modules JS Files
+import '~/Lists/resources/js/app.js'
+
 window.CreateApplication = (config, callbacks = []) =>
   new Application(config).booting(callbacks)
 
