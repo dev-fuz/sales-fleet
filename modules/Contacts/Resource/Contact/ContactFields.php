@@ -14,6 +14,7 @@ namespace Modules\Contacts\Resource\Contact;
 
 use Modules\Activities\Fields\NextActivityDate;
 use Modules\Contacts\Fields\Companies;
+use Modules\Contacts\Fields\ListField;
 use Modules\Contacts\Fields\Phone;
 use Modules\Contacts\Fields\Source;
 use Modules\Contacts\Models\Contact;
@@ -108,6 +109,8 @@ class ContactFields
                 ->showValueWhenUnauthorizedToView(),
 
             Source::make(),
+
+            ListField::make(),
 
             IntroductionField::make(__('core::resource.associate_with_records'))
                 ->strictlyForCreation()
