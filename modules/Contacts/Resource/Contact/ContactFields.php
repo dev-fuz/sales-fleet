@@ -110,7 +110,8 @@ class ContactFields
 
             Source::make(),
 
-            ListField::make(),
+            ListField::make()
+                ->attribute('list_id'),
 
             IntroductionField::make(__('core::resource.associate_with_records'))
                 ->strictlyForCreation()

@@ -88,6 +88,7 @@ class Contact extends Model implements Presentable, HandlesChangedMorphManyAttri
         'user.name',
         'country.name',
         'source.name',
+        'list.name',
     ];
 
     /**
@@ -135,6 +136,7 @@ class Contact extends Model implements Presentable, HandlesChangedMorphManyAttri
         'created_by' => 'int',
         'source_id' => 'int',
         'country_id' => 'int',
+        'list_id' => 'int',
         'next_activity_id' => 'int',
     ];
 
@@ -203,6 +205,14 @@ class Contact extends Model implements Presentable, HandlesChangedMorphManyAttri
     public function user(): BelongsTo
     {
         return $this->belongsTo(\Modules\Users\Models\User::class);
+    }
+
+    /**
+     * Get the contact list
+     */
+    public function list(): BelongsTo
+    {
+        return $this->belongsTo(\Modules\Lists\Models\ListModel::class);
     }
 
     /**
