@@ -33,6 +33,8 @@ return new class extends Migration
 
             $table->foreignId('source_id')->nullable()->constrained('sources');
 
+            $table->foreignId('list_id')->nullable()->constrained('lists');
+
             $table->string('first_name');
             $table->string('last_name')->nullable();
 
