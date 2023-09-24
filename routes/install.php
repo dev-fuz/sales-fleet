@@ -3,7 +3,7 @@
 use App\Http\Controllers\InstallController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [InstallController::class, 'index']);
+Route::get('/', [App\Http\Controllers\InstallController::class, 'index']);
 Route::get('permissions', [InstallController::class, 'permissions']);
 
 Route::get('setup', [InstallController::class, 'setup']);
