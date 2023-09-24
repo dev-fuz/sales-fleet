@@ -156,6 +156,7 @@ class InstallController extends Controller
      */
     public function database(): RedirectResponse
     {
+        dd('database');
         $this->migrate();
 
         return redirect('install/user');
