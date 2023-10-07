@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,12 +13,15 @@
 namespace Modules\Core\Actions;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use JsonSerializable;
 use Modules\Core\Authorizeable;
 use Modules\Core\Facades\Innoclapps;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Fields\FieldsCollection;
+use Modules\Core\Http\Requests\ActionRequest;
+use Modules\Core\Http\Requests\ResourceRequest;
 
 abstract class Action implements JsonSerializable
 {
@@ -30,7 +33,7 @@ abstract class Action implements JsonSerializable
     public bool $hideOnIndex = false;
 
     /**
-     * Indicates that the action will be hidden on the view/update view.
+     * Indicates that the action will be hidden on the update view.
      */
     public bool $hideOnUpdate = false;
 
@@ -38,6 +41,16 @@ abstract class Action implements JsonSerializable
      * Indicates that the action does not have confirmation dialog.
      */
     public bool $withoutConfirmation = false;
+
+    /**
+     * Action name
+     */
+    protected ?string $name = null;
+
+    /**
+     * The action modal size. (sm, md, lg, xl, xxl)
+     */
+    public string $size = 'sm';
 
     /**
      * Determine if the action is executable for the given request.
@@ -67,11 +80,11 @@ abstract class Action implements JsonSerializable
     /**
      * Resolve action fields.
      *
-     * @return \Illuminate\Support\Collection
+     * @return \Modules\Core\Fields\FieldsCollection
      */
     public function resolveFields(ResourceRequest $request)
     {
-        return collect($this->fields($request))->filter->authorizedToSee()->values();
+        return (new FieldsCollection($this->fields($request)))->authorized();
     }
 
     /**
@@ -81,7 +94,7 @@ abstract class Action implements JsonSerializable
      */
     public function run(ActionRequest $request, Builder $query)
     {
-        $ids = $request->input('ids');
+        $ids = $request->input('ids', []);
         $fields = $request->resolveFields();
 
         /**
@@ -97,7 +110,7 @@ abstract class Action implements JsonSerializable
          */
         if ($models->count() === 0) {
             return static::error(__('users::user.not_authorized'));
-        } elseif ($models->count() > (int) config('core.actions.disable_notifications_when_records_are_more_than')) {
+        } elseif ($models->count() > (int) config('core.actions.disable_notifications_more_than')) {
             Innoclapps::disableNotifications();
         }
 
@@ -112,6 +125,16 @@ abstract class Action implements JsonSerializable
         }
 
         return static::success(__('core::actions.run_successfully'));
+    }
+
+    /**
+     * Set the action modal size.
+     */
+    public function size(string $size): static
+    {
+        $this->size = $size;
+
+        return $this;
     }
 
     /**
@@ -147,22 +170,29 @@ abstract class Action implements JsonSerializable
     }
 
     /**
-     * Filter models for exeuction.
-     *
-     * @param  \Illuminate\Support\Collection  $models
-     * @return \Illuminate\Support\Collection
+     * Return an open new tab response from the action.
      */
-    public function filterForExecution($models, ActionRequest $request)
+    public static function openInNewTab(string $url): array
     {
-        return $models->filter(fn ($model) => $this->authorizedToRun($request, $model));
+        return ['openInNewTab' => $url];
     }
 
     /**
-     * The action human readable name.
+     * Provide action human readable name.
      */
-    public function name(): ?string
+    public function name(): string
     {
-        return Str::title(Str::snake(get_called_class(), ' '));
+        return $this->name ?: Str::title(Str::snake(get_called_class(), ' '));
+    }
+
+    /**
+     * Set the action name.
+     */
+    public function setName(string $name): static
+    {
+        $this->name = $name;
+
+        return $this;
     }
 
     /**
@@ -192,6 +222,14 @@ abstract class Action implements JsonSerializable
     }
 
     /**
+     * Get the component the action should use.
+     */
+    public function component(): string
+    {
+        return 'action-dialog';
+    }
+
+    /**
      * Set the action to be available only on index view.
      */
     public function onlyOnIndex(): static
@@ -214,22 +252,19 @@ abstract class Action implements JsonSerializable
     }
 
     /**
-     * Return an open new tab response from the action.
+     * Query the models for execution
      */
-    public static function openInNewTab(string $url): array
+    protected function findModelsForExecution(array $ids, Builder $query): EloquentCollection
     {
-        return ['openInNewTab' => $url];
+        return $query->findMany($ids);
     }
 
     /**
-     * Query the models for execution
-     *
-     * @param  array  $ids
-     * @return \Illuminate\Database\Eloquent\Collection
+     * Filter models for exeuction.
      */
-    protected function findModelsForExecution($ids, Builder $query)
+    public function filterForExecution(Collection $models, ActionRequest $request): Collection
     {
-        return $query->findMany($ids);
+        return $models->filter(fn ($model) => $this->authorizedToRun($request, $model));
     }
 
     /**
@@ -240,11 +275,13 @@ abstract class Action implements JsonSerializable
         return [
             'name' => $this->name(),
             'message' => $this->message(),
+            'component' => $this->component(),
             'destroyable' => $this instanceof DestroyableAction,
             'withoutConfirmation' => $this->withoutConfirmation,
             'fields' => $this->resolveFields(app(ResourceRequest::class)),
             'hideOnIndex' => $this->hideOnIndex,
             'hideOnUpdate' => $this->hideOnUpdate,
+            'size' => $this->size,
             'uriKey' => $this->uriKey(),
         ];
     }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -19,18 +19,20 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Billable\Database\Factories\ProductFactory;
 use Modules\Core\Concerns\HasCreator;
+use Modules\Core\Concerns\LazyTouchesViaPivot;
 use Modules\Core\Concerns\Prunable;
 use Modules\Core\Contracts\Presentable;
-use Modules\Core\Models\Model;
+use Modules\Core\Models\CacheModel;
 use Modules\Core\Resource\Resourceable;
 
-class Product extends Model implements Presentable
+class Product extends CacheModel implements Presentable
 {
     use HasCreator,
         HasFactory,
+        LazyTouchesViaPivot,
+        Prunable,
         Resourceable,
-        SoftDeletes,
-        Prunable;
+        SoftDeletes;
 
     /**
      * The attributes that aren't mass assignable.
@@ -55,27 +57,14 @@ class Product extends Model implements Presentable
     ];
 
     /**
-     * The fields for the model that are searchable.
+     * The columns for the model that are searchable.
      */
-    protected static array $searchableFields = [
+    protected static array $searchableColumns = [
+        'name' => 'like',
         'sku',
         'is_active',
-        'name' => 'like',
+        'created_by',
     ];
-
-    /**
-     * Boot the model.
-     */
-    protected static function boot(): void
-    {
-        parent::boot();
-
-        static::deleting(function ($model) {
-            if ($model->isForceDeleting()) {
-                $model->billables->each->delete();
-            }
-        });
-    }
 
     /**
      * Scope a query to only include active products.
@@ -86,7 +75,7 @@ class Product extends Model implements Presentable
     }
 
     /**
-     * Get the product billable products
+     * Get the product billable products.
      */
     public function billables(): HasMany
     {
@@ -94,7 +83,7 @@ class Product extends Model implements Presentable
     }
 
     /**
-     * Get the model display name
+     * Get the model display name.
      */
     public function displayName(): Attribute
     {
@@ -102,11 +91,13 @@ class Product extends Model implements Presentable
     }
 
     /**
-     * Get the URL path
+     * Get the URL path.
      */
     public function path(): Attribute
     {
-        return Attribute::get(fn () => "/products/{$this->id}");
+        return Attribute::get(
+            fn () => "/products/{$this->id}"
+        );
     }
 
     /**

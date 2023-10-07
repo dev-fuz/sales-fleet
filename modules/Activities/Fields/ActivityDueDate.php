@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,29 +12,38 @@
 
 namespace Modules\Activities\Fields;
 
+use Illuminate\Database\Eloquent\Builder;
 use Modules\Activities\Models\Activity;
-use Modules\Core\Date\Carbon;
 use Modules\Core\Facades\Format;
 use Modules\Core\Fields\Date;
-use Modules\Core\Placeholders\DatePlaceholder;
-use Modules\Core\Placeholders\DateTimePlaceholder;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Http\Requests\ResourceRequest;
+use Modules\Core\Models\Model;
+use Modules\Core\Support\Date\Carbon;
+use Modules\Core\Support\Placeholders\DatePlaceholder;
+use Modules\Core\Support\Placeholders\DateTimePlaceholder;
+use Modules\Core\Table\Column;
 
 class ActivityDueDate extends Date
 {
     /**
      * The model attribute that hold the time
-     *
-     * @var string
      */
-    protected $timeField = 'due_time';
+    protected string $timeField = 'due_time';
 
     /**
      * The model attribute that holds the date
-     *
-     * @var string
      */
-    protected $dateField = 'due_date';
+    protected string $dateField = 'due_date';
+
+    /**
+     * The inline edit popover width (medium|large).
+     */
+    public string $inlineEditPanelWidth = 'large';
+
+    /**
+     * Field component.
+     */
+    public static $component = 'activity-due-date-field';
 
     /**
      * Initialize new ActivityDueDate instance class
@@ -43,24 +52,30 @@ class ActivityDueDate extends Date
     {
         parent::__construct($this->dateField, $label);
 
-        $this->tapIndexColumn(function ($column) {
-            return $column->width('180px')
-                ->queryAs(Activity::dateTimeExpression($this->dateField, $this->timeField, $this->dateField))
-                ->displayAs(function ($model) {
-                    return $model->{$this->timeField} ? Format::dateTime(
-                        $model->{$this->dateField}
-                    ) : Format::date($model->{$this->dateField});
+        $this->tapIndexColumn(function (Column $column) {
+            return $column->queryAs(Activity::dateTimeExpression($this->dateField, $this->timeField, $this->dateField))
+                ->orderByUsing(function (Builder $query, string $direction) {
+                    return $query->orderBy(
+                        Activity::dateTimeExpression($this->dateField, $this->timeField),
+                        $direction
+                    );
                 });
-        })->provideSampleValueUsing(fn () => date('Y-m-d').' 08:00:00')
+        })
+            ->hideLabel()
+            ->displayUsing(fn ($model, $value) => Format::separateDateAndTime(
+                $model->{$this->dateField},
+                $model->{$this->timeField},
+                $model->user
+            ))
+            ->provideSampleValueUsing(fn () => date('Y-m-d').' 08:00:00')
+            ->fillUsing(function (Model $model, string $attribute, ResourceRequest $request, mixed $value, string $requestAttribute) {
+                $model->{$this->dateField} = $request->input($this->dateField);
+                $model->{$this->timeField} = $this->ensureTimeAttributeHasSeconds($request->input($this->timeField));
+            })
             ->prepareForValidation(
-                fn ($value, $request, $validator) => $this->mergeAttributesBeforeValidation($value, $request)
+                fn (mixed $value, ResourceRequest $request) => $this->parsePreValidationValue($value, $request)
             );
     }
-
-    /**
-     * Field component
-     */
-    public ?string $component = 'activity-due-date-field';
 
     /**
      * Resolve the field value for JSON Resource
@@ -94,57 +109,10 @@ class ActivityDueDate extends Date
     }
 
     /**
-     * Resolve the displayable field value
-     *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return string|null
-     */
-    public function resolveForDisplay($model)
-    {
-        return Format::separateDateAndTime(
-            $model->{$this->dateField},
-            $model->{$this->timeField},
-            $model->user
-        );
-    }
-
-    /**
-     * Resolve the field value for import
-     *
-     * @param  string|null  $value
-     * @param  array  $row
-     * @param  array  $original
-     * @return array
-     */
-    public function resolveForImport($value, $row, $original)
-    {
-        $value = parent::resolveForImport(
-            $value,
-            $row,
-            $original
-        )[$this->attribute];
-
-        return $this->createSeparateDateAndTimeAttributes($value);
-    }
-
-    /**
-     * Create the field storage data for the given request
-     *
-     * @param  string  $requestAttribute
-     * @return array
-     */
-    public function getDataForStorage(ResourceRequest $request, $requestAttribute)
-    {
-        return $this->createSeparateDateAndTimeAttributes(
-            $this->attributeFromRequest($request, $requestAttribute)
-        );
-    }
-
-    /**
      * Get the mailable template placeholder
      *
      * @param  \Modules\Core\Models\Model|null  $model
-     * @return \Modules\Core\Placeholders\DatePlaceholder|\Modules\Core\Placeholders\DateTimePlaceholder
+     * @return \Modules\Core\Support\Placeholders\DatePlaceholder|\Modules\Core\Support\Placeholders\DateTimePlaceholder
      */
     public function mailableTemplatePlaceholder($model)
     {
@@ -161,11 +129,12 @@ class ActivityDueDate extends Date
      * Create separate and and time attributes from the given value
      *
      * @param  string|null  $value
+     * @param  \Modules\Core\Http\Requests\ResourceRequest  $request
      * @param  string|null  $dateAttribute
      * @param  string|null  $timeAttribute
      * @return array
      */
-    protected function createSeparateDateAndTimeAttributes($value, $dateAttribute = null, $timeAttribute = null)
+    protected function createSeparateDateAndTimeAttributes($value, $request, $dateAttribute = null, $timeAttribute = null)
     {
         $dateAttribute = ($dateAttribute ?: $this->dateField);
         $timeAttribute = ($timeAttribute ?: $this->timeField);
@@ -182,8 +151,8 @@ class ActivityDueDate extends Date
 
         // Overrides if the date is provided in full e.q. 2021-12-14 12:00:00
         // and the user provide time field e.q. 14:00:00 the 14:00:00 will be used
-        if (! $time && $this->resolveRequest()->has($timeAttribute)) {
-            $time = $this->resolveRequest()->{$timeAttribute};
+        if (! $time && $request->has($timeAttribute)) {
+            $time = $request->{$timeAttribute};
         }
 
         return [
@@ -193,15 +162,19 @@ class ActivityDueDate extends Date
     }
 
     /**
-     * Merge the attributes before validating
+     * Parse the value before validation.
      *
      * @param  mixed  $value
-     * @param  \Modules\Core\Resource\Http\ResourceRequest  $request
      * @return string|null
      */
-    protected function mergeAttributesBeforeValidation($value, $request)
+    protected function parsePreValidationValue($value, ResourceRequest $request)
     {
-        $attributes = $this->createSeparateDateAndTimeAttributes($value);
+        // If both fields are present, we will just return the actual provided field date value
+        if ($request->has([$this->dateField, $this->timeField])) {
+            return $request->input($this->dateField);
+        }
+
+        $attributes = $this->createSeparateDateAndTimeAttributes($value, $request);
 
         // When provided the field as full date and time e.q. 2021-12-14 12:00:00 the time field
         // will be missing in the request, we need to merge it with the other fields
@@ -243,5 +216,29 @@ class ActivityDueDate extends Date
         return Carbon::parse(
             Carbon::parse($date)->format('Y-m-d').($time ? ' '.$time : '')
         );
+    }
+
+    /**
+     * Ensure the given time attribute value has seconds.
+     */
+    protected function ensureTimeAttributeHasSeconds($value): mixed
+    {
+        if (! $value) {
+            return $value;
+        }
+
+        if ($this->missingSeconds($value)) {
+            return $value.':00';
+        }
+
+        return $value;
+    }
+
+    /**
+     * Check if the given time string has seconds.
+     */
+    protected function missingSeconds(string $timeString): bool
+    {
+        return preg_match('/^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/', $timeString) === 1;
     }
 }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,20 +16,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Modules\Contacts\Database\Factories\PhoneFactory;
 use Modules\Contacts\Enums\PhoneType;
-use Modules\Core\Contracts\Fields\TracksMorphManyModelAttributes;
 use Modules\Core\CountryCallingCode;
 use Modules\Core\Models\Model;
+use Modules\Core\Resource\Import\Import;
 
-class Phone extends Model implements TracksMorphManyModelAttributes
+class Phone extends Model
 {
     use HasFactory;
-
-    /**
-     * All of the relationships to be touched.
-     *
-     * @var array
-     */
-    protected $touches = ['phoneable'];
 
     /**
      * The attributes that are mass assignable.
@@ -50,7 +43,14 @@ class Phone extends Model implements TracksMorphManyModelAttributes
     ];
 
     /**
-     * Get the phoneables
+     * The relationships that should be touched on save.
+     *
+     * @var array
+     */
+    protected $touches = ['phoneable'];
+
+    /**
+     * Get the phoneable
      */
     public function phoneable(): MorphTo
     {
@@ -58,17 +58,9 @@ class Phone extends Model implements TracksMorphManyModelAttributes
     }
 
     /**
-     * Get the attributes the changes should be tracked on
-     */
-    public function trackAttributes(): string
-    {
-        return 'number';
-    }
-
-    /**
      * Generate random phone number
      */
-    public static function generateRandomPhoneNumber(): string
+    public static function generateRandomNumber(): string
     {
         return CountryCallingCode::random().mt_rand(100, 1000).'-'.mt_rand(100, 1000).'-'.mt_rand(100, 1000);
     }
@@ -84,6 +76,20 @@ class Phone extends Model implements TracksMorphManyModelAttributes
             // For table serialization, will show the string value on the front-end
             'type' => $this->type->name,
         ]);
+    }
+
+    /**
+     * Touch the owning relations of the model.
+     *
+     * @return void
+     */
+    public function touchOwners()
+    {
+        if (Import::$running) {
+            return;
+        }
+
+        return parent::touchOwners();
     }
 
     /**

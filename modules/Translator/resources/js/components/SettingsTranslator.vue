@@ -2,11 +2,11 @@
   <ICard :header="$t('translator::translator.translator')" no-body>
     <template #actions>
       <div class="flex items-center space-x-3">
-        <FormDropdownSelect
-          :items="locales"
+        <DropdownSelectInput
           v-model="locale"
-          @change="getTranslations"
+          :items="locales"
           placement="bottom-end"
+          @change="getTranslations"
         />
         <IButton
           v-i-modal="'new-locale'"
@@ -20,16 +20,16 @@
     <ul class="divide-y divide-neutral-200 dark:divide-neutral-700">
       <li
         v-for="(groupTranslations, group) in translations.current.groups"
-        :key="group"
         v-show="!activeGroup || activeGroup === group"
+        :key="group"
       >
         <div class="hover:bg-neutral-100 dark:hover:bg-neutral-700/60">
           <div class="flex items-center">
             <div class="grow">
               <a
                 href="#"
-                @click.prevent="toggleGroup(group)"
                 class="block px-7 py-2 font-medium text-neutral-600 focus:outline-none dark:text-neutral-200"
+                @click.prevent="toggleGroup(group)"
                 v-text="strTitle(group.replace('_', ' '))"
               />
             </div>
@@ -37,16 +37,16 @@
               <IButton
                 variant="white"
                 size="sm"
-                @click="toggleGroup(group)"
                 icon="ChevronDown"
+                @click="toggleGroup(group)"
               />
             </div>
           </div>
         </div>
         <form
-          @submit.prevent="saveGroup(group)"
-          novalidate="true"
           v-show="activeGroup === group"
+          novalidate="true"
+          @submit.prevent="saveGroup(group)"
         >
           <ITable :shadow="false">
             <thead>
@@ -82,10 +82,10 @@
           >
             <IButton
               size="sm"
-              @click="deactivateGroup(group, true)"
               :disabled="groupIsBeingSaved"
               :text="$t('core::app.cancel')"
               variant="white"
+              @click="deactivateGroup(group, true)"
             />
             <IButton
               type="submit"
@@ -105,8 +105,8 @@
       :key="namespace"
     >
       <p
-        class="bg-neutral-100 px-7 py-3 font-semibold text-neutral-700 dark:bg-neutral-700 dark:text-neutral-300"
         v-show="!activeGroup"
+        class="bg-neutral-100 px-7 py-3 font-semibold text-neutral-700 dark:bg-neutral-700 dark:text-neutral-300"
       >
         {{ strTitle(namespace) }}
       </p>
@@ -116,19 +116,19 @@
           v-for="(groupTranslations, group) in translations.current.namespaces[
             namespace
           ]"
-          :key="group"
           v-show="
             !activeGroup ||
             (activeGroup === group && activeNamespace === namespace)
           "
+          :key="group"
         >
           <div class="hover:bg-neutral-100 dark:hover:bg-neutral-700/60">
             <div class="flex items-center">
               <div class="grow">
                 <a
                   href="#"
-                  @click.prevent="toggleGroup(group, namespace)"
                   class="block px-7 py-2 font-medium text-neutral-600 focus:outline-none dark:text-neutral-200"
+                  @click.prevent="toggleGroup(group, namespace)"
                   v-text="strTitle(group.replace('_', ' '))"
                 />
               </div>
@@ -136,16 +136,16 @@
                 <IButton
                   variant="white"
                   size="sm"
-                  @click="toggleGroup(group, namespace)"
                   icon="ChevronDown"
+                  @click="toggleGroup(group, namespace)"
                 />
               </div>
             </div>
           </div>
           <form
-            @submit.prevent="saveGroup(group, namespace)"
-            novalidate="true"
             v-show="activeGroup === group && activeNamespace === namespace"
+            novalidate="true"
+            @submit.prevent="saveGroup(group, namespace)"
           >
             <ITable :shadow="false">
               <thead>
@@ -187,10 +187,10 @@
             >
               <IButton
                 size="sm"
-                @click="deactivateGroup(group, true)"
                 :disabled="groupIsBeingSaved"
                 :text="$t('core::app.cancel')"
                 variant="white"
+                @click="deactivateGroup(group, true)"
               />
               <IButton
                 type="submit"
@@ -204,16 +204,17 @@
         </li>
       </ul>
     </template>
+
     <IModal
-      size="sm"
       id="new-locale"
+      size="sm"
       form
-      @submit="createLocale"
-      @keydown="localeForm.onKeydown($event)"
-      @shown="() => $refs.inputNameRef.focus()"
       :ok-title="$t('core::app.create')"
       :cancel-title="$t('core::app.cancel')"
       :title="$t('translator::translator.create_new_locale')"
+      @submit="createLocale"
+      @keydown="localeForm.onKeydown($event)"
+      @shown="() => $refs.inputNameRef.focus()"
     >
       <IFormGroup
         label-for="localeName"
@@ -222,24 +223,27 @@
       >
         <IFormInput
           id="localeName"
-          v-model="localeForm.name"
           ref="inputNameRef"
+          v-model="localeForm.name"
         />
         <IFormError v-text="localeForm.getError('name')" />
       </IFormGroup>
     </IModal>
   </ICard>
 </template>
+
 <script setup>
 import { ref } from 'vue'
-import { useStore } from 'vuex'
-import { strTitle } from '@/utils'
-import isEqual from 'lodash/isEqual'
-import cloneDeep from 'lodash/cloneDeep'
-import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useForm } from '~/Core/resources/js/composables/useForm'
-import { useApp } from '~/Core/resources/js/composables/useApp'
+import { onBeforeRouteLeave, useRoute } from 'vue-router'
+import { useStore } from 'vuex'
+import cloneDeep from 'lodash/cloneDeep'
+import isEqual from 'lodash/isEqual'
+
+import { strTitle } from '@/utils'
+
+import { useApp } from '~/Core/composables/useApp'
+import { useForm } from '~/Core/composables/useForm'
 
 const { t } = useI18n()
 const store = useStore()
@@ -355,6 +359,7 @@ function createLocale() {
 function toggleGroup(group, namespace = null) {
   if (activeGroup.value) {
     deactivateGroup(group)
+
     return
   }
 
@@ -374,10 +379,12 @@ function deactivateGroup(group, skipConfirmation = false) {
   if (skipConfirmation || !groupIsModified) {
     activeGroup.value = null
     activeNamespace.value = null
+
     // Replace only when group group modified
     if (groupIsModified) {
       replaceOriginalTranslations(group, namespace)
     }
+
     return
   }
 
@@ -399,6 +406,7 @@ function replaceOriginalTranslations(group, namespace = null) {
     translations.value.current.namespaces[namespace][group] = cloneDeep(
       originalTranslations.namespaces[namespace][group]
     )
+
     return
   }
 

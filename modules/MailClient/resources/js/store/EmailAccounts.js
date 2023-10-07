@@ -1,19 +1,20 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import PersistentResourceCrud from '@/store/actions/PersistentResourceCrud'
-import PersistentResourceMutations from '@/store/mutations/PersistentResourceMutations'
-import PersistentResourceGetters from '@/store/getters/PersistentResourceGetters'
-import orderBy from 'lodash/orderBy'
-import find from 'lodash/find'
 import filter from 'lodash/filter'
+import find from 'lodash/find'
+import orderBy from 'lodash/orderBy'
+
+import PersistentResourceCrud from '@/store/actions/PersistentResourceCrud'
+import PersistentResourceGetters from '@/store/getters/PersistentResourceGetters'
+import PersistentResourceMutations from '@/store/mutations/PersistentResourceMutations'
 
 const state = {
   collection: [],
@@ -30,9 +31,6 @@ const mutations = {
 
   /**
    * Sets that there is a configuration error an account
-   *
-   * @param {Object} state
-   * @param {mixed} error
    */
   SET_ACCOUNT_CONFIG_ERROR(state, error) {
     state.accountConfigError = error
@@ -40,11 +38,6 @@ const mutations = {
 
   /**
    * Set that indicator that synchronization is in progress
-   *
-   * @param  {Object} state
-   * @param  {Boolean} bool
-   *
-   * @return {void}
    */
   SET_SYNC_IN_PROGRESS(state, bool) {
     state.syncInProgress = bool
@@ -52,11 +45,6 @@ const mutations = {
 
   /**
    * Set the active inbox account
-   *
-   * @param  {Object} state
-   * @param  {Object|Number} account
-   *
-   * @return {void}
    */
   SET_INBOX_ACCOUNT(state, account) {
     if (typeof account != 'number') {
@@ -68,9 +56,6 @@ const mutations = {
 
   /**
    * Set the account connection state for the form
-   *
-   * @param {Object} state
-   * @param {Boolean} bool
    */
   SET_FORM_CONNECTION_STATE(state, bool) {
     state.formConnectionState = bool
@@ -81,7 +66,6 @@ const mutations = {
    * The function unsets any previous primary accounts from the store
    * and updates the given account id to be as primary
    *
-   * @param {Object} state
    * @param {Number} id|null When passing null, all accounts are marked as not primary
    */
   SET_ACCOUNT_AS_PRIMARY(state, id) {
@@ -98,10 +82,6 @@ const getters = {
 
   /**
    * Get the shared accounts the user is able to view
-   *
-   * @param  {Object} state
-   *
-   * @return {Array}
    */
   shared(state) {
     return filter(state.collection, ['type', 'shared'])
@@ -109,10 +89,6 @@ const getters = {
 
   /**
    * Get the user personal accounts
-   *
-   * @param  {Object} state
-   *
-   * @return {Array}
    */
   personal(state) {
     return filter(state.collection, ['type', 'personal'])
@@ -120,12 +96,8 @@ const getters = {
 
   /**
    * Get account OAuth Connect URL
-   *
-   * @param  {Object} state)
-   *
-   * @return {String}
    */
-  OAuthConnectUrl: state => (connection_type, type) => {
+  OAuthConnectUrl: () => (connection_type, type) => {
     if (connection_type == 'Gmail') {
       return (
         Innoclapps.config('url') + '/mail/accounts/' + type + '/google/connect'
@@ -142,10 +114,6 @@ const getters = {
 
   /**
    * Get the active inbox acccount
-   *
-   * @param  {Object} state
-   *
-   * @return {Object}
    */
   activeInboxAccount(state) {
     return (
@@ -154,12 +122,7 @@ const getters = {
   },
 
   /**
-   * Get all accounts sorted by first primary acccounts
-   * then by email
-   *
-   * @param  {Object} state
-   *
-   * @return {Array}
+   * Get all accounts sorted by first primary acccounts then by email
    */
   accounts(state) {
     return orderBy(state.collection, ['is_primary', 'email'], ['desc', 'asc'])
@@ -167,21 +130,20 @@ const getters = {
 
   /**
    * Check whether there are accounts configured for the current user
-   *
-   * @param  {Object} state
-   *
-   * @return {Boolean}
    */
   hasConfigured(state) {
     return state.collection.length > 0
   },
 
   /**
+   * Check whether the current user has primary account configured.
+   */
+  hasPrimary(state) {
+    return state.collection.filter(account => account.is_primary).length > 0
+  },
+
+  /**
    * Get the latest created account
-   *
-   * @param  {Object} state
-   *
-   * @return {Object}
    */
   latest(state) {
     return orderBy(state.collection, account => new Date(account.created_at), [
@@ -195,11 +157,6 @@ const actions = {
 
   /**
    * Remove primary account
-   *
-   * @param {Object} options.state
-   * @param {Function} options.commit
-   *
-   * @return {Void}
    */
   removePrimary({ state, commit }) {
     Innoclapps.request()
@@ -211,12 +168,6 @@ const actions = {
 
   /**
    * Set the account is primary state
-   *
-   * @param {Object} options.state
-   * @param {Function} options.commit
-   * @param {Object} payload
-   *
-   * @return {Void}
    */
   setPrimary({ state, commit }, id) {
     Innoclapps.request()
@@ -228,12 +179,6 @@ const actions = {
 
   /**
    * Enable account synchronization
-   *
-   * @param {Object} options.state
-   * @param {Function} options.commit
-   * @param {Int} id
-   *
-   * @return {Void}
    */
   enableSync({ state, commit }, id) {
     Innoclapps.request()
@@ -248,12 +193,6 @@ const actions = {
 
   /**
    * Disable account synchronization
-   *
-   * @param {Object} options.state
-   * @param {Function} options.commit
-   * @param {Int} id
-   *
-   * @return {Void}
    */
   disableSync({ state, commit }, id) {
     Innoclapps.request()
@@ -268,11 +207,6 @@ const actions = {
 
   /**
    * Syncs shared email account
-   *
-   * @param  {Function} options.commit
-   * @param  {Number} accountId
-   *
-   * @return {Object}
    */
   async syncAccount({ commit }, accountId) {
     commit('SET_SYNC_IN_PROGRESS', true)
@@ -286,11 +220,6 @@ const actions = {
 
   /**
    * Delete a record
-   *
-   * @param  {Object} context
-   * @param  {Number} id
-   *
-   * @return {Boolean}
    */
   async destroy(context, id) {
     let { data } = await Innoclapps.request().delete(`${state.endpoint}/${id}`)
@@ -303,11 +232,6 @@ const actions = {
 
   /**
    * Update the total unread count UI
-   *
-   * @param  {Object} context
-   * @param  {Number} unreadCount
-   *
-   * @return {Void}
    */
   updateUnreadCountUI(context, unreadCount) {
     context.commit(
@@ -323,11 +247,7 @@ const actions = {
   },
 
   /**
-   * Decrement total unread count UI
-   *
-   * @param  {Object} context
-   *
-   * @return {Void}
+   * Decrement total unread count updateUnreadCountUI
    */
   decrementUnreadCountUI(context) {
     let item = context.rootGetters.getMenuItem('inbox')

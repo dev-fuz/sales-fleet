@@ -7,7 +7,7 @@ use Modules\Core\Contracts\Workflow\EventTrigger;
 use Modules\Core\Contracts\Workflow\ModelTrigger;
 use Modules\Core\Workflow\Trigger;
 
-class ContactCreatedTrigger extends Trigger implements ModelTrigger, EventTrigger
+class ContactCreatedTrigger extends Trigger implements EventTrigger, ModelTrigger
 {
     /**
      * Trigger name

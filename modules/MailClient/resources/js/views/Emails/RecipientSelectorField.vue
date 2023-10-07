@@ -5,9 +5,10 @@
     </div>
     <div class="recipient grow">
       <ICustomSelect
+        ref="selectRef"
+        v-model="form[type]"
         :input-id="type"
         :options="options"
-        ref="selectRef"
         :filterable="false"
         :clearable="false"
         :taggable="true"
@@ -42,7 +43,6 @@
         :placeholder="$t('mailclient::inbox.search_recipients')"
         @option:selected="handleRecipientSelected"
         @search="asyncSearch"
-        v-model="form[type]"
       >
         <!-- Searched emails -->
         <template #option="option">
@@ -50,7 +50,13 @@
             <span class="mr-2 truncate">
               {{ option.name }} {{ option.address }}
             </span>
-            <span>{{ option.resourceSingularName }}</span>
+            <Icon
+              v-if="option.resourceName"
+              :icon="
+                option.resourceName === 'contacts' ? 'User' : 'OfficeBuilding'
+              "
+              class="h-5 w-5"
+            />
           </span>
         </template>
         <!-- Selected -->
@@ -58,13 +64,13 @@
           #selected-option-container="{ option, disabled, deselect, multiple }"
         >
           <span
+            :key="option.index"
             :class="[
               'mr-2 inline-flex rounded-md bg-neutral-100 px-2 dark:bg-neutral-500 dark:text-white',
               {
                 'border border-danger-500': !validateAddress(option.address),
               },
             ]"
-            v-bind:key="option.index"
           >
             <span v-if="!option.name">
               {{ option.address }}
@@ -76,10 +82,10 @@
               v-if="multiple"
               type="button"
               :disabled="disabled"
-              @click.prevent.stop="removeRecipient(deselect, option)"
               class="ml-1 text-neutral-400 hover:text-neutral-600 dark:text-neutral-200 dark:hover:text-neutral-400"
               title="Remove recipient"
               aria-label="Remove recipient"
+              @click.prevent.stop="removeRecipient(deselect, option)"
             >
               <Icon icon="X" class="h-4 w-4" />
             </button>
@@ -91,16 +97,17 @@
     <slot name="after"></slot>
   </div>
 </template>
+
 <script setup>
-import { ref, shallowRef, nextTick } from 'vue'
-import debounce from 'lodash/debounce'
+import { ref, shallowRef } from 'vue'
 import validator from 'email-validator'
-import { CancelToken } from '~/Core/resources/js/services/HTTP'
-import { useResource } from '~/Core/resources/js/composables/useResource'
+import debounce from 'lodash/debounce'
+
+import { CancelToken } from '~/Core/services/HTTP'
 
 const emit = defineEmits(['recipient-removed', 'recipient-selected'])
 
-const props = defineProps({
+defineProps({
   label: String,
   type: { type: String, required: true },
   form: { required: true },
@@ -108,8 +115,6 @@ const props = defineProps({
 
 const selectRef = ref(null)
 const options = shallowRef([])
-
-const { getSingularName } = useResource()
 
 let cancelToken = null
 
@@ -159,12 +164,7 @@ const asyncSearch = debounce(function (q, loading) {
       if (data) {
         let opts = []
         data.forEach(result => opts.push(...result.data))
-        nextTick(() => {
-          options.value = opts.map(opt => {
-            opt.resourceSingularName = getSingularName(opt.resourceName)
-            return opt
-          })
-        })
+        options.value = opts
       }
     })
     .finally(() => loading(false))
@@ -185,6 +185,7 @@ function validateAddress(address) {
 
 defineExpose({ focus })
 </script>
+
 <style scoped>
 ::v-deep(.cs__search::-webkit-search-cancel-button) {
   display: none !important;

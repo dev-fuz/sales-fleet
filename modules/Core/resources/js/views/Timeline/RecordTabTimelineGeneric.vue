@@ -1,10 +1,12 @@
 <template>
   <TimelineEntry
     :resource-name="resourceName"
+    :resource-id="resourceId"
     :created-at="log.created_at"
     :is-pinned="log.is_pinned"
     :timelineable-id="log.id"
     :timeline-relationship="log.timeline_relation"
+    :timeline-subject-key="resource.timeline_subject_key"
     :timelineable-key="log.timeline_key"
     :icon="log.properties.icon || 'User'"
     :heading="$t(log.properties.lang.key, langAttributes)"
@@ -14,10 +16,14 @@
 <script setup>
 import { computed } from 'vue'
 import get from 'lodash/get'
+
 import { getLocale } from '@/utils'
-import TimelineEntry from './RecordTabTimelineTemplate.vue'
+
 import propsDefinition from './props'
+import TimelineEntry from './RecordTabTimelineTemplate.vue'
+
 const props = defineProps(propsDefinition)
+
 const langAttributes = computed(() => {
   // Create new object of the attributes
   // because we are mutating the store below

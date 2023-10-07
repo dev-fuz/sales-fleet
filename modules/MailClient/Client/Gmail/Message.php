@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -90,7 +90,7 @@ class Message extends AbstractMessage
     /**
      * Get message FROM
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getFrom()
     {
@@ -100,7 +100,7 @@ class Message extends AbstractMessage
     /**
      * Get message TO
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getTo()
     {
@@ -110,7 +110,7 @@ class Message extends AbstractMessage
     /**
      * Get message CC
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getCc()
     {
@@ -120,7 +120,7 @@ class Message extends AbstractMessage
     /**
      * Get message BCC
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getBcc()
     {
@@ -130,7 +130,7 @@ class Message extends AbstractMessage
     /**
      * Get message Reply-to
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getReplyTo()
     {
@@ -140,7 +140,7 @@ class Message extends AbstractMessage
     /**
      * Get message Sender
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getSender()
     {
@@ -212,7 +212,7 @@ class Message extends AbstractMessage
     /**
      * Get message headers
      *
-     * @return \Modules\Core\Mail\Headers\HeadersCollection
+     * @return \Modules\Core\Support\Mail\Headers\HeadersCollection
      */
     public function getHeaders()
     {
@@ -223,7 +223,7 @@ class Message extends AbstractMessage
      * Get message header
      *
      * @param  string  $name
-     * @return \Modules\Core\Mail\Headers\Header|\Modules\Core\Mail\Headers\AddressHeader|\Modules\Core\Mail\Headers\IdHeader|\Modules\Core\Mail\Headers\DateHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\Header|\Modules\Core\Support\Mail\Headers\AddressHeader|\Modules\Core\Support\Mail\Headers\IdHeader|\Modules\Core\Support\Mail\Headers\DateHeader|null
      */
     public function getHeader($name)
     {
@@ -243,7 +243,7 @@ class Message extends AbstractMessage
     /**
      * Initialize a reply for a message
      *
-     * @return \Modules\Core\Google\Services\Message\MailReply
+     * @return \Modules\Core\Support\Google\Services\Message\MailReply
      */
     public function reply()
     {

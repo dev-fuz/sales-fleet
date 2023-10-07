@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -111,5 +111,22 @@ class TranslationControllerTest extends TestCase
 
         $this->assertEquals('changed', $translations['key']);
         $this->assertEquals('changed', $translations['deep']['key']);
+    }
+
+    public function test_it_can_update_translation_group_with_dot_notation_keys()
+    {
+        File::ensureDirectoryExists(lang_path('en_US'));
+        File::copy(base_path('tests/Fixtures/locale_group.php'), lang_path('en_US/locale_group.php'));
+
+        $this->signIn();
+
+        $this->putJson('/api/translation/en_US/locale_group', [
+            'translations' => [
+                'Sentence end. Another sentence start.' => 'Sentence end. Another sentence start.',
+            ],
+        ])->assertNoContent();
+
+        $translations = app('translation.loader')->load('en_US', 'locale_group');
+        $this->assertEquals('Sentence end. Another sentence start.', $translations['Sentence end. Another sentence start.']);
     }
 }

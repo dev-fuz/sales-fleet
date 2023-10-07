@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -70,22 +70,6 @@ class PlaceholdersControllerTest extends TestCase
         ]);
 
         $expected = '<input class="_placeholder" type="text" value="'.$contact->email.'" placeholder="E-Mail Address" data-tag="contact.email" data-autofilled /><input class="_placeholder" type="text" value="'.$contact->first_name.'" placeholder="First Name" data-tag="contact.first_name" data-autofilled />';
-
-        $this->assertEquals($expected, json_decode($response->getContent()));
-    }
-
-    public function test_legacy_placeholders_input_format_can_be_parsed()
-    {
-        $this->signIn();
-
-        $contact = Contact::factory()->create();
-
-        $response = $this->postJson('/api/placeholders/input-fields', [
-            'content' => '<input class="_placeholder" type="text" value="" placeholder="E-Mail Address" data-group="contacts" data-tag="email" /><input class="_placeholder" type="text" value="" placeholder="First Name" data-group="contacts" data-tag="first_name" />',
-            'resources' => [['name' => 'contacts', 'id' => $contact->id]],
-        ]);
-
-        $expected = '<input class="_placeholder" type="text" value="'.$contact->email.'" placeholder="E-Mail Address" data-group="contacts" data-tag="email" data-autofilled /><input class="_placeholder" type="text" value="'.$contact->first_name.'" placeholder="First Name" data-group="contacts" data-tag="first_name" data-autofilled />';
 
         $this->assertEquals($expected, json_decode($response->getContent()));
     }

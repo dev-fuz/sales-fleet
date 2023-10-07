@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,21 +13,22 @@
 namespace Modules\Core\Http\Controllers\Api\Resource;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Modules\Core\Http\Controllers\ApiController;
-use Modules\Core\Resource\Http\TrashedResourcefulRequest;
+use Modules\Core\Http\Requests\TrashedResourceRequest;
 
 class TrashedController extends ApiController
 {
     /**
      * Display a listing of the resource.
      */
-    public function index(TrashedResourcefulRequest $request): JsonResponse
+    public function index(TrashedResourceRequest $request): JsonResponse
     {
         $this->authorize('viewAny', $request->resource()::$model);
 
-        $results = $request->resource()
-            ->resourcefulHandler($request)
-            ->index($request->newQuery());
+        $query = $request->resource()->trashedIndexQuery($request);
+
+        $results = $query->paginate($request->integer('per_page') ?: null);
 
         return $this->response($request->toResponse($results));
     }
@@ -35,41 +36,31 @@ class TrashedController extends ApiController
     /**
      * Perform search on the trashed resource.
      */
-    public function search(TrashedResourcefulRequest $request): JsonResponse
+    public function search(TrashedResourceRequest $request): JsonResponse
     {
         $resource = $request->resource();
 
-        abort_if(! $resource::searchable(), 404);
+        abort_if(! $resource->searchable(), 404);
 
         if (empty($request->q)) {
             return $this->response([]);
         }
 
-        $query = $request->resource()
-            ->searchTrashedQuery($request->newQuery())
-            ->criteria($resource->getRequestCriteria($request));
-
-        if ($criteria = $resource->viewAuthorizedRecordsCriteria()) {
-            $query->criteria($criteria);
-        }
+        $query = $request->resource()->trashedSearchQuery($request);
 
         return $this->response(
-            $request->toResponse(
-                $resource->order($query)->get()
-            )
+            $request->toResponse($query->get())
         );
     }
 
     /**
      * Display resource record.
      */
-    public function show(TrashedResourcefulRequest $request): JsonResponse
+    public function show(TrashedResourceRequest $request): JsonResponse
     {
         $this->authorize('view', $request->record());
 
-        $result = $request->resource()
-            ->resourcefulHandler($request)
-            ->show($request->resourceId(), $request->newQuery());
+        $result = $request->resource()->trashedDisplayQuery()->findOrFail($request->resourceId());
 
         return $this->response($request->toResponse($result));
     }
@@ -77,13 +68,13 @@ class TrashedController extends ApiController
     /**
      * Remove resource record from storage.
      */
-    public function destroy(TrashedResourcefulRequest $request): JsonResponse
+    public function destroy(TrashedResourceRequest $request): JsonResponse
     {
         $this->authorize('delete', $request->record());
 
-        $content = $request->resource()
-            ->resourcefulHandler($request)
-            ->forceDelete($request->record());
+        $content = DB::transaction(function () use ($request) {
+            return $request->resource()->forceDelete($request->record());
+        });
 
         return $this->response($content, empty($content) ? 204 : 200);
     }
@@ -91,13 +82,11 @@ class TrashedController extends ApiController
     /**
      * Restore the soft deleted record.
      */
-    public function restore(TrashedResourcefulRequest $request): JsonResponse
+    public function restore(TrashedResourceRequest $request): JsonResponse
     {
         $this->authorize('view', $request->record());
 
-        $request->resource()
-            ->resourcefulHandler($request)
-            ->restore($request->record());
+        $request->record()->restore();
 
         return $this->response($request->toResponse(
             $request->resource()->displayQuery()->find($request->resourceId())

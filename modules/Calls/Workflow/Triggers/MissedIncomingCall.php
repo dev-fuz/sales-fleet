@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,8 +13,8 @@
 namespace Modules\Calls\Workflow\Triggers;
 
 use Modules\Activities\Workflow\Actions\CreateActivityAction;
+use Modules\Calls\VoIP\Events\IncomingCallMissed;
 use Modules\Core\Contracts\Workflow\EventTrigger;
-use Modules\Core\VoIP\Events\IncomingCallMissed;
 use Modules\Core\Workflow\Actions\WebhookAction;
 use Modules\Core\Workflow\Trigger;
 use Modules\MailClient\Workflow\Actions\SendEmailAction;

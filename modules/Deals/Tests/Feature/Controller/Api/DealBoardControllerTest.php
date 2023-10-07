@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,7 +14,6 @@ namespace Modules\Deals\Tests\Feature\Controller\Api;
 
 use Illuminate\Support\Facades\Event;
 use Illuminate\Testing\Fluent\AssertableJson;
-use Modules\Core\Database\Seeders\PermissionsSeeder;
 use Modules\Deals\Board\Board;
 use Modules\Deals\Events\DealMovedToStage;
 use Modules\Deals\Models\Deal;
@@ -71,8 +70,6 @@ class DealBoardControllerTest extends TestCase
 
     public function test_user_cannot_update_deals_via_board_that_is_not_authorized_to_update()
     {
-        $this->seed(PermissionsSeeder::class);
-
         $signedInUser = $this->asRegularUser()
             ->withPermissionsTo('edit own deals')
             ->signIn();

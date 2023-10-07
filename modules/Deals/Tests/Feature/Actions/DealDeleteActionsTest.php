@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,7 +12,6 @@
 
 namespace Modules\Deals\Tests\Feature\Actions;
 
-use Modules\Core\Database\Seeders\PermissionsSeeder;
 use Modules\Core\Tests\ResourceTestCase;
 
 class DealDeleteActionsTest extends ResourceTestCase
@@ -35,7 +34,6 @@ class DealDeleteActionsTest extends ResourceTestCase
 
     public function test_authorized_user_can_run_deal_delete_action()
     {
-        $this->seed(PermissionsSeeder::class);
 
         $this->asRegularUser()->withPermissionsTo('delete any deal')->signIn();
 
@@ -52,7 +50,6 @@ class DealDeleteActionsTest extends ResourceTestCase
 
     public function test_authorized_user_can_run_deal_delete_action_only_on_own_deals()
     {
-        $this->seed(PermissionsSeeder::class);
 
         $signedInUser = $this->asRegularUser()->withPermissionsTo('delete own deals')->signIn();
         $this->createUser();
@@ -77,7 +74,6 @@ class DealDeleteActionsTest extends ResourceTestCase
 
     public function test_unauthorized_user_can_run_deal_delete_action_on_own_deal()
     {
-        $this->seed(PermissionsSeeder::class);
 
         $signedInUser = $this->asRegularUser()->withPermissionsTo('delete own deals')->signIn();
         $user = $this->createUser();
@@ -116,7 +112,6 @@ class DealDeleteActionsTest extends ResourceTestCase
 
     public function test_authorized_user_can_run_deal_bulk_delete_action()
     {
-        $this->seed(PermissionsSeeder::class);
 
         $this->asRegularUser()->withPermissionsTo('bulk delete deals')->signIn();
 

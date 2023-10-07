@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,15 +12,12 @@
 
 namespace Modules\Billable\Http\Resources;
 
-use App\Http\Resources\ProvidesCommonData;
 use Illuminate\Http\Request;
-use Modules\Core\JsonResource;
+use Modules\Core\Http\Resources\JsonResource;
 
 /** @mixin \Modules\Billable\Models\Billable */
 class BillableResource extends JsonResource
 {
-    use ProvidesCommonData;
-
     /**
      * Transform the resource collection into an array.
      */
@@ -28,17 +25,21 @@ class BillableResource extends JsonResource
     {
         return $this->withCommonData([
             'tax_type' => $this->tax_type->name,
-            'sub_total' => $this->sub_total,
-            'has_discount' => $this->has_discount,
-            'total_discount' => $this->total_discount,
-            'total_tax' => $this->total_tax,
-            'applied_taxes' => $this->getAppliedTaxes(),
-            'total' => $this->total,
+            'subtotal' => $this->subtotal()->getValue(),
+            'total' => $this->total()->getValue(),
+            'total_tax' => $this->totalTax()->getValue(),
+            'taxes' => collect($this->taxes())->map(function ($tax) {
+                $tax['total'] = $tax['total']->getValue();
+
+                return $tax;
+            }),
+            'has_discount' => $this->hasDiscount(),
+            'total_discount' => $this->discountedAmount()->getValue(),
             // 'terms'    => $this->terms,
             // 'notes'    => $this->notes,
-            'products' => $this->relationLoaded('products') ?
-                BillableProductResource::collection($this->products) :
-                [],
+            'products' => BillableProductResource::collection(
+                $this->whenLoaded('products', fn () => $this->products, [])
+            ),
         ], $request);
     }
 }

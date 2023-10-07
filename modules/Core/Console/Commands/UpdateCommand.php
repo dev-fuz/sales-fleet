@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -65,6 +65,7 @@ class UpdateCommand extends Command
             }
 
             $this->info('Performing update');
+            $this->warn('This may take a while');
             $updater->update($updater->getVersionAvailable());
         } catch (Throwable $e) {
             $this->up();
@@ -81,7 +82,7 @@ class UpdateCommand extends Command
     protected function up(): void
     {
         $this->info('Bringing the application out of maintenance mode');
-        $this->call('up');
+        $this->callSilently('up');
     }
 
     /**
@@ -90,7 +91,7 @@ class UpdateCommand extends Command
     protected function down(): void
     {
         $this->info('Putting the application into maintenance mode');
-        $this->call('down', ['--render' => 'core::errors.updating']);
+        $this->callSilently('down', ['--render' => 'core::errors.updating']);
     }
 
     /**
@@ -99,6 +100,11 @@ class UpdateCommand extends Command
     protected function increasePhpIniValues(): void
     {
         \DetachedHelper::raiseMemoryLimit('256M');
-        @ini_set('max_execution_time', 240);
+
+        if (function_exists('set_time_limit')) {
+            set_time_limit(240);
+        } else {
+            @ini_set('max_execution_time', 240);
+        }
     }
 }

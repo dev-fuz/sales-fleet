@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -17,10 +17,10 @@ use Modules\Activities\Contracts\Attendeeable;
 use Modules\Activities\Models\Activity;
 use Modules\Activities\Resource\Activity as ResourceActivity;
 use Modules\Core\MailableTemplate\DefaultMailable;
-use Modules\Core\Placeholders\ActionButtonPlaceholder;
-use Modules\Core\Placeholders\GenericPlaceholder;
-use Modules\Core\Placeholders\PrivacyPolicyPlaceholder;
-use Modules\Core\Resource\Placeholders;
+use Modules\Core\Support\Placeholders\ActionButtonPlaceholder;
+use Modules\Core\Support\Placeholders\GenericPlaceholder;
+use Modules\Core\Support\Placeholders\PrivacyPolicyPlaceholder;
+use Modules\Core\Resource\ResourcePlaceholders;
 use Modules\MailClient\Mail\MailableTemplate;
 
 class UserAttendsToActivity extends MailableTemplate implements ShouldQueue
@@ -35,9 +35,9 @@ class UserAttendsToActivity extends MailableTemplate implements ShouldQueue
     /**
      * Provide the defined mailable template placeholders
      */
-    public function placeholders(): Placeholders
+    public function placeholders(): ResourcePlaceholders
     {
-        return (new Placeholders(new ResourceActivity, $this->activity ?? null))->push([
+        return (new ResourcePlaceholders(new ResourceActivity, $this->activity ?? null))->push([
             ActionButtonPlaceholder::make(fn () => $this->activity),
             PrivacyPolicyPlaceholder::make(),
             GenericPlaceholder::make('guest_name', fn () => $this->guestable->getGuestDisplayName())

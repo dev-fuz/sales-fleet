@@ -9,7 +9,9 @@
         @include('favicon')
     @endif
 
-    @include('theme-change')
+    @if (($darkMode ?? true) === true)
+        @include('theme-change')
+    @endif
 
     <title>@yield('title')</title>
 
@@ -18,7 +20,9 @@
     @vite(['resources/js/app.js'])
 
     <script>
-        updateTheme();
+        @if (($darkMode ?? true) === true)
+            updateTheme();
+        @endif
         var config = {!! Js::from(array_merge($config, ['csrfToken' => csrf_token()])) !!};
         var lang = {!! Js::from($lang) !!};
     </script>
@@ -33,6 +37,8 @@
             }
         }
     </script>
+
+    @includeIf('custom.includes.head')
 </head>
 
 <body>
@@ -40,7 +46,7 @@
         {{ $slot }}
 
         <teleport to="body">
-            <float-notifications></float-notifications>
+            <the-float-notifications></the-float-notifications>
         </teleport>
     </div>
 

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -35,7 +35,9 @@ class MailableController extends ApiController
      */
     public function forLocale(string $locale): JsonResponse
     {
-        $collection = MailableResource::collection(MailableTemplate::orderBy('name')->forLocale($locale)->get());
+        $collection = MailableResource::collection(
+            MailableTemplate::orderBy('name')->forLocale($locale)->get()
+        );
 
         return $this->response($collection);
     }
@@ -58,8 +60,7 @@ class MailableController extends ApiController
             'html_template' => 'required|string',
         ]);
 
-        $template->fill($request->all());
-        $template->save();
+        $template->fill($request->all())->save();
 
         return $this->response(new MailableResource($template));
     }

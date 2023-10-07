@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -18,25 +18,7 @@ use Modules\Core\Facades\Innoclapps;
 
 class JsonGenerator
 {
-    const VUEX_I18N = 'vuex-i18n';
-
-    const VUE_I18N = 'vue-i18n';
-
     const ESCAPE_CHAR = '!';
-
-    /**
-     * Initialize new JsonGenerator instance.
-     */
-    public function __construct(protected array $config = [])
-    {
-        if (! isset($this->config['i18nLib'])) {
-            $this->config['i18nLib'] = self::VUE_I18N;
-        }
-
-        if (! isset($this->config['escape_char'])) {
-            $this->config['escape_char'] = self::ESCAPE_CHAR;
-        }
-    }
 
     /**
      * Generate and save the file to a given location
@@ -125,15 +107,9 @@ class JsonGenerator
             return $str;
         }
 
-        if ($this->config['i18nLib'] === self::VUEX_I18N) {
-            $searchPipePattern = '/(\s)*(\|)(\s)*/';
-            $threeColons = ' ::: ';
-            $str = preg_replace($searchPipePattern, $threeColons, $str);
-        }
-
         $str = str_replace('@', '{\'@\'}', $str);
 
-        $escaped_escape_char = preg_quote($this->config['escape_char'], '/');
+        $escaped_escape_char = preg_quote(static::ESCAPE_CHAR, '/');
 
         return preg_replace_callback(
             "/(?<!mailto|tel|{$escaped_escape_char}):\w+/",
@@ -158,7 +134,7 @@ class JsonGenerator
             return $str;
         }
 
-        $escaped_escape_char = preg_quote($this->config['escape_char'], '/');
+        $escaped_escape_char = preg_quote(static::ESCAPE_CHAR, '/');
 
         return preg_replace_callback(
             "/{$escaped_escape_char}(:\w+)/",

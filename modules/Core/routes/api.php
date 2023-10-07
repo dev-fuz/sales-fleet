@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -11,13 +11,13 @@
  */
 
 use Illuminate\Support\Facades\Route;
+use Modules\Core\Facades\Fields;
 use Modules\Core\Http\Controllers\Api\CalendarController;
 use Modules\Core\Http\Controllers\Api\CardController;
 use Modules\Core\Http\Controllers\Api\CountryController;
 use Modules\Core\Http\Controllers\Api\CurrencyController;
 use Modules\Core\Http\Controllers\Api\CustomFieldController;
 use Modules\Core\Http\Controllers\Api\DashboardController;
-use Modules\Core\Http\Controllers\Api\FieldController;
 use Modules\Core\Http\Controllers\Api\FilterController;
 use Modules\Core\Http\Controllers\Api\HighlightController;
 use Modules\Core\Http\Controllers\Api\LogoController;
@@ -30,15 +30,17 @@ use Modules\Core\Http\Controllers\Api\Resource\AssociationsController;
 use Modules\Core\Http\Controllers\Api\Resource\AssociationsSyncController;
 use Modules\Core\Http\Controllers\Api\Resource\CloneController;
 use Modules\Core\Http\Controllers\Api\Resource\EmailSearchController;
+use Modules\Core\Http\Controllers\Api\Resource\EmptyTrash;
 use Modules\Core\Http\Controllers\Api\Resource\ExportController;
-use Modules\Core\Http\Controllers\Api\Resource\FieldController as ResourceFieldController;
+use Modules\Core\Http\Controllers\Api\Resource\FieldController;
+use Modules\Core\Http\Controllers\Api\Resource\FieldSettingsController;
 use Modules\Core\Http\Controllers\Api\Resource\FilterRulesController;
 use Modules\Core\Http\Controllers\Api\Resource\GlobalSearchController;
 use Modules\Core\Http\Controllers\Api\Resource\ImportController;
 use Modules\Core\Http\Controllers\Api\Resource\ImportSkipFileController;
 use Modules\Core\Http\Controllers\Api\Resource\MediaController;
 use Modules\Core\Http\Controllers\Api\Resource\PlaceholdersController;
-use Modules\Core\Http\Controllers\Api\Resource\ResourcefulController;
+use Modules\Core\Http\Controllers\Api\Resource\ResourceController;
 use Modules\Core\Http\Controllers\Api\Resource\SearchController;
 use Modules\Core\Http\Controllers\Api\Resource\TableController;
 use Modules\Core\Http\Controllers\Api\Resource\TimelineController;
@@ -46,17 +48,15 @@ use Modules\Core\Http\Controllers\Api\Resource\TrashedController;
 use Modules\Core\Http\Controllers\Api\RoleController;
 use Modules\Core\Http\Controllers\Api\SettingsController;
 use Modules\Core\Http\Controllers\Api\SystemController;
+use Modules\Core\Http\Controllers\Api\TagController;
 use Modules\Core\Http\Controllers\Api\TimelinePinController;
 use Modules\Core\Http\Controllers\Api\TimezoneController;
 use Modules\Core\Http\Controllers\Api\Updater\PatchController;
 use Modules\Core\Http\Controllers\Api\Updater\UpdateController;
-use Modules\Core\Http\Controllers\Api\VoIPController;
+use Modules\Core\Http\Controllers\Api\UpdateTagDisplayOrder;
 use Modules\Core\Http\Controllers\Api\Workflow\WorkflowController;
 use Modules\Core\Http\Controllers\Api\Workflow\WorkflowTriggers;
 use Modules\Core\Http\Controllers\Api\ZapierHookController;
-
-Route::post('/voip/events', [VoIPController::class, 'events'])->name('voip.events');
-Route::post('/voip/call', [VoIPController::class, 'newCall'])->name('voip.call');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/zapier/hooks/{resourceName}/{action}', [ZapierHookController::class, 'store']);
@@ -78,13 +78,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // Available countries route
     Route::get('/countries', [CountryController::class, 'handle']);
 
-    // Resource fields route
-    Route::get('/fields/{group}/{view}', [FieldController::class, 'index']);
-
     // App available currencies
     Route::get('currencies', CurrencyController::class);
 
     Route::middleware('admin')->group(function () {
+        Route::post('/tags/order', UpdateTagDisplayOrder::class);
+        Route::delete('/tags/{tag}', [TagController::class, 'destroy']);
+        Route::post('/tags/{type?}', [TagController::class, 'store']);
+        Route::put('/tags/{tag}', [TagController::class, 'update']);
+
         Route::get('/system/logs', [SystemController::class, 'logs']);
         Route::get('/system/info', [SystemController::class, 'info']);
         Route::post('/system/info', [SystemController::class, 'downloadInfo']);
@@ -104,10 +106,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Settings intended fields
         Route::prefix('fields/settings')->group(function () {
-            Route::post('{group}/{view}', [FieldController::class, 'update']);
-            Route::get('bulk/{view}', [FieldController::class, 'bulkSettings']);
-            Route::get('{group}/{view}', [FieldController::class, 'settings']);
-            Route::delete('{group}/{view}/reset', [FieldController::class, 'destroy']);
+            Route::post('{group}/{view}', [FieldSettingsController::class, 'update']);
+            Route::get('bulk/{view}', [FieldSettingsController::class, 'bulkSettings']);
+            Route::get('{group}/{view}', [FieldSettingsController::class, 'settings']);
+            Route::delete('{group}/{view}/reset', [FieldSettingsController::class, 'destroy']);
         });
 
         // Workflows
@@ -147,6 +149,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/cards', [CardController::class, 'forDashboards']);
     Route::get('/cards/{card}', [CardController::class, 'show'])->name('cards.show');
 
+    // Used by Zapier
+    Route::get('/fields/{group}/create', function ($group) {
+        return response()->json(
+            Fields::get($group, Fields::CREATE_VIEW)->filterForCreation()->visibleOnCreate()
+        );
+    });
+
+    Route::get('/fields/{group}/update', function ($group) {
+        return response()->json(
+            Fields::get($group, Fields::UPDATE_VIEW)->filterForUpdate()->visibleOnUpdate()
+        );
+    });
+
     // Dashboard controller
     Route::apiResource('dashboards', DashboardController::class);
 
@@ -171,6 +186,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/{resource}/import/{id}', [ImportController::class, 'handle']);
     Route::delete('/{resource}/import/{id}', [ImportController::class, 'destroy']);
     Route::get('/{resource}/import/sample', [ImportController::class, 'sample']);
+    Route::delete('/{resource}/import/{id}/revert', [ImportController::class, 'revert']);
     Route::get('/{resource}/import/{id}/skip-file', [ImportSkipFileController::class, 'download']);
     Route::post('/{resource}/import/{id}/skip-file', [ImportSkipFileController::class, 'upload']);
 
@@ -195,6 +211,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/trashed/{resource}/{resourceId}', [TrashedController::class, 'restore']);
     Route::get('/trashed/{resource}', [TrashedController::class, 'index']);
     Route::get('/trashed/{resource}/{resourceId}', [TrashedController::class, 'show']);
+    Route::delete('/trashed/{resource}', EmptyTrash::class);
     Route::delete('/trashed/{resource}/{resourceId}', [TrashedController::class, 'destroy']);
 
     // Resource management
@@ -204,16 +221,18 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/{resource}/actions/{action}/run', [ActionController::class, 'handle']);
 
-    Route::get('/{resource}/{resourceId}/update-fields', [ResourceFieldController::class, 'update']);
-    Route::get('/{resource}/{resourceId}/detail-fields', [ResourceFieldController::class, 'detail']);
+    Route::get('/{resource}/{resourceId}/update-fields', [FieldController::class, 'update']);
+    Route::get('/{resource}/{resourceId}/detail-fields', [FieldController::class, 'detail']);
     Route::get('/{resource}/{resourceId}/timeline', [TimelineController::class, 'index']);
     Route::post('/{resource}/{resourceId}/clone', [CloneController::class, 'handle']);
     Route::get('/{resource}/{resourceId}/{associated}', [AssociationsController::class, '__invoke']);
-    Route::get('/{resource}/create-fields', [ResourceFieldController::class, 'create']);
+    Route::get('/{resource}/index-fields', [FieldController::class, 'index']);
+    Route::get('/{resource}/create-fields', [FieldController::class, 'create']);
+    Route::get('/{resource}/export-fields', [FieldController::class, 'export']);
 
-    Route::get('/{resource}', [ResourcefulController::class, 'index']);
-    Route::get('/{resource}/{resourceId}', [ResourcefulController::class, 'show']);
-    Route::post('/{resource}', [ResourcefulController::class, 'store']);
-    Route::put('/{resource}/{resourceId}', [ResourcefulController::class, 'update']);
-    Route::delete('/{resource}/{resourceId}', [ResourcefulController::class, 'destroy']);
+    Route::get('/{resource}', [ResourceController::class, 'index']);
+    Route::get('/{resource}/{resourceId}', [ResourceController::class, 'show']);
+    Route::post('/{resource}', [ResourceController::class, 'store']);
+    Route::put('/{resource}/{resourceId}', [ResourceController::class, 'update']);
+    Route::delete('/{resource}/{resourceId}', [ResourceController::class, 'destroy']);
 });

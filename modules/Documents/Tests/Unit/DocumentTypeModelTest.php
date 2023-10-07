@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,6 +13,7 @@
 namespace Modules\Documents\Tests\Unit;
 
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Lang;
 use Modules\Documents\Models\DocumentType;
 use Tests\TestCase;
 
@@ -44,5 +45,30 @@ class DocumentTypeModelTest extends TestCase
         DocumentType::setDefault($type->id);
 
         $this->assertEquals($type->id, DocumentType::getDefaultType());
+    }
+
+    public function test_document_type_can_be_translated_with_custom_group()
+    {
+        $model = DocumentType::factory()->create(['name' => 'Original']);
+
+        Lang::addLines(['custom.document_type.'.$model->id => 'Changed'], 'en');
+
+        $this->assertSame('Changed', $model->name);
+    }
+
+    public function test_document_type_can_be_translated_with_lang_key()
+    {
+        $model = DocumentType::factory()->create(['name' => 'custom.document_type.some']);
+
+        Lang::addLines(['custom.document_type.some' => 'Changed'], 'en');
+
+        $this->assertSame('Changed', $model->name);
+    }
+
+    public function test_it_uses_database_name_when_no_custom_trans_available()
+    {
+        $model = DocumentType::factory()->create(['name' => 'Database Name']);
+
+        $this->assertSame('Database Name', $model->name);
     }
 }

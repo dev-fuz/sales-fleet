@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,33 +13,37 @@
 namespace Modules\Core\Resource;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use JsonSerializable;
 use Modules\Core\Contracts\Resources\AcceptsUniqueCustomFields;
-use Modules\Core\Contracts\Resources\Resourceful;
-use Modules\Core\Contracts\Resources\ResourcefulRequestHandler;
-use Modules\Core\Contracts\Services\Service;
+use Modules\Core\Contracts\Resources\HasOperations;
+use Modules\Core\Criteria\FilterRulesCriteria;
 use Modules\Core\Criteria\RequestCriteria;
 use Modules\Core\Facades\Cards;
 use Modules\Core\Facades\Fields;
 use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Facades\Menu;
 use Modules\Core\Fields\CustomFieldFactory;
+use Modules\Core\Fields\Field;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Models\Model;
 use Modules\Core\ResolvesActions;
 use Modules\Core\ResolvesFilters;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Resource\Events\ResourceRecordCreated;
+use Modules\Core\Resource\Events\ResourceRecordDeleted;
+use Modules\Core\Resource\Events\ResourceRecordUpdated;
 use Modules\Core\Resource\Import\Import;
 use Modules\Core\Resource\Import\ImportSample;
 use Modules\Core\Settings\SettingsMenu;
 
 abstract class Resource implements JsonSerializable
 {
-    use ResolvesActions;
-    use ResolvesFilters;
-    use ResolvesTables;
-    use QueriesResources;
+    use QueriesResources,
+        ResolvesActions,
+        ResolvesFields,
+        ResolvesFilters,
+        ResolvesTables;
 
     /**
      * The column the records should be default ordered by when retrieving.
@@ -73,6 +77,8 @@ abstract class Resource implements JsonSerializable
 
     /**
      * The model the resource is related to.
+     *
+     * @var \Modules\Core\Models\Model|null
      */
     public static string $model;
 
@@ -83,12 +89,12 @@ abstract class Resource implements JsonSerializable
      */
     public $resource;
 
-    protected static array $registered = [];
-
     /**
-     * Record finder instance.
+     * Indicates whether the resource has detail view.
      */
-    protected ?RecordFinder $finder = null;
+    public static bool $hasDetailView = false;
+
+    protected static array $registered = [];
 
     /**
      * Initialize new Resource class
@@ -96,14 +102,6 @@ abstract class Resource implements JsonSerializable
     public function __construct()
     {
         $this->registerIfNotRegistered();
-    }
-
-    /**
-     * Get the resource service for CRUD operations.
-     */
-    public function service(): ?Service
-    {
-        return null;
     }
 
     /**
@@ -133,11 +131,11 @@ abstract class Resource implements JsonSerializable
      *
      * @return \Modules\Core\Models\Model
      */
-    public static function newModel()
+    public function newModel(array $attributes = [])
     {
         $model = static::$model;
 
-        return new $model;
+        return new $model($attributes);
     }
 
     /**
@@ -156,7 +154,7 @@ abstract class Resource implements JsonSerializable
     public function filtersForResource(ResourceRequest $request)
     {
         return $this->resolveFilters($request)->merge(
-            (new CustomFieldFactory($this->name()))->createFieldsForFilters()
+            (new CustomFieldFactory($this->name()))->createFiltersFromFields()
         );
     }
 
@@ -183,7 +181,7 @@ abstract class Resource implements JsonSerializable
      *
      * @return mixed
      */
-    public function createJsonResource(mixed $data, bool $resolve = false, ?ResourceRequest $request = null)
+    public function createJsonResource(mixed $data, bool $resolve = false, ResourceRequest $request = null)
     {
         $collection = is_countable($data);
 
@@ -217,67 +215,23 @@ abstract class Resource implements JsonSerializable
      * @param  bool  $canSeeResource
      * @return \Modules\Core\Fields\FieldsCollection
      */
-    public function getFieldsForJsonResource($request, $model, $canSeeResource = true)
+    public function getFieldsForJsonResource($model, $canSeeResource = true)
     {
-        return $this->resolveFields()->reject(function ($field) use ($request) {
-            return $field->excludeFromZapierResponse && $request->isZapier();
-        })->filter(function ($field) use ($canSeeResource) {
-            if (! $canSeeResource) {
-                return $field->alwaysInJsonResource === true;
-            }
-
-            return $canSeeResource;
-        })->reject(function ($field) use ($model) {
-            return is_null($field->resolveForJsonResource($model));
-        })->values();
+        return $this->resolveFields()
+            ->withoutZapierExcluded()
+            ->filter(function (Field $field) use ($canSeeResource) {
+                return $canSeeResource || $field->alwaysInJsonResource === true;
+            })->reject(function ($field) use ($model) {
+                return is_null($field->resolveForJsonResource($model));
+            })->values();
     }
 
     /**
      * Provide the available resource fields
      */
-    public function fields(Request $request): array
+    public function fields(ResourceRequest $request): array
     {
         return [];
-    }
-
-    /**
-     * Get the resource defined fields
-     *
-     * @return \Modules\Core\Fields\FieldsCollection
-     */
-    public static function getFields()
-    {
-        return Fields::inGroup(static::name());
-    }
-
-    /**
-     * Resolve the create fields for resource
-     *
-     * @return \Modules\Core\Fields\FieldsCollection
-     */
-    public function resolveCreateFields()
-    {
-        return Fields::resolveCreateFields(static::name());
-    }
-
-    /**
-     * Resolve the update fields for the resource
-     *
-     * @return \Modules\Core\Fields\FieldsCollection
-     */
-    public function resolveUpdateFields()
-    {
-        return Fields::resolveUpdateFields(static::name());
-    }
-
-    /**
-     * Resolve the resource fields for display
-     *
-     * @return \Modules\Core\Fields\FieldsCollection
-     */
-    public function resolveFields()
-    {
-        return static::getFields()->filter->authorizedToSee()->values();
     }
 
     /**
@@ -363,13 +317,13 @@ abstract class Resource implements JsonSerializable
     /**
      * Get the resource available associative resources
      *
-     * @return \Illuminate\Support\Collection
+     * @return \Illuminate\Support\Collection<static>
      */
     public function availableAssociations()
     {
         return Innoclapps::registeredResources()
-            ->reject(fn ($resource) => is_null($resource->associateableName()))
-            ->filter(fn ($resource) => app(static::$model)->isRelation($resource->associateableName()))
+            ->filter(fn (Resource $resource) => $resource->isAssociateable())
+            ->filter(fn (Resource $resource) => $this->newModel()->isRelation($resource->associateableName()))
             ->values();
     }
 
@@ -384,21 +338,11 @@ abstract class Resource implements JsonSerializable
     }
 
     /**
-     * Get the resourceful CRUD handler class.
-     */
-    public function resourcefulHandler(ResourceRequest $request): ResourcefulRequestHandler|ResourcefulHandlerWithFields
-    {
-        return count($this->fields($request)) > 0 ?
-            new ResourcefulHandlerWithFields($request) :
-            new ResourcefulHandler($request);
-    }
-
-    /**
      * Determine if this resource is searchable
      */
-    public static function searchable(): bool
+    public function searchable(): bool
     {
-        return ! empty(static::newModel()->getSearchableFields());
+        return ! empty($this->newModel()->getSearchableColumns());
     }
 
     /**
@@ -444,9 +388,9 @@ abstract class Resource implements JsonSerializable
     /**
      * Get the resource import sample class
      */
-    public function importSample(): ImportSample
+    public function importSample(int $totalRows = 1): ImportSample
     {
-        return new ImportSample($this);
+        return new ImportSample($this, $totalRows);
     }
 
     /**
@@ -494,7 +438,7 @@ abstract class Resource implements JsonSerializable
      */
     protected function registerFields(): void
     {
-        Fields::group($this->name(), fn () => $this->fields(request()));
+        Fields::group($this->name(), fn () => $this->fields(app(ResourceRequest::class)->setResource($this->name())));
     }
 
     /**
@@ -505,20 +449,6 @@ abstract class Resource implements JsonSerializable
         if ($callable = config('core.resources.permissions.common')) {
             (new $callable)($this);
         }
-    }
-
-    /**
-     * Get the record finder instance
-     */
-    public function finder(): RecordFinder
-    {
-        if ($this->finder) {
-            return $this->finder;
-        }
-
-        return $this->finder = new RecordFinder(
-            $this->newModel()
-        );
     }
 
     /**
@@ -549,7 +479,7 @@ abstract class Resource implements JsonSerializable
         $this->registerPermissions();
         $this->registerCards();
 
-        if ($this instanceof Resourceful) {
+        if ($this instanceof HasOperations) {
             $this->registerFields();
         }
 
@@ -568,6 +498,138 @@ abstract class Resource implements JsonSerializable
     }
 
     /**
+     * Get the filters criteria for the given request.
+     */
+    public function getFiltersCriteria(ResourceRequest $request, string $rulesKey = 'rules'): FilterRulesCriteria
+    {
+        return new FilterRulesCriteria(
+            $request->get($rulesKey, []),
+            $this->filtersForResource($request),
+            $request
+        );
+    }
+
+    /**
+     * Perform the model creation.
+     */
+    protected function performCreate(Model $model, ResourceRequest $request): Model
+    {
+        $this->beforeCreate($model, $request);
+
+        $model->save();
+
+        // Executed event when not wrapped in a transaction callback.
+        DB::afterCommit(function () use ($model, $request) {
+            if ($callbacks = $request->getCallbacks()) {
+                $callbacks->each->__invoke($model, $request);
+            }
+
+            $this->afterCreate($model, $request);
+
+            ResourceRecordCreated::dispatch($model, $this);
+        });
+
+        return $model;
+    }
+
+    /**
+     * Create new resource record in storage.
+     */
+    public function create(Model $model, ResourceRequest $request): Model
+    {
+        return $this->performCreate($model, $request);
+    }
+
+    /**
+     * Perform the model update.
+     */
+    protected function performUpdate(Model $model, ResourceRequest $request): Model
+    {
+        $this->beforeUpdate($model, $request);
+
+        $model->save();
+
+        // Executed event when not wrapped in a transaction callback.
+        DB::afterCommit(function () use ($model, $request) {
+            if ($callbacks = $request->getCallbacks()) {
+                $callbacks->each->__invoke($model, $request);
+            }
+
+            $this->afterUpdate($model, $request);
+
+            ResourceRecordUpdated::dispatch($model, $this);
+        });
+
+        return $model;
+    }
+
+    /**
+     * Update resource record in storage.
+     */
+    public function update(Model $model, ResourceRequest $request): Model
+    {
+        return $this->performUpdate($model, $request);
+    }
+
+    /**
+     * Delete resource record.
+     */
+    public function delete(Model $model): mixed
+    {
+        $model->delete();
+
+        // Executed event when not wrapped in a transaction callback.
+        DB::afterCommit(function () use ($model) {
+            ResourceRecordDeleted::dispatch($model, $this);
+        });
+
+        return '';
+    }
+
+    /**
+     * Force delete resource record.
+     */
+    public function forceDelete(Model $model): mixed
+    {
+        $model->forceDelete();
+
+        // Executed event when not wrapped in a transaction callback.
+        DB::afterCommit(function () use ($model) {
+            ResourceRecordDeleted::dispatch($model, $this);
+        });
+
+        return '';
+    }
+
+    /**
+     * Handle the "beforeCreate" resource record hook.
+     */
+    public function beforeCreate(Model $model, ResourceRequest $request): void
+    {
+    }
+
+    /**
+     * Handle the "afterCreate" resource record hook.
+     */
+    public function afterCreate(Model $model, ResourceRequest $request): void
+    {
+    }
+
+    /**
+     * Handle the "beforeUpdate" resource record hook.
+     */
+    public function beforeUpdate(Model $model, ResourceRequest $request): void
+    {
+    }
+
+    /**
+     * Handle the "afterUpdate" resource record hook.
+     */
+    public function afterUpdate(Model $model, ResourceRequest $request): void
+    {
+    }
+
+    /**
      * Serialize the resource
      */
     public function jsonSerialize(): array
@@ -579,6 +641,7 @@ abstract class Resource implements JsonSerializable
             'singularLabel' => $this->singularLabel(),
             'fieldsCustomizable' => static::$fieldsCustomizable,
             'acceptsUniqueCustomFields' => $this instanceof AcceptsUniqueCustomFields,
+            'hasDetailView' => static::$hasDetailView,
         ];
     }
 }

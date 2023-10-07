@@ -25,8 +25,8 @@
           label-for="recaptcha_site_key"
         >
           <IFormInput
-            v-model="form.recaptcha_site_key"
             id="recaptcha_site_key"
+            v-model="form.recaptcha_site_key"
           />
         </IFormGroup>
         <IFormGroup
@@ -35,23 +35,21 @@
           label-for="recaptcha_secret_key"
         >
           <IFormInput
-            v-model="form.recaptcha_secret_key"
             id="recaptcha_secret_key"
+            v-model="form.recaptcha_secret_key"
           />
         </IFormGroup>
       </div>
-
       <IFormGroup
         :description="$t('core::settings.recaptcha.ignored_ips_info')"
         :label="$t('core::settings.recaptcha.ignored_ips')"
         label-for="recaptcha_ignored_ips"
       >
         <IFormTextarea
-          v-model="form.recaptcha_ignored_ips"
           id="recaptcha_ignored_ips"
+          v-model="form.recaptcha_ignored_ips"
         />
       </IFormGroup>
-
       <div
         class="mt-4 rounded-lg border border-primary-100 bg-gradient-to-tr from-primary-50/40 from-25% to-primary-100 px-10 py-6 dark:border-neutral-800 dark:bg-gradient-to-tl dark:from-neutral-600 dark:to-neutral-900 md:flex md:items-center"
       >
@@ -66,16 +64,15 @@
         </svg>
         <div class="mt-5 md:ml-8 md:mt-0">
           <h4
-            class="-mb-1 text-lg font-semibold text-primary-800 dark:text-neutral-100"
             v-t="'core::settings.recaptcha.dont_get_locked'"
+            class="-mb-1 text-lg font-semibold text-primary-800 dark:text-neutral-100"
           />
           <p
-            class="text-primary-700 dark:text-neutral-300 md:max-w-xl"
             v-t="'core::settings.recaptcha.ensure_recaptcha_works'"
+            class="text-primary-700 dark:text-neutral-300 md:max-w-xl"
           />
         </div>
       </div>
-
       <template #footer>
         <IButton
           type="submit"
@@ -86,8 +83,10 @@
     </ICard>
   </form>
 </template>
+
 <script setup>
-import { useSettings } from './../useSettings'
+import { useSettings } from '../../../composables/useSettings'
+
 const { form, submit, isReady: componentReady } = useSettings()
 
 function saveReCaptchaSettings() {

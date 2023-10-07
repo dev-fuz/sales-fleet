@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -10,24 +10,31 @@
  */
 import { formatMoney, formatNumber, toFixed } from 'accounting-js'
 
-export function useAccounting(value) {
+export function useAccounting() {
   return {
     toFixed,
-    formatNumber: function (value) {
-      return formatNumber(value, {
-        precision: Innoclapps.config('currency.precision'),
-        thousand: Innoclapps.config('currency.thousands_separator'),
-        decimal: Innoclapps.config('currency.decimal_mark'),
-      })
+    formatNumber: function (value, options = {}) {
+      return formatNumber(
+        value,
+        Object.assign(
+          {
+            precision: Innoclapps.config('currency.precision'),
+            thousand: Innoclapps.config('currency.thousands_separator'),
+            decimal: Innoclapps.config('currency.decimal_mark'),
+          },
+          options
+        )
+      )
     },
-    formatMoney: function (value) {
+    formatMoney: function (value, currency = null) {
+      currency = currency || Innoclapps.config('currency')
+
       return formatMoney(value, {
-        symbol: Innoclapps.config('currency.symbol'),
-        precision: Innoclapps.config('currency.precision'),
-        thousand: Innoclapps.config('currency.thousands_separator'),
-        decimal: Innoclapps.config('currency.decimal_mark'),
-        format:
-          Innoclapps.config('currency.symbol_first') == true ? '%s%v' : '%v%s',
+        symbol: currency.symbol,
+        precision: currency.precision,
+        thousand: currency.thousands_separator,
+        decimal: currency.decimal_mark,
+        format: currency.symbol_first == true ? '%s%v' : '%v%s',
       })
     },
   }

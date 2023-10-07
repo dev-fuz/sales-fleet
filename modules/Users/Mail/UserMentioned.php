@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,10 +14,10 @@ namespace Modules\Users\Mail;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Modules\Core\MailableTemplate\DefaultMailable;
-use Modules\Core\Placeholders\ActionButtonPlaceholder;
-use Modules\Core\Placeholders\Collection as BasePlaceholders;
-use Modules\Core\Placeholders\PrivacyPolicyPlaceholder;
-use Modules\Core\Placeholders\UrlPlaceholder;
+use Modules\Core\Support\Placeholders\ActionButtonPlaceholder;
+use Modules\Core\Support\Placeholders\Placeholders as BasePlaceholders;
+use Modules\Core\Support\Placeholders\PrivacyPolicyPlaceholder;
+use Modules\Core\Support\Placeholders\UrlPlaceholder;
 use Modules\MailClient\Mail\MailableTemplate;
 use Modules\Users\Models\User;
 use Modules\Users\Placeholders\UserPlaceholder;
@@ -67,7 +67,7 @@ class UserMentioned extends MailableTemplate implements ShouldQueue
     {
         return '<p>Hello {{ mentioned_user }}<br /></p>
                 <p>{{ user }} mentioned you.<br /></p>
-                <p>{{{ action_button }}}<br /></p>';
+                <p>{{#action_button}}View Record{{/action_button}}</p>';
     }
 
     /**

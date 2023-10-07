@@ -1,5 +1,5 @@
 <template>
-  <ITabPanel @activated.once="loadData" :lazy="!dataLoadedFirstTime">
+  <ITabPanel :lazy="!dataLoadedFirstTime" @activated.once="loadData">
     <div
       class="-mt-[20px] mb-3 rounded-b-md border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900 sm:mb-7"
     >
@@ -7,8 +7,8 @@
         <div class="sm:flex sm:items-start sm:justify-between">
           <div>
             <h3
-              class="text-base/6 font-medium text-neutral-900 dark:text-white"
               v-t="'documents::document.manage_documents'"
+              class="text-base/6 font-medium text-neutral-900 dark:text-white"
             />
             <div
               class="mt-2 max-w-xl text-sm text-neutral-500 dark:text-neutral-200"
@@ -18,46 +18,47 @@
           </div>
           <div class="mt-5 sm:ml-6 sm:mt-0 sm:flex sm:shrink-0 sm:items-center">
             <IButton
-              @click="documentBeingCreated = true"
               size="sm"
               :text="$t('documents::document.create')"
               icon="Plus"
+              @click="documentBeingCreated = true"
             />
           </div>
         </div>
-        <FormInputSearch
-          class="mt-2"
-          v-model="search"
+        <SearchInput
           v-show="hasDocuments || search"
-          @input="performSearch($event, associateable)"
+          v-model="search"
+          class="mt-2"
+          @input="performSearch"
         />
       </div>
     </div>
 
-    <CreateDocument
+    <DocumentsCreate
       v-if="documentBeingCreated"
       :via-resource="resourceName"
+      :via-resource-id="resourceId"
+      :related-resource="resource"
       :exit-using="() => (documentBeingCreated = null)"
       :edit-redirect-handler="handleRedirectOnEditWhenCreating"
     />
 
-    <EditDocument
+    <DocumentsEdit
       v-if="documentBeingEdited"
-      :via-resource="resourceName"
       :id="documentBeingEdited"
+      :via-resource="resourceName"
+      :via-resource-id="resourceId"
+      :related-resource="resource"
       :exit-using="() => (documentBeingEdited = false)"
       @reactivated="refreshRecordView"
       @sent="refreshRecordView"
       @lost="refreshRecordView"
       @accept="refreshRecordView"
       @changed="handleDocumentChanged"
-      @deleted="
-        removeResourceRecordHasManyRelationship($event.id, 'documents'),
-          refreshRecordView()
-      "
+      @deleted="handleDocumentDeleted"
     />
 
-    <Document
+    <RelatedDocument
       v-for="document in documents"
       :key="document.id"
       :document-id="document.id"
@@ -72,54 +73,56 @@
       :authorizations="document.authorizations"
       :associations="document.associations"
       :via-resource="resourceName"
+      :via-resource-id="resourceId"
+      :related-resource="resource"
       class="mb-3"
     />
 
     <div
-      v-show="isPerformingSearch && !hasSearchResults"
-      class="mt-6 text-center text-neutral-800 dark:text-neutral-200"
+      v-show="isSearching && !hasSearchResults"
       v-t="'core::app.no_search_results'"
+      class="mt-6 text-center text-neutral-800 dark:text-neutral-200"
     />
 
     <InfinityLoader
-      @handle="infiniteHandler($event, associateable)"
-      :scroll-element="scrollElement"
       ref="infinityRef"
+      :scroll-element="scrollElement"
+      @handle="infiniteHandler($event)"
     />
   </ITabPanel>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, inject, ref, toRef } from 'vue'
 import orderBy from 'lodash/orderBy'
-import cloneDeep from 'lodash/cloneDeep'
-import InfinityLoader from '~/Core/resources/js/components/InfinityLoader.vue'
-import Document from './RelatedDocumentListItem.vue'
-import { useRecordTab } from '~/Core/resources/js/composables/useRecordTab'
-import CreateDocument from '../views/CreateDocument.vue'
-import EditDocument from '../views/EditDocument.vue'
-import { useRecordStore } from '~/Core/resources/js/composables/useRecordStore'
+
+import InfinityLoader from '~/Core/components/InfinityLoader.vue'
+import { useRecordTab } from '~/Core/composables/useRecordTab'
+
+import DocumentsCreate from '../views/DocumentsCreate.vue'
+import DocumentsEdit from '../views/DocumentsEdit.vue'
+
+import RelatedDocument from './RelatedDocument.vue'
 
 const props = defineProps({
   resourceName: { required: true, type: String },
+  resourceId: { required: true, type: [String, Number] },
+  resource: { required: true, type: Object },
   scrollElement: { type: String },
 })
 
-const associateable = 'documents'
+const synchronizeResource = inject('synchronizeResource')
+
+const timelineRelation = 'documents'
 
 const infinityRef = ref(null)
 const documentBeingCreated = ref(false)
 const documentBeingEdited = ref(null)
 
 const {
-  updateResourceRecordHasManyRelationship,
-  removeResourceRecordHasManyRelationship,
-} = useRecordStore()
-
-const {
   dataLoadedFirstTime,
   searchResults,
-  record,
-  isPerformingSearch,
+  isSearching,
   hasSearchResults,
   performSearch,
   search,
@@ -127,14 +130,15 @@ const {
   infiniteHandler,
 } = useRecordTab({
   resourceName: props.resourceName,
-  infinityRef,
+  resource: toRef(props, 'resource'),
   scrollElement: props.scrollElement,
+  infinityRef,
+  synchronizeResource,
+  timelineRelation,
 })
 
 const iterable = computed(() =>
-  isPerformingSearch.value
-    ? searchResults.value || []
-    : record.value.documents || []
+  isSearching.value ? searchResults.value || [] : props.resource.documents || []
 )
 
 const lost = computed(() =>
@@ -178,11 +182,13 @@ const documents = computed(() => [
 
 const hasDocuments = computed(() => documents.value.length > 0)
 
-function handleDocumentChanged(doc) {
-  updateResourceRecordHasManyRelationship(
-    cloneDeep(doc), // use clean object to avoid mutation errors
-    'documents'
-  )
+function handleDocumentChanged(updatedDocument) {
+  synchronizeResource({ documents: updatedDocument })
+}
+
+function handleDocumentDeleted(deletedDocument) {
+  synchronizeResource({ documents: { id: deletedDocument.id, _delete: true } })
+  refreshRecordView()
 }
 
 function handleRedirectOnEditWhenCreating(document) {

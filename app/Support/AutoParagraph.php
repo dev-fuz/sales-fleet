@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -57,7 +57,7 @@ class AutoParagraph
                 $start = strpos($pee_part, '<pre');
 
                 // Malformed HTML?
-                if (false === $start) {
+                if ($start === false) {
                     $pee .= $pee_part;
 
                     continue;
@@ -190,7 +190,7 @@ class AutoParagraph
         }
 
         // Restore newlines in all elements.
-        if (false !== strpos($pee, '<!-- wpnl -->')) {
+        if (strpos($pee, '<!-- wpnl -->') !== false) {
             $pee = str_replace([' <!-- wpnl --> ', '<!-- wpnl -->'], "\n", $pee);
         }
 
@@ -212,14 +212,14 @@ class AutoParagraph
         $changed = false;
 
         // Optimize when searching for one item.
-        if (1 === count($replace_pairs)) {
+        if (count($replace_pairs) === 1) {
             // Extract $needle and $replace.
             foreach ($replace_pairs as $needle => $replace) {
             }
 
             // Loop through delimiters (elements) only.
             for ($i = 1, $c = count($textarr); $i < $c; $i += 2) {
-                if (false !== strpos($textarr[$i], $needle)) {
+                if (strpos($textarr[$i], $needle) !== false) {
                     $textarr[$i] = str_replace($needle, $replace, $textarr[$i]);
                     $changed = true;
                 }
@@ -231,7 +231,7 @@ class AutoParagraph
             // Loop through delimiters (elements) only.
             for ($i = 1, $c = count($textarr); $i < $c; $i += 2) {
                 foreach ($needles as $needle) {
-                    if (false !== strpos($textarr[$i], $needle)) {
+                    if (strpos($textarr[$i], $needle) !== false) {
                         $textarr[$i] = strtr($textarr[$i], $replace_pairs);
                         $changed = true;
                         // After one strtr() break out of the foreach loop and look at next element.

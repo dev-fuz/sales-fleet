@@ -4,8 +4,8 @@
     :type="type"
     :class="computedClasses"
     :disabled="disabled"
-    @click="handleClickEvent"
     :tabindex="disabled ? '-1' : undefined"
+    @click="handleClickEvent"
   >
     <Icon
       v-if="icon"
@@ -32,11 +32,13 @@
     </slot>
   </component>
 </template>
+
 <script setup>
 import { computed, useSlots } from 'vue'
 import { useRouter } from 'vue-router'
 
 const emit = defineEmits(['click'])
+
 const props = defineProps({
   text: String,
   icon: String,
@@ -44,10 +46,10 @@ const props = defineProps({
   to: [Object, String],
   tag: { default: 'button', type: [String, Object] },
   type: { type: String, default: 'button' },
-  disabled: { type: Boolean, default: false },
-  loading: { type: Boolean, default: false },
+  disabled: Boolean,
+  loading: Boolean,
   rounded: { default: true, type: Boolean },
-  block: { default: false, type: Boolean },
+  block: Boolean,
   variant: {
     type: String,
     default: 'primary',
@@ -64,6 +66,7 @@ const props = defineProps({
       if (value === false) {
         return true
       }
+
       // buttons have md by default because can be used to other
       // elements link </a>
       return ['sm', 'md', 'lg'].includes(value)

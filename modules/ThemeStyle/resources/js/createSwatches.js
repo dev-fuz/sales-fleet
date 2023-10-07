@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -10,12 +10,11 @@
  */
 import { DEFAULT_PALETTE_CONFIG } from './constants'
 import {
-  HSLToHex,
   hexToHSL,
+  HSLToHex,
   lightnessFromHSLum,
   luminanceFromHex,
 } from './helpers'
-
 import {
   createDistributionValues,
   createHueScale,
@@ -42,6 +41,7 @@ export function createSwatches(palette) {
 
   // Create lightness scales based on tweak + lightness/luminance of current value
   const lightnessValue = useLightness ? valueL : luminanceFromHex(value)
+
   const distributionScale = createDistributionValues(
     lMin,
     lMax,
@@ -52,6 +52,7 @@ export function createSwatches(palette) {
   const swatches = hueScale.map(({ stop }, stopIndex) => {
     const newH = valueH + hueScale[stopIndex].tweak
     const newS = valueS + saturationScale[stopIndex].tweak
+
     const newL = useLightness
       ? distributionScale[stopIndex].tweak
       : lightnessFromHSLum(newH, newS, distributionScale[stopIndex].tweak)

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -153,14 +153,14 @@ class ZipArchive
 
         $name = rtrim($name, DIRECTORY_SEPARATOR);
 
-        if (true === $isDir) {
+        if ($isDir === true) {
             $name .= DIRECTORY_SEPARATOR;
         }
 
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $info = $zip->statIndex($i);
 
-            if (true === str_starts_with($info['name'], $name)) {
+            if (str_starts_with($info['name'], $name) === true) {
                 $zip->deleteIndex($i);
             }
         }

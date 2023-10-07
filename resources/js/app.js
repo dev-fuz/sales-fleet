@@ -1,52 +1,50 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import 'unfonts.css'
-import '../css/app.css'
-import get from 'lodash/get'
 import { createApp } from 'vue'
-import registerComponents from '~/Core/resources/js/components'
-import registerFields from '~/Core/resources/js/fields'
-import registerDirectives from '~/Core/resources/js/directives'
-import Broadcast from '~/Core/resources/js/services/Broadcast'
-import VoIP from '~/Core/resources/js/services/VoIP'
-import i18n from '~/Core/resources/js/i18n'
-import store from '@/store'
-import HTTP from '~/Core/resources/js/services/HTTP'
+import get from 'lodash/get'
 import mitt from 'mitt'
-import router from '@/router'
 import Mousetrap from 'mousetrap'
 
-import '~/Core/resources/js/element-prototypes'
-import '~/Core/resources/js/plugins'
+import router from '@/router'
+import store from '@/store'
 
-import '~/Core/resources/js/app.js'
+import registerComponents from '~/Core/components'
+import { usePageTitle } from '~/Core/composables/usePageTitle'
+import registerDirectives from '~/Core/directives'
+import registerFields from '~/Core/fields'
+import i18n from '~/Core/i18n'
+import Broadcast from '~/Core/services/Broadcast'
+import HTTP from '~/Core/services/HTTP'
 
-import '~/Activities/resources/js/app.js'
-import '~/Billable/resources/js/app.js'
-import '~/Brands/resources/js/app.js'
-import '~/Calls/resources/js/app.js'
-import '~/Comments/resources/js/app.js'
-import '~/Contacts/resources/js/app.js'
-import '~/Core/resources/js/app.js'
-import '~/Deals/resources/js/app.js'
-import '~/Documents/resources/js/app.js'
-import '~/MailClient/resources/js/app.js'
-import '~/Notes/resources/js/app.js'
-import '~/Translator/resources/js/app.js'
-import '~/Users/resources/js/app.js'
-import '~/WebForms/resources/js/app.js'
-import '~/ThemeStyle/resources/js/app.js'
+import '~/Core/element-prototypes'
+import '~/Core/plugins'
+import '~/Core/app.js'
+import '~/Users/app.js'
+import '~/Activities/app.js'
+import '~/Billable/app.js'
+import '~/Brands/app.js'
+import '~/Calls/app.js'
+import '~/Comments/app.js'
+import '~/Contacts/app.js'
+import '~/Core/app.js'
+import '~/Deals/app.js'
+import '~/Documents/app.js'
+import '~/MailClient/app.js'
+import '~/Notes/app.js'
+import '~/Translator/app.js'
+import '~/WebForms/app.js'
+import '~/ThemeStyle/app.js'
 
-// Custom Modules JS Files
-import '~/Lists/resources/js/app.js'
+import 'unfonts.css'
+import '../css/app.css'
 
 window.CreateApplication = (config, callbacks = []) =>
   new Application(config).booting(callbacks)
@@ -79,6 +77,7 @@ export default class Application {
       data() {
         return data
       },
+
       mounted() {
         self.$on('conflict', message => {
           if (message) {
@@ -162,19 +161,13 @@ export default class Application {
     // Boot app
     this.boot(app, router)
 
-    // Voip
-    if (
-      this.appConfig.hasOwnProperty('voip') &&
-      this.appConfig.voip.client &&
-      app.config.globalProperties.$gate.userCan('use voip')
-    ) {
-      const VoIPInstance = new VoIP(this.appConfig.voip.client)
-      app.config.globalProperties.$voip = VoIPInstance
-      app.component('CallComponent', VoIPInstance.callComponent)
-    }
+    const pageTitle = usePageTitle()
 
     // Handle router
-    router.beforeEach((to, from, next) => beforeEachRoute(to, from, next, app))
+    router.beforeEach((to, from, next) =>
+      beforeEachRoute(to, from, next, app, pageTitle)
+    )
+
     app.use(router)
 
     this.app = app
@@ -231,6 +224,30 @@ export default class Application {
   boot(app, router) {
     this.bootingCallbacks.forEach(callback => callback(app, router, store))
     this.bootingCallbacks = []
+  }
+
+  /**
+   * Get all of the available resource objects.
+   */
+  resources() {
+    return this.config('resources')
+  }
+
+  /**
+   * Get the serialized resource object.
+   */
+  resource(name) {
+    return this.config(`resources.${name}`)
+  }
+
+  /**
+   * Get the given resource name.
+   *
+   * NOTE: Useful to avoid using plain names in .vue files and always use
+   * the name from the serialized resource object.
+   */
+  resourceName(name) {
+    return this.resource(name).name
   }
 
   /**
@@ -386,7 +403,7 @@ export default class Application {
 /**
  * Before each route callback function
  */
-function beforeEachRoute(to, from, next, app) {
+function beforeEachRoute(to, from, next, app, pageTitle) {
   // Close sidebar on route change when on mobile
   if (store.state.sidebarOpen) {
     store.commit('SET_SIDEBAR_OPEN', false)
@@ -401,17 +418,10 @@ function beforeEachRoute(to, from, next, app) {
     }
   }
 
-  // Let's try to set page title now, as the user is allowed to access the route
+  // Now when the user is allowed to access the route
+  // let's try to configure the page title if set via the route meta options.
   if (to.meta.title) {
-    store.commit('SET_PAGE_TITLE', to.meta.title)
-  } else if (
-    store.state.pageTitle &&
-    !to.meta.title &&
-    // Do not set empty title on child routes
-    to.matched.length === 1
-  ) {
-    // Reset title if now there is no title but previously title was set
-    store.commit('SET_PAGE_TITLE', '')
+    pageTitle.value = to.meta.title
   }
 
   next()

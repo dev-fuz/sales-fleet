@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -17,9 +17,9 @@ use Modules\Core\Contracts\Fields\Customfieldable;
 class Radio extends Optionable implements Customfieldable
 {
     /**
-     * Field component
+     * Field component.
      */
-    public ?string $component = 'radio-field';
+    public static $component = 'radio-field';
 
     /**
      * Indicates that the radio field will be inline

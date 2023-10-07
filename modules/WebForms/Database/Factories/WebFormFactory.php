@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -75,6 +75,25 @@ class WebFormFactory extends Factory
                 'title' => 'Introduction Title',
                 'message' => 'Introduction Message',
             ], $merge, ['type' => WebFormSection::INTRODUCTION]);
+
+            return [
+                'sections' => $attributes['sections'],
+            ];
+        });
+    }
+
+    /**
+     * Indicate that the web form has message section.
+     *
+     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     */
+    public function withMessageSection($message = null)
+    {
+        return $this->state(function (array $attributes) use ($message) {
+            $attributes['sections'][] = [
+                'message' => $message ?? 'Message',
+                'type' => WebFormSection::MESSAGE,
+            ];
 
             return [
                 'sections' => $attributes['sections'],

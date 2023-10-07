@@ -29,6 +29,7 @@
           aria-hidden="true"
           >&#8203;</span
         >
+
         <TransitionChild
           as="template"
           enter="ease-out duration-300"
@@ -39,9 +40,20 @@
           leave-to="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
         >
           <div
-            class="inline-block w-full transform rounded-lg bg-white px-4 pb-4 pt-5 text-left align-bottom shadow-xl transition-all dark:bg-neutral-800 sm:my-8 sm:max-w-lg sm:p-6 sm:align-middle"
+            :class="[
+              'inline-block w-full transform rounded-lg bg-white px-4 pb-4 pt-5 text-left align-bottom shadow-xl transition-all dark:bg-neutral-800 sm:my-8 sm:p-6 sm:align-middle',
+              sizeClass,
+            ]"
           >
-            <template v-if="!dialog.component">
+            <component
+              :is="dialog.component"
+              v-if="dialog.component"
+              :close="close"
+              :cancel="cancel"
+              :dialog="dialog"
+            />
+
+            <template v-else>
               <div class="sm:flex sm:items-start">
                 <div
                   :class="[
@@ -68,6 +80,7 @@
                     :class="{ 'mt-2': !dialog.message }"
                     class="text-lg/6 font-medium text-neutral-600 dark:text-white"
                   >
+                    <!-- eslint-disable-next-line vue/no-v-html -->
                     <span v-if="dialog.html" v-html="title"></span>
                     <span v-else v-text="title"></span>
                   </DialogTitle>
@@ -77,8 +90,9 @@
                     :class="{ 'mt-2': Boolean(title) }"
                   >
                     <p class="text-sm text-neutral-500 dark:text-neutral-300">
-                      <span v-if="dialog.html" v-html="dialog.message"></span>
-                      <span v-else v-text="dialog.message"></span>
+                      <!-- eslint-disable-next-line vue/no-v-html -->
+                      <span v-if="dialog.html" v-html="dialog.message" />
+                      <span v-else v-text="dialog.message" />
                     </p>
                   </div>
                 </div>
@@ -88,32 +102,26 @@
                 <IButton
                   :variant="confirmVariant"
                   class="w-full sm:w-auto"
-                  @click="confirm"
                   :text="confirmText"
+                  @click="confirm"
                 />
                 <IButton
                   :variant="cancelVariant"
                   class="mt-3 w-full sm:ml-3 sm:mt-0 sm:w-auto"
-                  @click="cancel"
                   :text="$t('core::app.cancel')"
+                  @click="cancel"
                 />
               </div>
             </template>
-            <component
-              v-else
-              :is="dialog.component"
-              :close="close"
-              :cancel="cancel"
-              :dialog="dialog"
-            />
           </div>
         </TransitionChild>
       </div>
     </Dialog>
   </TransitionRoot>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, ref, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   Dialog,
@@ -123,12 +131,15 @@ import {
   TransitionRoot,
 } from '@headlessui/vue'
 
-const { t } = useI18n()
+import { useDialogSize } from './useDialog'
 
 const props = defineProps({
   dialog: { required: true, type: Object },
 })
 
+const { t } = useI18n()
+
+const sizeClass = useDialogSize(toRef(props.dialog, 'size'))
 const open = ref(true)
 
 const title = computed(() => {
@@ -141,6 +152,7 @@ const title = computed(() => {
 
 const dialogIcon = computed(() => props.dialog.icon || 'ExclamationTriangle')
 const confirmVariant = computed(() => props.dialog.confirmVariant || 'danger')
+
 const confirmText = computed(
   () => props.dialog.confirmText || t('core::app.confirm')
 )

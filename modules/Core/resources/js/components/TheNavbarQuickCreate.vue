@@ -9,13 +9,13 @@
   >
     <template #toggle="{ toggle }">
       <IButton
-        @click="toggle"
         variant="secondary"
         :rounded="false"
         :size="false"
         icon="Plus"
         icon-class="w-6 h-6"
         class="rounded-full p-1"
+        @click="toggle"
       />
     </template>
     <div class="w-56">
@@ -23,8 +23,8 @@
         class="flex items-center justify-between border-b border-neutral-200 px-4 py-3 text-sm dark:border-neutral-700"
       >
         <p
-          class="font-medium text-neutral-600 dark:text-neutral-100"
           v-t="'core::app.quick_create'"
+          class="font-medium text-neutral-600 dark:text-neutral-100"
         />
         <span
           class="rounded-md bg-neutral-700 px-1.5 text-base text-neutral-100 dark:bg-neutral-600 dark:text-neutral-200"
@@ -35,8 +35,8 @@
       <div class="space-y-0.5">
         <IDropdownItem
           v-for="(item, index) in quickCreateMenuItems"
-          :key="index"
           v-show="$route.path !== item.quickCreateRoute"
+          :key="index"
           :icon="item.icon"
           :to="item.quickCreateRoute"
         >
@@ -52,11 +52,13 @@
     </div>
   </IDropdown>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
-import { useStore } from 'vuex'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import IButton from '~/Core/resources/js/components/UI/Buttons/IButton.vue'
+import { useStore } from 'vuex'
+
+import IButton from '~/Core/components/UI/Buttons/IButton.vue'
 
 const store = useStore()
 const router = useRouter()
@@ -64,6 +66,7 @@ const visible = ref(false)
 const sidebarNavigation = computed(() => store.state.menu)
 
 const dropdownRef = ref(null)
+
 const quickCreateMenuItems = computed(() =>
   sidebarNavigation.value.filter(item => item.inQuickCreate)
 )

@@ -11,7 +11,7 @@
     ]"
     v-bind="$attrs"
   >
-    <div :class="{ 'py-6': !full }">
+    <div :class="{ 'py-8 sm:py-6': !full }">
       <div :class="['mx-auto', { 'px-4 sm:px-6 lg:px-8': !full }]">
         <div :class="{ 'sm:py-4': !full }">
           <IOverlay :show="overlay">
@@ -31,16 +31,16 @@
     </div>
   </main>
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
 defineProps({
   title: String,
-  overlay: { type: Boolean, default: false },
-  full: { type: Boolean, default: false },
+  overlay: Boolean,
+  full: Boolean,
   scrollable: { type: Boolean, default: true },
+})
+
+defineOptions({
+  inheritAttrs: false,
 })
 </script>

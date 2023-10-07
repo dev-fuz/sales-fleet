@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -23,6 +23,7 @@ return [
     'restored' => 'The record has been restored from trash by :causer',
     'created' => 'The record has been created by :causer',
     'updated' => 'The record has been updated by :causer',
+    'imported' => 'The record has been imported by :causer',
     'attached' => ':user associated',
     'detached' => ':user dissociated',
     'associate_trashed' => 'The associated :displayName record has been moved to trash by :user',

@@ -5,9 +5,9 @@
       :label="$t('core::app.timezone')"
       label-for="timezone"
     >
-      <FormTimezone
-        :modelValue="form.timezone"
-        @update:modelValue="$emit('update:timezone', $event)"
+      <TimezoneInput
+        :model-value="form.timezone"
+        @update:model-value="$emit('update:timezone', $event)"
       />
       <IFormError v-text="form.getError('timezone')" />
     </IFormGroup>
@@ -18,10 +18,10 @@
     >
       <ICustomSelect
         input-id="locale"
-        :modelValue="form.locale"
-        @update:modelValue="$emit('update:locale', $event)"
+        :model-value="form.locale"
         :clearable="false"
         :options="locales"
+        @update:model-value="$emit('update:locale', $event)"
       >
       </ICustomSelect>
       <IFormError v-text="form.getError('locale')" />
@@ -30,9 +30,9 @@
       :label="$t('core::settings.date_format')"
       label-for="date_format"
     >
-      <FormDateFormat
-        :modelValue="form.date_format"
-        @update:modelValue="$emit('update:dateFormat', $event)"
+      <DateFormatInput
+        :model-value="form.date_format"
+        @update:model-value="$emit('update:dateFormat', $event)"
       />
       <IFormError v-text="form.getError('date_format')" />
     </IFormGroup>
@@ -40,9 +40,9 @@
       :label="$t('core::settings.time_format')"
       label-for="time_format"
     >
-      <FormTimeFormat
-        :modelValue="form.time_format"
-        @update:modelValue="$emit('update:timeFormat', $event)"
+      <TimeFormatInput
+        :model-value="form.time_format"
+        @update:model-value="$emit('update:timeFormat', $event)"
       />
       <IFormError v-text="form.getError('time_format')" />
     </IFormGroup>
@@ -51,24 +51,26 @@
       label-for="first_day_of_week"
     >
       <!-- http://chartsbin.com/view/41671 -->
-      <FormWeekDaysSelect
-        :modelValue="form.first_day_of_week"
-        @update:modelValue="$emit('update:firstDayOfWeek', $event)"
+      <WeekDaySelectInput
+        :model-value="form.first_day_of_week"
         :only="[1, 6, 0]"
+        @update:model-value="$emit('update:firstDayOfWeek', $event)"
       />
       <IFormError v-text="form.getError('first_day_of_week')" />
     </IFormGroup>
   </div>
 </template>
+
 <script setup>
 import { computed } from 'vue'
-import FormTimezone from '~/Core/resources/js/components/FormTimezone.vue'
-import FormDateFormat from '~/Core/resources/js/components/FormDateFormat.vue'
-import FormTimeFormat from '~/Core/resources/js/components/FormTimeFormat.vue'
-import FormWeekDaysSelect from '~/Core/resources/js/components/FormWeekDaysSelect.vue'
-import { useApp } from '~/Core/resources/js/composables/useApp'
 
-const emit = defineEmits([
+import DateFormatInput from '~/Core/components/DateFormatInput.vue'
+import TimeFormatInput from '~/Core/components/TimeFormatInput.vue'
+import TimezoneInput from '~/Core/components/TimezoneInput.vue'
+import WeekDaySelectInput from '~/Core/components/WeekDaySelectInput.vue'
+import { useApp } from '~/Core/composables/useApp'
+
+defineEmits([
   'update:firstDayOfWeek',
   'update:timeFormat',
   'update:dateFormat',

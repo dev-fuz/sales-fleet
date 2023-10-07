@@ -2,16 +2,16 @@
   <MenuItem v-slot="{ active: focused }" :disabled="disabled">
     <a
       :href="ahref"
-      @click="handleClickEvent"
       :class="[
         'group block px-4 py-2 text-sm focus:outline-none',
         { 'group flex items-center': icon },
         { 'justify-between': icon && prependIcon },
         focused || active
-          ? 'bg-primary-100 text-primary-700 hover:bg-primary-200 hover:text-primary-800'
-          : 'text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-600 dark:hover:text-neutral-100',
+          ? 'bg-neutral-100/80 text-neutral-700 hover:text-neutral-900 dark:bg-neutral-700 dark:text-neutral-100 dark:hover:text-white'
+          : 'text-neutral-700 dark:text-neutral-100 dark:hover:text-white',
         disabled ? 'pointer-events-none opacity-50' : null,
       ]"
+      @click="handleClickEvent"
     >
       <Icon
         v-if="icon && !prependIcon"
@@ -24,7 +24,6 @@
         ]"
       />
       <slot>{{ text }}</slot>
-
       <Icon
         v-if="icon && prependIcon"
         :icon="icon"
@@ -38,16 +37,17 @@
     </a>
   </MenuItem>
 </template>
+
 <script setup>
-import { inject, computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { MenuItem } from '@headlessui/vue'
 
 const emit = defineEmits(['click'])
 
 const props = defineProps({
-  active: { type: Boolean, default: false },
-  disabled: { type: Boolean, default: false },
+  active: Boolean,
+  disabled: Boolean,
   icon: String,
   prependIcon: Boolean,
   href: String,

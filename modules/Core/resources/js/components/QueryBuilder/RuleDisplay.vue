@@ -21,12 +21,11 @@
       {{ parsedCustomDisplayAs }}
     </span>
   </div>
-
-  <div class="flex shrink-0 space-x-1" v-if="isGroup">
+  <div v-if="isGroup" class="flex shrink-0 space-x-1">
     <rule-display
-      v-for="(groupRule, index) in query.children"
+      v-for="(groupRule, childIndex) in query.children"
       :key="groupRule.query.rule"
-      :index="index"
+      :index="childIndex"
       :condition="query.condition"
       :identifier="identifier"
       :view="view"
@@ -34,22 +33,24 @@
     />
   </div>
 </template>
-<script>
-export default {
-  name: 'RuleDisplay',
-}
-</script>
+
+<script></script>
+
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
-import { useQueryBuilderLabels } from './useLabels'
+import { computed, nextTick, ref, watch } from 'vue'
+import { useStore } from 'vuex'
 import find from 'lodash/find'
 import map from 'lodash/map'
 import pickBy from 'lodash/pickBy'
-import { isBetweenOperator } from './utils'
+
 import { isValueEmpty } from '@/utils'
-import { useAccounting } from '~/Core/resources/js/composables/useAccounting'
-import { useStore } from 'vuex'
-import { useDates } from '~/Core/resources/js/composables/useDates'
+
+import { useAccounting } from '~/Core/composables/useAccounting'
+import { useDates } from '~/Core/composables/useDates'
+
+import { useQueryBuilderLabels } from '../../composables/useQueryBuilder'
+
+import { isBetweenOperator } from './utils'
 
 const props = defineProps({
   rule: { type: Object, required: true },
@@ -57,6 +58,10 @@ const props = defineProps({
   index: {},
   view: {},
   condition: {},
+})
+
+defineOptions({
+  name: 'RuleDisplay',
 })
 
 const { formatMoney, formatNumber } = useAccounting()
@@ -110,6 +115,7 @@ const original = computed(() => {
       return operand.rule.id == query.value.operand
     })
   }
+
   return originalObject
 })
 
@@ -121,6 +127,7 @@ const hasCustomDisplayAs = computed(() => {
   if (isGroup.value) {
     return false
   }
+
   return Boolean(getRuleAttribute('displayAs'))
 })
 

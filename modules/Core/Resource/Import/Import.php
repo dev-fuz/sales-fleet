@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,90 +15,90 @@ namespace Modules\Core\Resource\Import;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\LazyCollection;
-use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Validation\Validator as LaravelValidator;
+use Maatwebsite\Excel\Concerns\OnEachRow;
 use Maatwebsite\Excel\Concerns\RegistersEventListeners;
 use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
-use Maatwebsite\Excel\Concerns\ToArray;
-use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithLimit;
+use Maatwebsite\Excel\Concerns\WithStartRow;
 use Maatwebsite\Excel\Events\AfterImport;
 use Maatwebsite\Excel\Events\BeforeImport;
+use Maatwebsite\Excel\Events\ImportFailed;
 use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Row;
+use Modules\Core\Facades\ChangeLogger;
 use Modules\Core\Facades\Innoclapps;
+use Modules\Core\Fields\Field;
 use Modules\Core\Fields\FieldsCollection;
+use Modules\Core\Http\Requests\ImportRequest;
+use Modules\Core\Models\Changelog;
 use Modules\Core\Models\Import as ImportModel;
 use Modules\Core\Models\Model;
-use Modules\Core\Resource\Http\ImportRequest;
-use Modules\Core\Resource\Http\ResourceRequest;
 use Modules\Core\Resource\Resource;
-use Modules\Core\Rules\UniqueResourceRule;
+use Modules\Core\Workflow\Action as WorkflowAction;
 use Modules\Users\Models\User;
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 
-class Import extends DefaultValueBinder implements ToArray, WithHeadingRow, WithMapping, SkipsEmptyRows, WithChunkReading, WithEvents, WithCustomValueBinder
+class Import extends DefaultValueBinder implements OnEachRow, SkipsEmptyRows, WithCustomValueBinder, WithEvents, WithHeadingRow, WithLimit, WithStartRow
 {
-    use ProvidesImportableFields, RegistersEventListeners;
+    use RegistersEventListeners,
+        ValidatesImport;
 
     /**
-     * Count of imported records for the current import
+     * Indicates if the import is running.
      */
-    protected int $imported = 0;
+    public static bool $running = false;
 
     /**
-     * Count of skipped records for the current import
+     * Count of imported records for the current import.
      */
-    protected int $skipped = 0;
+    protected static int $imported = 0;
 
     /**
-     * Count of duplicate records for the current import
+     * Count of skipped records for the current import.
      */
-    protected int $duplicates = 0;
+    protected static int $skipped = 0;
 
     /**
-     * The file read chunk size
+     * Count of duplicate records for the current import.
      */
-    protected int $chunkSize = 1000;
+    protected static int $duplicates = 0;
 
     /**
-     * The maximum rows per import limit
+     * The number of rows per batch.
+     */
+    protected static int $limit = 501;
+
+    /**
+     * The maximum rows per import limit.
      */
     protected static int $maxRows;
 
     /**
-     * Instance of the import model
+     * Instance of the import model.
      */
-    protected ?ImportModel $import = null;
+    protected static ?ImportModel $import = null;
 
     /**
-     * Duplicates lookup callback
+     * Duplicates lookup callback.
      *
      * @var callable|null
      */
     protected $lookupForDuplicatesUsing;
 
     /**
-     * Perform callback on after save
+     * Perform callback on after save.
      *
      * @var callable|null
      */
     protected $afterSaveCalback;
 
     /**
-     * The current request that is in the loop for importing
-     */
-    public static ?ImportRequest $currentRequest = null;
-
-    /**
-     * Cached mappings
+     * Cached mappings.
      */
     protected ?Collection $mappings = null;
 
@@ -107,115 +107,58 @@ class Import extends DefaultValueBinder implements ToArray, WithHeadingRow, With
      */
     protected array $failures = [];
 
+    protected static int $lastRowIndex = 0;
+
     /**
-     * Columns with fields mappings
+     * Columns with fields mappings.
      */
     protected array $columnsMappings = [];
 
+    protected static array $changelogs = [];
+
+    protected ImportRequest $sampleImportRequest;
+
     /**
-     * Create new Import instance
+     * Create new Import instance.
      */
     public function __construct(protected Resource $resource)
     {
         static::$maxRows = (int) config('core.import.max_rows');
+        $this->sampleImportRequest = app(ImportRequest::class);
     }
 
     /**
-     * Start the import process
+     * Start the import process.
      */
     public function perform(ImportModel $import): void
     {
-        $this->import = $import;
-        $this->imported = $import->imported ?: 0;
-        $this->duplicates = $import->duplicates ?: 0;
-
-        try {
-            $import->fill(['status' => 'in-progress'])->save();
-
-            $this->performExcelImport($import->file_path, $import::disk());
-
-            if ($import->skip_file_path) {
-                $import->removeFile($import->skip_file_path);
-            }
-
-            if ($this->skipped > 0) {
-                $skipFilePath = $this->createSkipFile($import);
-            }
-
-            $import->fill([
-                'skip_file_path' => $skipFilePath ?? null,
-                'status' => 'finished',
-                'imported' => $this->imported,
-                'skipped' => $this->skipped,
-                'duplicates' => $this->duplicates,
-            ])->save();
-        } catch (\Exception $e) {
-            $import->fill(['status' => 'mapping'])->save();
-
-            throw $e;
+        if ($import->isFinished() && ! $import->isUsingSkipFile()) {
+            return;
         }
+
+        // Before the first batch of the skipped file, we will reset the total
+        // skipped record from the original import so they are updated correctly
+        // from the new fixed uploaded skipped file.
+        if ($import->isUsingSkipFile() && $import->totalBatchesProcessed() === 0) {
+            $import->fill(['skipped' => 0])->save();
+        }
+
+        static::$import = $import;
+        static::$imported = $import->imported ?: 0;
+        static::$duplicates = $import->duplicates ?: 0;
+        static::$skipped = $import->skipped ?: 0;
+
+        Excel::import($this, $import->file_path, $import::disk(), \Maatwebsite\Excel\Excel::CSV);
     }
 
     /**
-     * Initiate new import from the given file and start mapping the fields.
+     * Create skip file.
      */
-    public function upload(UploadedFile $file, User $user): ImportModel
-    {
-        $path = $this->storeFile($file, $model = new ImportModel());
-
-        $model->fill([
-            'file_path' => $path,
-            'resource_name' => $this->resource->name(),
-            'user_id' => $user->getKey(),
-            'status' => 'mapping',
-            'imported' => 0,
-            'duplicates' => 0,
-            'skipped' => 0,
-            'data' => [
-                'mappings' => $this->createMappings($path),
-            ],
-        ])->save();
-
-        return $model;
-    }
-
-    /**
-     * Upload new fixed skip file
-     */
-    public function uploadViaSkipFile(UploadedFile $file, ImportModel $model): void
-    {
-        $model->removeFile($model->file_path);
-        $path = $this->storeFile($file, $model);
-
-        $model->fill([
-            'file_path' => $path,
-            'status' => 'mapping',
-            'data' => array_merge($model->data, [
-                'mappings' => $this->createMappings($path),
-            ]),
-        ])->save();
-    }
-
-    /**
-     * Create mappings for the given path
-     */
-    protected function createMappings(string $path): array
-    {
-        return (new HeadingsMapper(
-            $path,
-            $this->resolveFields(),
-            ImportModel::disk(),
-        ))->map();
-    }
-
-    /**
-     * Create skip file
-     */
-    protected function createSkipFile(ImportModel $import): string
+    public function createSkipFile(): string
     {
         $generator = new SkipFileGenerator(
-            $import,
-            $this->failures(),
+            static::$import,
+            static::$import->data['failures'],
             $this->mappings()
         );
 
@@ -223,17 +166,7 @@ class Import extends DefaultValueBinder implements ToArray, WithHeadingRow, With
     }
 
     /**
-     * Store the imported file
-     *
-     * @return string|false
-     */
-    protected function storeFile(UploadedFile $file, ImportModel $import): string|bool
-    {
-        return $file->storeAs($import->storagePath(), $file->getClientOriginalName(), $import::disk());
-    }
-
-    /**
-     * Add callback for duplicates validation
+     * Add callback for duplicates validation.
      */
     public function lookupForDuplicatesUsing(callable $callback): static
     {
@@ -243,259 +176,201 @@ class Import extends DefaultValueBinder implements ToArray, WithHeadingRow, With
     }
 
     /**
-     * Add callback for after save
-     */
-    public function afterSave(callable $callback): static
-    {
-        $this->afterSaveCalback = $callback;
-
-        return $this;
-    }
-
-    /**
-     * Provide the resource fields
-     */
-    public function fields(): FieldsCollection
-    {
-        return $this->resource->resolveFields();
-    }
-
-    /**
-     * Handle the import and validation
+     * Handle the import and validation.
      *
      * @return void
      */
-    public function array(array $rows)
+    public function onRow(Row $row)
     {
-        $this->createRequestsCollection($rows)->each(function ($request) {
-            try {
-                static::$currentRequest = $request;
+        // Because we are reading the spreadsheet with limit, the headings row is not always available.
+        // In this case, in the first onRow call, we will store the headings
+        if ($row->getIndex() === 1) {
+            return $this->rememberHeadings($row);
+        }
 
-                $this->validate($request);
+        static::$lastRowIndex = $row->getIndex();
 
-                $this->save($request);
-
-                static::$currentRequest = null;
-            } catch (RowSkippedException) {
-            }
+        // The model cache will flush the cache each time the data is updated
+        // if using the file driver, as most customers will user, since they are installing
+        // on shared hosting, in this case, we do not need the IQ to flush the cache when
+        // there is possibility to update hundreds of records.
+        app('model-cache')->runDisabled(function () use ($row) {
+            $this->performRowImport($row);
         });
     }
 
     /**
-     * Validate the given request
+     * Perform import for the given row.
      */
-    protected function validate(ImportRequest $request): ?bool
+    protected function performRowImport(Row $row)
     {
+        $request = $this->createRequest($row);
+
+        Field::setRequest($request);
+
+        $validator = $this->prepareRequestForValidation($request);
+
         try {
-            $validator = $this->createValidator($request->all());
+            $this->validate($validator, $request);
 
-            $request->runValidationCallbacks($validator);
+            $this->save($request);
+        } catch (RowSkippedException) {
+        } finally {
+            Field::setRequest(null);
+        }
+    }
 
-            $validator->setData($request->all());
+    /**
+     * Create request for the given import row.
+     */
+    protected function createRequest(Row $row): ImportRequest
+    {
+        $data = $this->mapRow($row);
 
-            $validator->validate();
-        } catch (ValidationException $e) {
-            $failures = [];
+        return (clone $this->sampleImportRequest)
+            ->setResource($this->resource->name())
+            ->setFields($this->getFields())
+            ->replace($data)
+            ->setOriginal($data)
+            ->setRowNumber($row->getIndex());
+    }
 
-            foreach ($e->errors() as $attribute => $messages) {
-                $failures[] = $this->newFailureInstance($request, $attribute, $messages);
-            }
+    /**
+     * Prepare the request for validation and get the validator instance.
+     */
+    protected function prepareRequestForValidation(ImportRequest $request)
+    {
+        $validator = $this->createValidator($request);
 
-            $this->onFailure(...$failures);
+        // After the validation callbacks are executed, we need to re-set the data
+        // with the new (possibly) modified data from the validation callbacks.
+        $validator->setData($request->runValidationCallbacks($validator)->all());
 
-            throw new RowSkippedException(...$failures);
+        // We will perform a search for duplicate record after the validation callbacks
+        // so all the values are properly formatted for the validator.
+        // If a record is found, we will set the record in the request instance
+        // and can be used in the "save" method to determine whether to perform update or create.
+        if ($record = $this->searchForDuplicateRecord($request)) {
+            $request->setResourceId($record->getKey())->setRecord($record);
         }
 
-        return true;
+        return $validator;
     }
 
     /**
-     * Create new failure instance
+     * Get the fields for the import.
      */
-    protected function newFailureInstance(ImportRequest $request, string $attribute, array|string $messages): Failure
+    protected function getFields(): FieldsCollection
     {
-        return new Failure(
-            $request->rowNumber,
-            $attribute,
-            (array) $messages,
-            array_merge($request->all(), ['_original' => $request->original()])
-        );
+        return $this->resource->fieldsForImport();
     }
 
     /**
-     * Create requests collection
-     */
-    protected function createRequestsCollection(array $rows): LazyCollection
-    {
-        // We will create lazy collection because of the weight of the requests.
-        // However, is it needed as they are not stored in a variable?
-        return LazyCollection::make(function () use ($rows) {
-            $i = 0;
-            $count = count($rows);
-
-            /** @var \Modules\Core\Resource\Http\ImportRequest */
-            $sample = app(ImportRequest::class);
-
-            while ($i < $count) {
-                $request = (clone $sample)
-                    ->setFields($this->resolveFields())
-                    ->replace($rows[$i])
-                    ->setOriginal($rows[$i]);
-
-                $request->rowNumber = $i;
-
-                yield $request;
-
-                $i++;
-            }
-        });
-    }
-
-    /**
-     * Hydrate the given request with data.
-     */
-    protected function hydrateRequest(ImportRequest $request): ImportRequest
-    {
-        foreach ($this->resolveFields() as $field) {
-            // We will check if the actual field is found in the csv row
-            // if not, we will just remove from the request to prevent any issues
-            if ($request->missing($field->attribute)) {
-                $request->replace($request->except($field->attribute));
-
-                continue;
-            }
-
-            $value = $request->input($field->attribute);
-
-            if ($attributes = $field->resolveForImport(
-                is_string($value) ? trim($value) : $value,
-                $request->all(),
-                $request->original()
-            )) {
-                $request->merge($attributes);
-            }
-        }
-
-        return $request->replace(
-            collect($request->all())->filter()->all()
-        );
-    }
-
-    /**
-     * Handle row validation failure
-     */
-    protected function onFailure(Failure ...$failures)
-    {
-        $this->skipped++;
-        $this->failures = array_merge($this->failures, $failures);
-    }
-
-    /**
-     * @return Failure[]|\Illuminate\Support\Collection
-     */
-    public function failures(): Collection
-    {
-        return new Collection($this->failures);
-    }
-
-    /**
-     * Get all of the mappings intended for the current import
+     * Get all of the mappings intended for the current import.
      */
     protected function mappings(): Collection
     {
-        if ($this->mappings) {
-            return $this->mappings;
-        }
-
-        return $this->mappings = collect($this->import->data['mappings'])
+        return $this->mappings ??= collect(static::$import->data['mappings'])
             ->reject(function ($column) {
                 return $column['skip'] || ! $column['attribute'];
             });
     }
 
     /**
-     * @param  mixed  $row
+     * Map the row keys with it's selected attributes.
      */
-    public function map($row): array
+    protected function mapRow(Row $row): array
     {
-        return $this->mappings()->reduce(function ($carry, $column) use ($row) {
-            $carry[$column['attribute']] = $row[$column['original']];
+        $data = array_combine(static::$import->data['headings'], $row->toArray());
+
+        return $this->mappings()->reduce(function ($carry, $column) use ($data) {
+            $carry[$column['attribute']] = $data[$column['original']];
 
             return $carry;
         }, []);
     }
 
     /**
-     * Handle the model save for the given request
+     * Handle the model save for the given request.
      */
-    protected function save(ImportRequest&ResourceRequest $request): void
+    protected function save(ImportRequest $request): void
     {
-        $request = $this->hydrateRequest($request);
+        // If the request resource ID is set, means that a duplicate
+        // record was found, in this case, we are free to perform an update.
+        if ($request->resourceId()) {
+            $model = $request->record();
 
-        if ($record = $this->searchForDuplicateRecord($request)) {
-            if ($record->usesSoftDeletes() && $record->trashed()) {
-                $record->restore();
+            if ($model?->trashed()) {
+                $model->restore();
             }
 
-            $record = $this->updateRecord($record, $request);
+            $this->performUpdate($model, $request);
         } else {
-            $record = $this->createRecord($request);
-        }
+            // spatie activity log is adding additional 2 queries on model create
+            // we will disable the activity log during import for creation to avoid those queries
+            // and will insert custom changelog via batch.
+            ChangeLogger::disabled(function () use ($request) {
+                $model = $this->performCreate($request);
 
-        if ($this->afterSaveCalback) {
-            call_user_func_array($this->afterSaveCalback, [$record, $request]);
-        }
-    }
-
-    /**
-     * Create record
-     */
-    protected function createRecord(ResourceRequest $request): Model
-    {
-        return tap($request->resource()
-            ->setModel(null)
-            ->resourcefulHandler($request)
-            ->store(), function ($record) {
-                $this->imported++;
+                if ($model->logsModelChanges()) {
+                    $this->addImportedChangelog($model, $request);
+                }
             });
-    }
-
-    /**
-     * Update record
-     */
-    protected function updateRecord(Model $record, ResourceRequest $request): Model
-    {
-        return tap($request->resource()
-            ->setModel($record)
-            ->resourcefulHandler($request->setRecord($record))
-            ->update($record), function ($record) {
-                $this->duplicates++;
-            });
-    }
-
-    /**
-     * Perform excel import
-     */
-    protected function performExcelImport(string $filePath, string $disk): void
-    {
-        Innoclapps::setImportStatus('in-progress');
-
-        try {
-            Excel::import($this, $filePath, $disk, \Maatwebsite\Excel\Excel::CSV);
-        } finally {
-            Innoclapps::setImportStatus(false);
         }
     }
 
     /**
-     * Try to find duplicate record from the request
+     * Create new record for the resource.
+     */
+    protected function performCreate(ImportRequest $request): Model
+    {
+        /** @var \Modules\Core\Models\Model */
+        $model = $request->resource()->newModel()->forceFill([
+            'import_id' => static::$import->getKey(),
+        ]);
+
+        $model::withoutTouching(function () use ($request, &$model) {
+            $model = $request->resource()->create(
+                $request->hydrateModel($model),
+                $request->asCreateRequest(),
+            );
+
+            static::$imported++;
+        });
+
+        return $model;
+    }
+
+    /**
+     * Update record for the resource.
+     */
+    protected function performUpdate(Model $model, ImportRequest $request): Model
+    {
+        $model::withoutTouching(function () use ($request, &$model) {
+            $model = $request->resource()->update(
+                $request->hydrateModel($model),
+                $request->asUpdateRequest($model),
+            );
+
+            static::$duplicates++;
+
+            if (static::$import->isUsingSkipFile() && static::$skipped > 0) {
+                static::$skipped--;
+            }
+        });
+
+        return $model;
+    }
+
+    /**
+     * Try to find duplicate record from the request.
      */
     protected function searchForDuplicateRecord(ImportRequest $request): ?Model
     {
         // First, we need to check duplicates based on any unique custom fields
         // because the fields consist of a unique index which does not allow duplicates inserting
         // in this case, we must make sure to update them instead of try to create the record
-        if ($record = $request->findRecordFromUniqueCustomFields()) {
+        if ($record = $request->findRecordFromUniqueCustomFields(true)) {
             return $record;
         }
 
@@ -507,65 +382,6 @@ class Import extends DefaultValueBinder implements ToArray, WithHeadingRow, With
     }
 
     /**
-     * Prepare the validator for the given data
-     */
-    protected function createValidator(array $data): LaravelValidator
-    {
-        return Validator::make(
-            $data,
-            $this->rules(),
-            $this->customValidationMessages(),
-            $this->customValidationAttributes()
-        );
-    }
-
-    /**
-     * Provide custom error messages for import
-     */
-    public function customValidationMessages(): array
-    {
-        return $this->resolveFields()->map(function ($field) {
-            return $field->prepareValidationMessages();
-        })->filter()
-            ->collapse()
-            ->mapWithKeys(function ($message, $attribute) {
-                return [$attribute => $message];
-            })
-            ->all();
-    }
-
-    /**
-     * Provide custom attributes for the validation rules
-     */
-    public function customValidationAttributes(): array
-    {
-        return $this->resolveFields()->mapWithKeys(function ($field) {
-            return [$field->attribute => Str::lower(strip_tags($field->label))];
-        })->all();
-    }
-
-    /**
-     * Provide the import validation rules
-     */
-    public function rules(): array
-    {
-        $formatted = [];
-
-        foreach ($this->resolveFields() as $field) {
-            $rules = $field->getImportRules();
-            $attributes = array_keys($rules);
-
-            foreach ($attributes as $attribute) {
-                $formatted[$attribute] = collect($rules[$attribute])->reject(
-                    fn ($rule) => $rule instanceof UniqueResourceRule && $rule->skipOnImport
-                );
-            }
-        }
-
-        return $formatted;
-    }
-
-    /**
      * Check whether any import is in progress.
      */
     public static function isImportInProgress(): bool
@@ -574,35 +390,109 @@ class Import extends DefaultValueBinder implements ToArray, WithHeadingRow, With
     }
 
     /**
-     * Before import event handler
+     * Before import event handler.
      */
     public static function beforeImport(BeforeImport $event)
     {
+        $total = $event->getReader()->getTotalRows()['Worksheet'];
+
         // Subtract the heading row
-        if (($event->getReader()->getTotalRows()['Worksheet'] - 1) > static::$maxRows) {
-            throw new RowsExceededException(
-                'The maximum rows ('.static::$maxRows.') allowed in import file may have exceeded. Consider splitting the import data in multiple files.'
-            );
+        if (($total - 1) > static::$maxRows) {
+            throw new RowsExceededException(static::$maxRows);
         }
 
+        static::$import
+            ->fill(['status' => 'in-progress'])
+            ->setTotalBatches(
+                (int) ceil($total / static::$import->data['limit'])
+            )->save();
+
         // Disable the query log to reduce memory usage.
-        if (! app()->isProduction()) {
+        if (app()->isProduction()) {
             DB::disableQueryLog();
         }
 
+        static::$running = true;
+        WorkflowAction::disableExecutions();
         Innoclapps::disableNotifications();
     }
 
     /**
-     * After import event handler
+     * After import event handler.
      */
     public static function afterImport(AfterImport $event)
     {
+        if (app()->isProduction()) {
+            DB::enableQueryLog();
+        }
+
+        if (count(static::$changelogs)) {
+            static::insertChangelogs();
+        }
+
+        static::$running = false;
+
+        static::$import->incrementProcessedBatches();
+
+        $attributes = [
+            'status' => 'in-progress', 'imported' => static::$imported,
+            'skipped' => static::$skipped, 'duplicates' => static::$duplicates,
+        ];
+
+        $data = static::$import->data;
+
+        if (static::$import->totalBatchesProcessed() >= static::$import->totalBatches()) {
+            $attributes['status'] = 'finished';
+
+            if (! static::$import->isUsingSkipFile()) {
+                $attributes['completed_at'] = now();
+            }
+
+            unset($data['next_batch_start_row'], $data['next_batch']);
+        } else {
+            $data['next_batch'] = static::$import->totalBatchesProcessed() + 1;
+            $data['next_batch_start_row'] = static::$lastRowIndex + 1;
+        }
+
+        $data['failures'] = array_merge(
+            $data['failures'] ?? [],
+            $event->getConcernable()->failures()->toArray()
+        );
+
+        // Finished importing (valid for both main and skip file)
+        if (! isset($data['next_batch'])) {
+            if (static::$import->isUsingSkipFile()) {
+                static::$import->removeSkipFile();
+                $attributes['skip_file_path'] = null;
+            }
+
+            if (count($data['failures']) > 0) {
+                $attributes['skip_file_path'] = $event->getConcernable()->createSkipFile();
+                $data['failures'] = [];
+            }
+        }
+
+        static::$import->fill(array_merge($attributes, ['data' => $data]))->save();
+
+        WorkflowAction::disableExecutions(false);
         Innoclapps::enableNotifications();
     }
 
     /**
-     * Value binder handler
+     * Import failed event handler.
+     */
+    public static function importFailed(ImportFailed $event)
+    {
+        // Because we are not using transactions, there may be changelogs.
+        if (count(static::$changelogs)) {
+            static::insertChangelogs();
+        }
+
+        static::$import->fill(['status' => 'mapping'])->save();
+    }
+
+    /**
+     * Value binder handler.
      *
      * @param  mixed  $value
      * @return mixed
@@ -616,7 +506,7 @@ class Import extends DefaultValueBinder implements ToArray, WithHeadingRow, With
         // we will use the first row to map the columns with the fields e.q. A => Field
         if ($rowIdx === 1) {
             if ($mapping = $this->mappings()->where('original', $value)->first()) {
-                $this->columnsMappings[$column] = $this->resolveFields()->find(
+                $this->columnsMappings[$column] = $this->getFields()->find(
                     $mapping['attribute']
                 );
             }
@@ -631,8 +521,8 @@ class Import extends DefaultValueBinder implements ToArray, WithHeadingRow, With
             // will check if any field has defined custom import value data type and will bind it to the cell
             $field = $this->columnsMappings[$column] ?? null;
 
-            if ($field && method_exists($field, 'importValueDataType')) {
-                $cell->setValueExplicit($value, $field->importValueDataType());
+            if ($field && $dataType = $field->importValueDataType()) {
+                $cell->setValueExplicit($value, $dataType);
 
                 return true;
             }
@@ -642,8 +532,121 @@ class Import extends DefaultValueBinder implements ToArray, WithHeadingRow, With
         return parent::bindValue($cell, $value);
     }
 
-    public function chunkSize(): int
+    /**
+     * Batch logs the added changes during import.
+     */
+    protected static function insertChangelogs(): void
     {
-        return $this->chunkSize;
+        $columns = [
+            'log_name', 'identifier', 'subject_type', 'subject_id',
+            'causer_type', 'causer_id', 'causer_name', 'description',
+            'created_at',
+        ];
+
+        batch()->insert(new Changelog, $columns, static::$changelogs);
+
+        static::$changelogs = [];
+    }
+
+    /**
+     * Add the imported changelog to the changelogs list.
+     */
+    protected function addImportedChangelog(Model $model, ImportRequest $request): void
+    {
+        static::$changelogs[] = [
+            'model', // log_name
+            'imported', // identifier
+            get_class($model), // subject_type
+            $model->getKey(), // subject_id
+            get_class($request->user()), // causer_type
+            $request->user()->getKey(), // causer_id
+            $request->user()->name, // causer_name
+            '', // description
+            now()->subSeconds(1), // created_at
+        ];
+    }
+
+    /**
+     * Remember the headings.
+     */
+    protected function rememberHeadings(Row $headingsRow): void
+    {
+        static::$import->data['headings'] = array_keys($headingsRow->toArray());
+        static::$import->save();
+    }
+
+    /**
+     * Get the limit for imported rows.
+     */
+    public function limit(): int
+    {
+        return static::$import->data['limit'];
+    }
+
+    /**
+     * Get the starting row.
+     */
+    public function startRow(): int
+    {
+        if (array_key_exists('next_batch_start_row', static::$import->data->toArray())) {
+            return (int) static::$import->data['next_batch_start_row'];
+        }
+
+        return 1;
+    }
+
+    /**
+     * Initiate new import from the given file and start mapping the fields.
+     */
+    public function upload(UploadedFile $file, User $user): ImportModel
+    {
+        $model = new ImportModel;
+
+        $path = $model->storeFile($file);
+
+        return tap($model->fill([
+            'file_path' => $path,
+            'resource_name' => $this->resource->name(),
+            'user_id' => $user->getKey(),
+            'status' => 'mapping',
+            'imported' => 0,
+            'duplicates' => 0,
+            'skipped' => 0,
+            'data' => [
+                'limit' => static::$limit,
+                'mappings' => $this->createMappings($path),
+                'failures' => [],
+                'total_batches' => 0,
+                'total_batches_processed' => 0,
+                'total_batches_via_skip_file' => 0,
+                'total_batches_processed_via_skip_file' => 0,
+            ],
+        ]))->save();
+    }
+
+    /**
+     * Upload new fixed skip file.
+     */
+    public function uploadViaSkipFile(UploadedFile $file, ImportModel $model): ImportModel
+    {
+        $path = $model->storeFile($file);
+
+        $model->data['mappings'] = $this->createMappings($path);
+
+        $model->data['total_batches_via_skip_file'] = 0;
+        $model->data['total_batches_processed_via_skip_file'] = 0;
+        $model->data['limit'] = static::$limit;
+
+        $model->fill(['file_path' => $path, 'status' => 'mapping'])->save();
+
+        return $model;
+    }
+
+    /**
+     * Create mappings for the given path.
+     */
+    protected function createMappings(string $path): array
+    {
+        return (new HeadingsMapper($path, $this->getFields(), ImportModel::disk()))->map();
     }
 }

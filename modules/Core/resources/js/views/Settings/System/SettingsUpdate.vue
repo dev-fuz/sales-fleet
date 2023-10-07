@@ -7,10 +7,10 @@
       <div class="flex grow">
         <div class="relative grow focus-within:z-10">
           <input
-            type="text"
             id="purchase-key"
-            :placeholder="$t('core::app.enter_purchase_key')"
             v-model="updateData.purchase_key"
+            type="text"
+            :placeholder="$t('core::app.enter_purchase_key')"
             :class="[
               'form-input rounded-l-md border-neutral-300 dark:bg-neutral-800 dark:text-white',
               componentReady && !hasValidPurchaseKey
@@ -24,14 +24,14 @@
           variant="white"
           :rounded="false"
           :text="$t('core::app.save')"
-          @click="savePurchaseKey"
           class="relative -ml-px rounded-r-md"
+          @click="savePurchaseKey"
         />
       </div>
     </div>
   </ICard>
   <IOverlay :show="!passesZipRequirement && componentReady">
-    <template #overlay v-if="!passesZipRequirement">
+    <template v-if="!passesZipRequirement" #overlay>
       {{ $t('core::update.update_zip_is_required') }}
     </template>
 
@@ -44,21 +44,21 @@
             <div
               class="flex-1 rounded bg-warning-100 p-2 px-2 py-3 text-center text-warning-700"
             >
-              <h4 class="font-medium" v-t="'core::update.installed_version'" />
+              <h4 v-t="'core::update.installed_version'" class="font-medium" />
               <h5 v-text="updateData.installed_version"></h5>
             </div>
             <div
               class="flex-1 rounded bg-success-100 p-2 px-2 py-3 text-center text-success-700"
             >
-              <h4 class="font-medium" v-t="'core::update.latest_version'" />
+              <h4 v-t="'core::update.latest_version'" class="font-medium" />
               <h5 v-text="updateData.latest_available_version"></h5>
             </div>
           </div>
         </div>
         <div v-else>
           <h4
-            class="text-center text-lg font-semibold text-neutral-800 dark:text-neutral-100"
             v-show="componentReady"
+            class="text-center text-lg font-semibold text-neutral-800 dark:text-neutral-100"
           >
             <Icon
               icon="EmojiHappy"
@@ -68,15 +68,14 @@
           </h4>
           <p
             v-show="componentReady"
-            class="text-center text-sm text-neutral-600 dark:text-neutral-300"
             v-t="'core::update.using_latest_version'"
+            class="text-center text-sm text-neutral-600 dark:text-neutral-300"
           />
         </div>
       </IOverlay>
       <template #footer>
         <div class="flex justify-end">
           <IButton
-            @click="update"
             variant="success"
             :text="updateButtonText"
             :disabled="
@@ -84,13 +83,14 @@
               updateInProgress ||
               patchBeingApplied !== false
             "
+            @click="update"
           />
         </div>
       </template>
     </ICard>
   </IOverlay>
   <IOverlay :show="!passesZipRequirement && componentReady">
-    <template #overlay v-if="!passesZipRequirement">
+    <template v-if="!passesZipRequirement" #overlay>
       {{ $t('core::update.patch_zip_is_required') }}
     </template>
 
@@ -107,20 +107,25 @@
           >
             <div class="flex items-center justify-between">
               <div>
+                <!-- eslint-disable -->
                 <p
-                  v-html="patch.description"
                   class="text-sm font-medium text-neutral-800 dark:text-neutral-100"
+                  v-html="patch.description"
                 />
+                <!-- eslint-enable -->
                 <IBadge
                   v-if="patch.isApplied"
                   wrapper-class="mr-1"
                   variant="success"
                   :text="$t('core::update.patch_applied')"
                 />
+
                 <IBadge variant="neutral" :text="patch.token" />
+
                 <small class="ml-2.5 text-neutral-500 dark:text-neutral-300">
                   {{ localizedDateTime(patch.date) }}
                 </small>
+
                 <br />
               </div>
               <div class="flex">
@@ -142,13 +147,13 @@
                   <Icon icon="DocumentDownload" class="h-5 w-5" />
                 </a>
                 <span
-                  class="inline-block"
-                  tabindex="-1"
                   v-i-tooltip="
                     index === 0 || patch.isApplied
                       ? null
                       : $t('core::update.apply_oldest_first')
                   "
+                  class="inline-block"
+                  tabindex="-1"
                 >
                   <IButton
                     size="sm"
@@ -176,22 +181,26 @@
 
         <ICardBody v-else>
           <p
-            class="text-center text-sm text-neutral-500 dark:text-neutral-300"
             v-show="componentReady"
             v-t="'core::update.no_patches'"
+            class="text-center text-sm text-neutral-500 dark:text-neutral-300"
           />
         </ICardBody>
       </IOverlay>
     </ICard>
   </IOverlay>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
-import { useSettings } from './../useSettings'
-import orderBy from 'lodash/orderBy'
-import { isPurchaseKey } from '@/utils'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useDates } from '~/Core/resources/js/composables/useDates'
+import orderBy from 'lodash/orderBy'
+
+import { isPurchaseKey } from '@/utils'
+
+import { useDates } from '~/Core/composables/useDates'
+
+import { useSettings } from '../../../composables/useSettings'
 
 const { t } = useI18n()
 const { form, submit } = useSettings()

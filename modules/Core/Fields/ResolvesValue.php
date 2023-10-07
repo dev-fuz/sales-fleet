@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,45 +12,39 @@
 
 namespace Modules\Core\Fields;
 
+/** @mixin \Modules\Core\Fields\Field */
 trait ResolvesValue
 {
     /**
-     * Resolve field value callback
+     * Resolve field value callback.
      *
-     * @var callable|null
+     * @var null|callable
      */
     public $resolveCallback;
 
     /**
-     * Display callback
+     * Display callback.
      *
-     * @var callable|null
+     * @var null|callable
      */
     public $displayCallback;
 
     /**
-     * Import callback
+     * Import sample callback.
      *
-     * @var callable|null
-     */
-    public $importCallback;
-
-    /**
-     * Import sample callback
-     *
-     * @var callable|null
+     * @var null|callable
      */
     public $importSampleValueCallback;
 
     /**
-     * Sample value callback
+     * Sample value callback.
      *
-     * @var callable|null
+     * @var null|callable
      */
     public $sampleValueCallback;
 
     /**
-     * Resolve the actual field value
+     * Resolve the actual field value.
      *
      * @param  \Illuminate\Database\Eloquent\Model  $model
      * @return mixed
@@ -65,7 +59,7 @@ trait ResolvesValue
     }
 
     /**
-     * Resolve the displayable field value
+     * Resolve the displayable field value.
      *
      * @param  \Illuminate\Database\Eloquent\Model  $model
      * @return mixed
@@ -80,7 +74,7 @@ trait ResolvesValue
     }
 
     /**
-     * Resolve the field value for export
+     * Resolve the field value for export.
      *
      * @param  \Modules\Core\Models\Model  $model
      * @return string|null
@@ -91,28 +85,9 @@ trait ResolvesValue
     }
 
     /**
-     * Resolve the field value for import
-     *
-     * @param  string|null  $value
-     * @param  array  $row
-     * @param  array  $original
-     * @return array|null
+     * Get a sample value for import.
      */
-    public function resolveForImport($value, $row, $original)
-    {
-        if (is_callable($this->importCallback)) {
-            return call_user_func_array($this->importCallback, [$value, $row, $original, $this]);
-        }
-
-        return [$this->attribute => $value];
-    }
-
-    /**
-     * Get the sample value for import
-     *
-     * @return mixed
-     */
-    public function sampleValueForImport()
+    public function sampleValueForImport(): mixed
     {
         if (is_callable($this->importSampleValueCallback)) {
             return call_user_func_array($this->importSampleValueCallback, [$this->attribute]);
@@ -122,11 +97,9 @@ trait ResolvesValue
     }
 
     /**
-     * Get the sample value for the field
-     *
-     * @return mixed
+     * Get a sample value for the field.
      */
-    public function sampleValue()
+    public function sampleValue(): mixed
     {
         if (is_callable($this->sampleValueCallback)) {
             return call_user_func_array($this->sampleValueCallback, [$this->attribute]);
@@ -136,7 +109,7 @@ trait ResolvesValue
     }
 
     /**
-     * Resolve the field value for JSON Resource
+     * Resolve the field value for JSON Resource.
      *
      * @param  \Illuminate\Database\Eloquent\Model  $model
      * @return array|null
@@ -147,51 +120,29 @@ trait ResolvesValue
     }
 
     /**
-     * Add custom value resolver
-     *
-     *
-     * @return static
+     * Add custom value resolver.
      */
-    public function resolveUsing(callable $resolveCallback)
+    public function resolveUsing(callable $callback): static
     {
-        $this->resolveCallback = $resolveCallback;
+        $this->resolveCallback = $callback;
 
         return $this;
     }
 
     /**
-     * Add custom display resolver
-     *
-     *
-     * @return static
+     * Add custom display resolver.
      */
-    public function displayUsing(callable $displayCallback)
+    public function displayUsing(callable $callback): static
     {
-        $this->displayCallback = $displayCallback;
+        $this->displayCallback = $callback;
 
         return $this;
     }
 
     /**
-     * Add custom import value resolver
-     *
-     *
-     * @return static
+     * Add custom import sample value resolver.
      */
-    public function importUsing(callable $importCallback)
-    {
-        $this->importCallback = $importCallback;
-
-        return $this;
-    }
-
-    /**
-     * Add custom import sample value resolver
-     *
-     *
-     * @return static
-     */
-    public function provideImportValueSampleUsing(callable $callback)
+    public function provideImportValueSampleUsing(callable $callback): static
     {
         $this->importSampleValueCallback = $callback;
 
@@ -199,12 +150,9 @@ trait ResolvesValue
     }
 
     /**
-     * Add custom sample value resolver
-     *
-     *
-     * @return static
+     * Add custom sample value resolver.
      */
-    public function provideSampleValueUsing(callable $callback)
+    public function provideSampleValueUsing(callable $callback): static
     {
         $this->sampleValueCallback = $callback;
 

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,7 +12,7 @@
 
 namespace Modules\Users\Placeholders;
 
-use Modules\Core\Placeholders\Placeholder;
+use Modules\Core\Support\Placeholders\Placeholder;
 
 class UserPlaceholder extends Placeholder
 {
@@ -33,7 +33,7 @@ class UserPlaceholder extends Placeholder
      *
      * @return string
      */
-    public function format(?string $contentType = null)
+    public function format(string $contentType = null)
     {
         return is_a($this->value, \Modules\Users\Models\User::class) ?
             $this->value->name :

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,6 +15,7 @@ namespace Modules\Core\Fields;
 use Illuminate\Support\Collection;
 use Modules\Core\Casts\ISO8601Date;
 use Modules\Core\Casts\ISO8601DateTime;
+use Modules\Core\Models\CustomField;
 
 class CustomFieldResourceCollection extends Collection
 {
@@ -51,7 +52,7 @@ class CustomFieldResourceCollection extends Collection
     public function fillable()
     {
         if (is_null($this->fillable)) {
-            $this->fillable = $this->filter->isNotMultiOptionable()->pluck('field_id')->all();
+            $this->fillable = $this->reject->isMultiOptionable()->pluck('field_id')->all();
         }
 
         return $this->fillable;
@@ -67,7 +68,7 @@ class CustomFieldResourceCollection extends Collection
         if (is_null($this->modelCasts)) {
             $data = $this->castableFieldsData();
 
-            $this->modelCasts = $this->castable()->mapWithKeys(function ($field) use ($data) {
+            $this->modelCasts = $this->castable()->mapWithKeys(function (CustomField $field) use ($data) {
                 return [$field->field_id => $data[$field->field_type]];
             })->all();
         }
@@ -98,6 +99,8 @@ class CustomFieldResourceCollection extends Collection
     {
         return [
             'Text' => 'string',
+            'Url' => 'string',
+            'ColorSwatch' => 'string',
             'Textarea' => 'string',
             'Email' => 'string',
             'Timezone' => 'string',

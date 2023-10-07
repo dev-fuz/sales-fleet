@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,7 +12,7 @@
 
 namespace Modules\Billable\Resource;
 
-use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Modules\Billable\Cards\ProductPerformance;
 use Modules\Billable\Criteria\ViewAuthorizedProductsCriteria;
@@ -23,8 +23,8 @@ use Modules\Core\Contracts\Resources\AcceptsCustomFields;
 use Modules\Core\Contracts\Resources\AcceptsUniqueCustomFields;
 use Modules\Core\Contracts\Resources\Cloneable;
 use Modules\Core\Contracts\Resources\Exportable;
+use Modules\Core\Contracts\Resources\HasOperations;
 use Modules\Core\Contracts\Resources\Importable;
-use Modules\Core\Contracts\Resources\Resourceful;
 use Modules\Core\Contracts\Resources\Tableable;
 use Modules\Core\Facades\Permissions;
 use Modules\Core\Fields\Boolean;
@@ -38,16 +38,18 @@ use Modules\Core\Filters\Number as NumberFilter;
 use Modules\Core\Filters\Numeric as NumericFilter;
 use Modules\Core\Filters\Radio as RadioFilter;
 use Modules\Core\Filters\Text as TextFilter;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Menu\MenuItem;
 use Modules\Core\Models\Model;
-use Modules\Core\Resource\Http\ResourceRequest;
 use Modules\Core\Resource\Import\Import;
 use Modules\Core\Resource\Resource;
 use Modules\Core\Settings\SettingsMenuItem;
+use Modules\Core\Table\BelongsToColumn;
+use Modules\Core\Table\Column;
 use Modules\Core\Table\Table;
 use Modules\Users\Filters\UserFilter;
 
-class Product extends Resource implements Resourceful, Tableable, Importable, Exportable, Cloneable, AcceptsCustomFields, AcceptsUniqueCustomFields
+class Product extends Resource implements AcceptsCustomFields, AcceptsUniqueCustomFields, Cloneable, Exportable, HasOperations, Importable, Tableable
 {
     /**
      * The column the records should be default ordered by when retrieving
@@ -74,13 +76,15 @@ class Product extends Resource implements Resourceful, Tableable, Importable, Ex
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $query
      */
-    public function table($query, Request $request): Table
+    public function table($query, ResourceRequest $request): Table
     {
-        $table = new ProductTable($query, $request);
+        $table = new Table($query, $request);
 
-        $table->customizeable = true;
-
-        return $table;
+        return $table->withActionsColumn()
+            ->customizeable()
+            ->select('created_by') // created_by is for the policy checks
+            ->orderBy('is_active', 'desc')
+            ->orderBy('name', 'asc');
     }
 
     /**
@@ -97,64 +101,72 @@ class Product extends Resource implements Resourceful, Tableable, Importable, Ex
     public function importable(): Import
     {
         return parent::importable()->lookupForDuplicatesUsing(function ($request) {
-            return $this->finder()->match([
-                'sku' => $request->sku,
-                'name' => $request->name,
-            ]);
+            return $this->newQueryWithTrashed()
+                ->where(function (Builder $query) use ($request) {
+                    $query->orWhere(array_filter([
+                        'name' => $request->name,
+                        'sku' => $request->sku,
+                    ]));
+                })->first();
         });
     }
 
     /**
      * Set the available resource fields
      */
-    public function fields(Request $request): array
+    public function fields(ResourceRequest $request): array
     {
         return [
-            Text::make('name', __('billable::product.name'))->rules([
-                'required', 'string', 'max:191',
-            ])->unique(static::$model)
+            Text::make('name', __('billable::product.name'))
+                ->creationRules(['required', 'string'])
+                ->updateRules(['sometimes', 'required', 'string'])
+                ->importRules('string')
+                ->rules('max:191')
+                ->unique(static::$model)
                 ->primary()
-                ->tapIndexColumn(fn ($column) => $column->width('320px')->minWidth('320px')),
+                ->required(true)
+                ->tapIndexColumn(fn (Column $column) => $column
+                    ->minWidth('300px')
+                    ->width('300px')
+                    ->primary()
+                    ->route(! $column->isForTrashedTable() ? ['name' => 'edit-product', 'params' => ['id' => '{id}']] : '')
+                ),
 
             Text::make('sku', __('billable::product.sku'))
                 ->unique(static::$model)
                 ->validationMessages([
                     'unique' => __('billable::product.validation.sku.unique'),
-                ])->rules('nullable', 'string', 'max:191'),
+                ])
+                ->rules(['nullable', 'string', 'max:191']),
 
             Textarea::make('description', __('billable::product.description'))
-                ->rules('nullable', 'string')
-                ->strictlyForForms(),
+                ->rules(['nullable', 'string'])
+                ->onlyOnForms(),
 
-            Numeric::make('unit_price', __('billable::product.unit_price'))->rules('required')
+            Numeric::make('unit_price', __('billable::product.unit_price'))
+                ->creationRules('required')
+                ->updateRules(['sometimes', 'required'])
+                ->importRules('required')
                 ->currency()
                 ->primary()
-                ->colClass('col-span-12 sm:col-span-6')
-                ->tapIndexColumn(fn ($column) => $column->primary(false)),
+                ->width('half'),
 
             Numeric::make('direct_cost', __('billable::product.direct_cost'))
-                ->colClass('col-span-12 sm:col-span-6')
-                ->tapIndexColumn(fn ($column) => $column->hidden())
+                ->width('half')
+                ->tapIndexColumn(fn (Column $column) => $column->hidden())
                 ->currency(),
 
             Numeric::make('tax_rate', __('billable::product.tax_rate'))
                 ->withDefaultValue(fn () => BillableProduct::defaultTaxRate())
-                ->tapIndexColumn(function ($column) {
-                    $column->primary(false)->displayAs(
-                        fn ($model) => empty($model->tax_rate) ? '--' : $model->tax_rate.'%'
-                    );
-                })
-                ->inputGroupAppend('%')
-                ->withMeta(['attributes' => ['max' => 100]])
                 ->precision(3)
+                ->appendText('%')
+                ->withMeta(['attributes' => ['max' => 100]])
                 ->provideSampleValueUsing(fn () => Arr::random([10, 18, 20]))
-                ->colClass('col-span-12 sm:col-span-6')
-                ->saveUsing(function ($request, $requestAttribute, $value, $field) {
-                    if ($request->has($requestAttribute)) {
-                        $value = (is_int($value) || is_float($value) || (is_numeric($value) && ! empty($value))) ? $value : 0;
-                    }
+                ->width('half')
+                ->fillUsing(function (Model $model, string $attribute, ResourceRequest $request, mixed $value, string $requestAttribute) {
+                    $value = (is_int($value) || is_float($value) || (is_numeric($value) && ! empty($value))) ? $value : 0;
 
-                    return [$field->attribute => $value];
+                    $model->{$attribute} = $value;
                 })
                 ->primary(),
 
@@ -162,40 +174,34 @@ class Product extends Resource implements Resourceful, Tableable, Importable, Ex
                 ->withDefaultValue(BillableProduct::defaultTaxLabel())
                 ->hideFromIndex()
                 ->primary()
-                ->colClass('col-span-12 sm:col-span-6')
-                ->tapIndexColumn(fn ($column) => $column->primary(false))
-                ->rules('nullable', 'string'),
+                ->width('half')
+                ->rules(['nullable', 'string']),
 
             Text::make('unit', __('billable::product.unit'))
                 ->provideSampleValueUsing(fn () => Arr::random(['kg', 'lot']))
-                ->rules('nullable', 'string')
+                ->rules(['nullable', 'string'])
                 ->hideFromIndex(),
 
-            Boolean::make('is_active', __('billable::product.is_active'))->rules('nullable', 'boolean')
+            Boolean::make('is_active', __('billable::product.is_active'))
+                ->rules(['nullable', 'boolean'])
                 ->withDefaultValue(true)
                 ->primary()
-                ->excludeFromExport()
-                ->tapIndexColumn(fn ($column) => $column->primary(false)),
+                ->excludeFromExport(),
 
             User::make(__('core::app.created_by'), 'creator', 'created_by')
-                ->strictlyForIndex()
+                ->onlyOnIndex()
                 ->excludeFromImport()
-                ->tapIndexColumn(
-                    fn ($column) => $column->minWidth('100px')
-                        ->select('avatar')
-                        ->appends('avatar_url')
-                        ->useComponent('table-data-avatar-column')
-                )
+                ->tapIndexColumn(fn (BelongsToColumn $column) => $column->minWidth('100px'))
                 ->hidden(),
 
             DateTime::make('updated_at', __('core::app.updated_at'))
                 ->excludeFromImportSample()
-                ->strictlyForIndex()
+                ->onlyOnIndex()
                 ->hidden(),
 
             DateTime::make('created_at', __('core::app.created_at'))
                 ->excludeFromImportSample()
-                ->strictlyForIndex()
+                ->onlyOnIndex()
                 ->hidden(),
         ];
     }
@@ -206,7 +212,7 @@ class Product extends Resource implements Resourceful, Tableable, Importable, Ex
     public function filters(ResourceRequest $request): array
     {
         return [
-            TextFilter::make('name', __('billable::product.name'))->withoutEmptyOperators(),
+            TextFilter::make('name', __('billable::product.name'))->withoutNullOperators(),
             TextFilter::make('sku', __('billable::product.sku')),
             NumericFilter::make('unit_price', __('billable::product.unit_price')),
             NumericFilter::make('direct_cost', __('billable::product.direct_cost')),
@@ -242,14 +248,13 @@ class Product extends Resource implements Resourceful, Tableable, Importable, Ex
     public function actions(ResourceRequest $request): array
     {
         return [
+            new \Modules\Core\Actions\BulkEditAction($this),
+
             new \Modules\Billable\Actions\MarkProductAsActive,
             new \Modules\Billable\Actions\MarkProductAsInactive,
-            new \Modules\Billable\Actions\UpdateProductUnitPrice,
-            new \Modules\Billable\Actions\UpdateProductTaxRate,
-            new \Modules\Billable\Actions\UpdateProductTaxLabel,
 
             (new DeleteAction)->isBulk()
-                ->useName(__('core::app.delete'))
+                ->setName(__('core::app.delete'))
                 ->authorizedToRunWhen(
                     fn ($request, $model) => $request->user()->can('bulk delete products')
                 ),
@@ -278,6 +283,14 @@ class Product extends Resource implements Resourceful, Tableable, Importable, Ex
         $newModel->save();
 
         return $newModel;
+    }
+
+    /**
+     * Prepare global search query.
+     */
+    public function globalSearchQuery(ResourceRequest $request): Builder
+    {
+        return parent::globalSearchQuery($request)->select(['id', 'name', 'created_at']);
     }
 
     /**

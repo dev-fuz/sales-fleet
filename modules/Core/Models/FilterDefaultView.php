@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,7 +12,7 @@
 
 namespace Modules\Core\Models;
 
-class FilterDefaultView extends Model
+class FilterDefaultView extends CacheModel
 {
     /**
      * Indicates if the model has timestamps

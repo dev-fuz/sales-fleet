@@ -1,14 +1,14 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-const plugin = require('tailwindcss/plugin')
+import plugin from 'tailwindcss/plugin'
 
 const round = num =>
   num
@@ -18,7 +18,7 @@ const round = num =>
 const rem = px => `${round(px / 16)}rem`
 const em = (px, base) => `${round(px / base)}em`
 
-module.exports = plugin(function ({ addComponents, theme }) {
+export default plugin(function ({ addComponents, theme }) {
   addComponents({
     '.mail-text': {
       color: theme('colors.neutral.700'),
@@ -102,9 +102,6 @@ module.exports = plugin(function ({ addComponents, theme }) {
         marginTop: em(8, 12),
         // color: theme('colors.neutral.600'),
         color: 'inherit',
-      },
-      code: {
-        fontSize: em(12, 14),
       },
       'h2 code': {
         fontSize: em(18, 20),
@@ -265,6 +262,7 @@ module.exports = plugin(function ({ addComponents, theme }) {
         fontWeight: '400',
       },
       code: {
+        fontSize: em(12, 14),
         color: theme('colors.neutral.900'),
         fontWeight: '500',
       },

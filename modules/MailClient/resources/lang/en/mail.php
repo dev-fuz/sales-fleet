@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -36,6 +36,9 @@ return [
 
     'account' => [
         'create_contact' => 'Create Contact record if record does not exists.',
+        'use_aliass' => 'Use alias email address',
+        'use_aliass_info' => 'The address needs to be a valid alias that already exists in the mail server, useful when using Google Workspace aliases.',
+        'enter_alias' => 'Alias E-Mail Address',
         'personal' => 'Personal',
         'shared' => 'Shared',
         'accounts' => 'Email Accounts',
@@ -73,6 +76,7 @@ return [
 
         'missing_sent_folder' => 'Action required, select the sent folder for this account',
         'missing_trash_folder' => 'Action required, select the trash folder for this account',
+        'missing_primary_account' => 'Action required, configure a primary account for sending emails',
 
         'type' => 'Account Type',
         'email_address' => 'Email Address',
@@ -140,6 +144,7 @@ return [
             'subject' => 'With subject',
             'message' => 'With message',
             'to' => 'To',
+            'send_from_owner_primary_account' => 'Owner Primary Email Account',
         ],
     ],
 

@@ -1,8 +1,5 @@
 <template>
-  <span
-    class="inline-block"
-    v-i-tooltip="isDisabled ? callDropdownTooltip : null"
-  >
+  <span v-i-tooltip="isDisabled ? callDropdownTooltip : null">
     <IDropdown
       v-if="hasMorePhoneNumbers"
       :disabled="isDisabled"
@@ -14,8 +11,8 @@
       <IDropdownItem
         v-for="(phoneNumber, index) in phoneNumbers"
         :key="phoneNumber.phoneNumber + phoneNumber.type + index"
-        @click="requestNewCall(phoneNumber.phoneNumber)"
         :icon="phoneNumber.type == 'mobile' ? 'DeviceMobile' : 'Phone'"
+        @click="requestNewCall(phoneNumber.phoneNumber)"
       >
         {{ phoneNumber.phoneNumber }} ({{ phoneNumber.resourceDisplayName }})
       </IDropdownItem>
@@ -31,25 +28,26 @@
     />
   </span>
 </template>
+
 <script setup>
 import { computed } from 'vue'
-import castArray from 'lodash/castArray'
 import { useI18n } from 'vue-i18n'
-import { useGate } from '~/Core/resources/js/composables/useGate'
-import { useVoip } from '~/Core/resources/js/composables/useVoip'
-import { useRecordStore } from '~/Core/resources/js/composables/useRecordStore'
+import castArray from 'lodash/castArray'
+
+import { useGate } from '~/Core/composables/useGate'
+
+import { useVoip } from '~/Calls/composables/useVoip'
 
 const emit = defineEmits(['call-requested'])
 
 const props = defineProps({
   resourceName: { required: true, type: String },
+  resource: { required: true, type: Object },
 })
 
 const { t } = useI18n()
 const { gate } = useGate()
 const { hasVoIPClient } = useVoip()
-
-const { record } = useRecordStore()
 
 const callDropdownTooltip = computed(() => {
   if (!hasVoIPClient) {
@@ -66,18 +64,26 @@ const isDisabled = computed(() => gate.userCant('use voip') || !hasVoIPClient)
 const phoneNumbers = computed(() => {
   let numbers = []
 
-  numbers.push(...getPhoneNumbersFromResource(record.value))
+  numbers.push(...getPhoneNumbersFromResource(props.resource))
 
   switch (props.resourceName) {
     case 'contacts':
-      numbers.push(...getPhoneNumbersFromResource(record.value.companies || []))
+      numbers.push(
+        ...getPhoneNumbersFromResource(props.resource.companies || [])
+      )
       break
     case 'companies':
-      numbers.push(...getPhoneNumbersFromResource(record.value.contacts || []))
+      numbers.push(
+        ...getPhoneNumbersFromResource(props.resource.contacts || [])
+      )
       break
     case 'deals':
-      numbers.push(...getPhoneNumbersFromResource(record.value.companies || []))
-      numbers.push(...getPhoneNumbersFromResource(record.value.contacts || []))
+      numbers.push(
+        ...getPhoneNumbersFromResource(props.resource.companies || [])
+      )
+      numbers.push(
+        ...getPhoneNumbersFromResource(props.resource.contacts || [])
+      )
       break
   }
 

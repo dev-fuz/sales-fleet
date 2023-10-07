@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -22,12 +22,10 @@ use Modules\Core\Facades\ChangeLogger;
 use Modules\Core\Fields\Field;
 use Modules\Core\Fields\User;
 use Modules\Core\Models\Changelog;
-use Modules\Users\Models\User as ModelsUser;
+use Modules\Users\Models\User as UserModel;
 use Modules\WebForms\Http\Requests\WebFormRequest;
 use Modules\WebForms\Mail\WebFormSubmitted;
 use Modules\WebForms\Models\WebForm;
-use Modules\WebForms\Submission\FormSubmission;
-use Modules\WebForms\Submission\FormSubmissionLogger;
 use Plank\Mediable\Exceptions\MediaUploadException;
 use Plank\Mediable\Facades\MediaUploader;
 
@@ -41,15 +39,13 @@ class FormSubmissionService
         ChangeLogger::disable();
         $webForm = $request->webForm();
 
-        $request->state = 'creating';
         $request->setResource('contacts');
-        $resource = $request->resource();
 
-        $firstNameField = $request->fields()->find('first_name');
+        $firstNameField = $request->findField('first_name');
         $displayName = null;
 
-        $phoneField = $request->fields()->find('phones');
-        $emailField = $request->fields()->find('email');
+        $phoneField = $request->findField('phones');
+        $emailField = $request->findField('email');
 
         User::setAssigneer($webForm->creator);
 
@@ -64,21 +60,21 @@ class FormSubmissionService
         if ($contact) {
             // Track updated fields
             ChangeLogger::enable();
-            $resource->setModel($contact);
-            $resource->resourcefulHandler($request)->update($contact);
-            $resource->setModel(null);
+            $updateRequest = $request->asUpdateRequest($contact);
+            $contact = $request->resource()->update($updateRequest->hydrateModel($contact), $request);
             ChangeLogger::disable();
         } else {
-            $firstNameAttribute = $firstNameField ? $firstNameField->requestAttribute() : 'first_name';
             $firstName = ! $firstNameField ? $displayName : $request[$firstNameField->requestAttribute()];
 
-            $request->merge([
-                $firstNameAttribute => $firstName,
-                'user_id' => $webForm->user_id,
-                'source_id' => $this->getSource()->getKey(),
-            ]);
+            $createRequest = $request->asCreateRequest();
 
-            $contact = $request->resource()->resourcefulHandler($request)->store();
+            $contact = $request
+                ->resource()
+                ->create($createRequest->newHydratedModel([
+                    'first_name' => $firstName,
+                    'user_id' => $webForm->user_id,
+                    'source_id' => $this->getSource()->getKey(),
+                ]), $createRequest);
         }
 
         $this->handleResourceUploadedFiles($request, $contact);
@@ -92,7 +88,7 @@ class FormSubmissionService
 
         $request->setResource('companies');
 
-        if ($request->fields()->isNotEmpty() || $request->webForm()->getFileSectionsForResource('companies')->isNotEmpty()) {
+        if ($request->getFields()->isNotEmpty() || $webForm->getFileSectionsForResource('companies')->isNotEmpty()) {
             $company = $this->handleCompanyFields($request, $displayName, $deal, $contact);
             $this->handleResourceUploadedFiles($request, $company);
         }
@@ -111,45 +107,56 @@ class FormSubmissionService
     }
 
     /**
-     * Find duplicate company
+     * Find duplicate company.
      */
     protected function findDuplicateCompany(WebFormRequest $request, string $companyName, ?string $companyEmail): ?Company
     {
-        $company = $request->findRecordFromUniqueCustomFields();
 
-        if (! $company && $companyEmail) {
-            $company = Company::where('email', $companyEmail)->first();
+        /** @var \Modules\Contacts\Resource\Company\Company */
+        $resource = $request->resource();
+
+        if ($company = $request->findRecordFromUniqueCustomFields()) {
+            return $company;
         }
 
-        if (! $company) {
-            $company = Company::where('name', $companyName)->first();
+        if ($companyEmail && $company = $resource->findByEmail($companyEmail, $resource->newQuery())) {
+            return $company;
         }
 
-        return $company;
+        return $resource->findByName($companyName, $resource->newQuery());
     }
 
     /**
-     * Find duplicate contact
+     * Find duplicate contact.
      */
     protected function findDuplicateContact(WebFormRequest $request, ?Field $emailField, ?Field $phoneField): ?Contact
     {
+        /** @var \Modules\Contacts\Resource\Contact\Contact */
+        $resource = $request->resource();
+
         if ($contact = $request->findRecordFromUniqueCustomFields()) {
             return $contact;
         }
 
         if ($emailField && ! empty($email = $request[$emailField->requestAttribute()])) {
-            $contact = Contact::where('email', $email)->first();
+            if ($contact = $resource->findByEmail($email, $resource->newQuery())) {
+                return $contact;
+            }
         }
 
-        if (! $contact && $phoneField && ! empty($phones = $request[$phoneField->requestAttribute()])) {
-            $contact = $request->resource()->finder()->matchByPhone($phones);
+        if ($phoneField && ! empty($phones = $request[$phoneField->requestAttribute()])) {
+            if ($contact = $resource->findByPhones($phones)) {
+                if (! $contact->trashed()) {
+                    return $contact;
+                }
+            }
         }
 
-        return $contact;
+        return null;
     }
 
     /**
-     * Handle the web form deal fields
+     * Handle the web form deal fields.
      *
      * @param  string  $fallbackName
      * @param  \Modules\Contacts\Models\Contact  $contact
@@ -159,8 +166,41 @@ class FormSubmissionService
     {
         $request->setResource('deals');
 
-        $dealNameField = $request->fields()->find('name');
+        $nameField = $request->findField('name');
+        $name = $this->determineDealName($request, $fallbackName, $nameField);
 
+        $deal = $request->resource()->newModel([
+            'pipeline_id' => $request->webForm()->submit_data['pipeline_id'],
+            'stage_id' => $request->webForm()->submit_data['stage_id'],
+            'user_id' => $request->webForm()->user_id,
+            'web_form_id' => $request->webForm()->id,
+        ]);
+
+        if (! $nameField) {
+            $deal->fill(['name' => $name]);
+        } else {
+            $request[$nameField->requestAttribute()] = $name;
+        }
+
+        $createRequest = $request->asCreateRequest();
+
+        $request->resource()->create(
+            $createRequest->hydrateModel($deal),
+            $createRequest
+        );
+
+        $deal->contacts()->attach($contact);
+
+        $this->handleResourceUploadedFiles($request, $deal);
+
+        return $deal;
+    }
+
+    /**
+     * Determine the deal name.
+     */
+    protected function determineDealName(WebFormRequest $request, $fallbackName, ?Field $dealNameField)
+    {
         $dealName = $dealNameField ?
             $dealNameField->attributeFromRequest(
                 $request,
@@ -172,27 +212,11 @@ class FormSubmissionService
             $dealName = $request->webForm()->title_prefix.$dealName;
         }
 
-        $nameAttribute = $dealNameField ? $dealNameField->requestAttribute() : 'name';
-
-        $request->merge([
-            $nameAttribute => $dealName,
-            'pipeline_id' => $request->webForm()->submit_data['pipeline_id'],
-            'stage_id' => $request->webForm()->submit_data['stage_id'],
-            'user_id' => $request->webForm()->user_id,
-            'web_form_id' => $request->webForm()->id,
-        ]);
-
-        return tap(
-            $request->resource()->resourcefulHandler($request)->store(),
-            function ($deal) use ($request, $contact) {
-                $deal->contacts()->attach($contact);
-                $this->handleResourceUploadedFiles($request, $deal);
-            }
-        );
+        return $dealName;
     }
 
     /**
-     * Handle the company fields
+     * Handle the company fields.
      *
      * @param  string  $fallbackName
      * @param  \Modules\Deals\Models\Deal  $deal
@@ -202,34 +226,39 @@ class FormSubmissionService
     protected function handleCompanyFields(WebFormRequest $request, $fallbackName, $deal, $contact)
     {
         $resource = $request->resource();
-        $companyNameField = $request->fields()->find('name');
+        $companyNameField = $request->findField('name');
 
         $companyName = ! $companyNameField ?
             $fallbackName.' Company' :
             $request[$companyNameField->requestAttribute()];
 
-        if ($companyEmailField = $request->fields()->find('email')) {
+        if ($companyEmailField = $request->findField('email')) {
             $companyEmail = $request[$companyEmailField->requestAttribute()];
         }
 
-        if ($company = $this->findDuplicateCompany($request, $companyName, $companyEmail ?? null)) {
-            $resource->setModel($company);
-            $resource->resourcefulHandler($request)->update($company);
-            $resource->setModel(null);
+        if ($company = $this->findDuplicateCompany(
+            $request,
+            $companyName,
+            $companyEmail ?? null
+        )) {
+            // Track updated fields
+            ChangeLogger::enable();
+            $updateRequest = $request->asUpdateRequest($company);
+            $resource->update($updateRequest->hydrateModel($company), $updateRequest);
 
             // It can be possible the contact to be already attached to the company e.q. in case the same form
             // is submitted twice, in this case, the company will exists as well the contact
             $company->contacts()->syncWithoutDetaching($contact);
+            ChangeLogger::disable();
         } else {
-            $nameAttribute = $companyNameField?->requestAttribute() ?? 'name';
+            $createRequest = $request->asCreateRequest();
 
-            $request->merge([
-                $nameAttribute => $companyName,
+            $company = $resource->create($createRequest->newHydratedModel([
+                $companyNameField?->attribute ?? 'name' => $companyName,
                 'user_id' => $request->webForm()->user_id,
                 'source_id' => $this->getSource()->getKey(),
-            ]);
+            ]), $createRequest);
 
-            $company = $resource->resourcefulHandler($request)->store();
             $company->contacts()->attach($contact);
         }
 
@@ -239,7 +268,7 @@ class FormSubmissionService
     }
 
     /**
-     * Handle the resource uploaded files
+     * Handle the resource uploaded files.
      *
      * @param  \Modules\WebForms\Http\Requests\WebFormRequest  $request
      * @param  \Modules\Core\Models\Model  $model
@@ -272,15 +301,15 @@ class FormSubmissionService
     }
 
     /**
-     * Get the web form source
+     * Get the web form source.
      */
-    protected function getSource(): ?Source
+    protected function getSource(): Source
     {
         return Source::where('flag', 'web-form')->first();
     }
 
     /**
-     * Handle the web form notification
+     * Handle the web form notification.
      */
     protected function handleWebFormNotifications(WebForm $form, Changelog $changelog): void
     {
@@ -296,11 +325,11 @@ class FormSubmissionService
     }
 
     /**
-     * Get the notification recipients
+     * Get the notification recipients.
      */
     protected function getNotificationRecipients(WebForm $form): Collection
     {
-        $users = ModelsUser::whereIn('email', $form->notifications)->get()->toBase();
+        $users = UserModel::whereIn('email', $form->notifications)->get()->toBase();
 
         $usersEmails = $users->pluck('email')->all();
 

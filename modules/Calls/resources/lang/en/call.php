@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,11 +12,14 @@
 
 return [
     'calls' => 'Calls',
+    'call' => 'Call',
     'add' => 'Log Call',
     'make' => 'Make a phone call',
     'log' => 'Briefly describe the outcome of the call...',
     'manage_calls' => 'Manage Calls',
     'total_calls' => 'Total Calls',
+    'activate_voip' => 'Activate',
+    'voip_activated' => 'Activated',
     'info' => 'You can log calls and you and your team and keep track of all performed interactions.',
     'info_created' => ':user logged a call on :date',
     'follow_up_task_body' => 'Regarding a call log: :content',
@@ -24,6 +27,7 @@ return [
     'updated' => 'Call successfully updated',
     'deleted' => 'Call successfully deleted',
     'date' => 'Call Date',
+    'read_outcome' => 'Read Outcome',
 
     'outcome' => [
         'outcomes' => 'Call Outcomes',
@@ -49,9 +53,17 @@ return [
     'unknown_devices' => 'Seeing unknown devices?',
     'hide_bar' => 'Hide this bar',
 
+    'activation_required' => 'Calling feature activation required',
+    'activation_gesture_required' => 'Most browsers require user gesture (click) to activate calling feature
+        like audio and microphone. This is handled on your first click when you
+        enter your dashboard, since, you did not click anything in
+        :askForActivationIn minute, we ask you to activate the calling
+        functionality by clicking below.',
+
     'cards' => [
         'by_day' => 'Logged calls by day',
         'by_sale_agent' => 'Total logged calls by sales agent',
+        'logged_calls' => 'Logged calls',
         'outcome_overview' => 'Call outcome overview',
     ],
 

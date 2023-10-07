@@ -4,26 +4,33 @@
       v-if="config.customizeable && withCustomizeButton"
       variant="white"
       icon="Cog"
-      @click="() => $refs.settingsRef.showModal()"
+      @click="() => $refs.customizationRef.showModal()"
     />
   </div>
 
   <!-- Settings Modal -->
   <CustomizeTableSettings
-    ref="settingsRef"
+    ref="customizationRef"
     :config="config"
     :table-id="tableId"
     :url-path="urlPath"
   />
 </template>
+
 <script setup>
+import { ref } from 'vue'
+
 import CustomizeTableSettings from './TableSettingsCustomization.vue'
 
 defineProps({
   config: { required: true, type: Object },
   tableId: { required: true, type: String },
   urlPath: { required: true, type: String },
-  withCustomizeButton: { type: Boolean, default: false },
+  withCustomizeButton: Boolean,
   resourceName: { type: String, required: true },
 })
+
+const customizationRef = ref(null)
+
+defineExpose({ customizationRef })
 </script>

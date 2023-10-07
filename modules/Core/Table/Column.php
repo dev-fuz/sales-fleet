@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,77 +14,183 @@ namespace Modules\Core\Table;
 
 use Closure;
 use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Expression;
 use JsonSerializable;
 use Modules\Core\Authorizeable;
-use Modules\Core\Contracts\Countable;
+use Modules\Core\Fields\Field;
 use Modules\Core\HasHelpText;
 use Modules\Core\Makeable;
 use Modules\Core\MetableElement;
 
 class Column implements Arrayable, JsonSerializable
 {
-    use Makeable, Authorizeable, MetableElement, HasHelpText;
+    use Authorizeable,
+        HasHelpText,
+        Makeable,
+        MetableElement;
 
     /**
-     * Custom query for this field
+     * Attributes to append with the response.
+     */
+    public array $appends = [];
+
+    /**
+     * Additional fields to select.
+     */
+    public array $select = [];
+
+    /**
+     * Eager load relationship with this field.
+     */
+    public array $with = [];
+
+    /**
+     * Count relationship with this field.
+     */
+    public array $withCount = [];
+
+    /**
+     * Custom query for this field.
      */
     public Expression|Closure|string|null $queryAs = null;
 
     /**
-     * Indicates whether the column is sortable
+     * Indicates whether the column is sortable.
      */
     public bool $sortable = true;
 
     /**
-     * Indicates whether to add the column contents in the front end as HTML
-     */
-    public bool $asHtml = false;
-
-    /**
-     * Indicates whether the column is hidden
+     * Indicates whether the column is hidden.
      */
     public ?bool $hidden = null;
 
     /**
-     * Indicates special columns and some actions are disabled
+     * Indicates special columns and some actions are disabled.
      */
     public bool $primary = false;
 
     /**
-     * Table th/td min width
+     * Table th/td min width.
      */
     public ?string $minWidth = '200px';
 
     /**
-     * The column default order
+     * The column default order.
      */
     public ?int $order = null;
 
     /**
-     * Indicates whether to include the column in the query when it's hidden
+     * Indicates whether to include the column in the query when it's hidden.
      */
     public bool $queryWhenHidden = false;
 
     /**
-     * Custom column display formatter
+     * Data heading component.
      */
-    public ?Closure $displayAs = null;
+    public string $component = '';
 
     /**
-     * Data heading component
+     * @var callable|null
      */
-    public string $component = 'table-data-column';
+    public $orderByUsing;
+
+    /**
+     * Indicates whether the column can be customized.
+     */
+    public bool $customizeable = true;
+
+    /**
+     * Indicates whether the column may contain new lines.
+     */
+    public bool $newlineable = false;
+
+    /**
+     * The field the column is related to.
+     */
+    public ?Field $field = null;
+
+    /**
+     * Custom row data filler callback.
+     */
+    public ?Closure $fillRowDataUsing = null;
+
+    /**
+     * Indicates whether the column is intended for the trashed table.
+     */
+    public static bool $trashed = false;
 
     /**
      * Initialize new Column instance.
      */
-    public function __construct(public ?string $attribute = null, public ?string $label = null)
+    public function __construct(public string $attribute, public ?string $label = null)
     {
     }
 
     /**
-     * Custom query for this column
+     * Check whether the column is intended to be used on the trashed table.
+     */
+    public function isForTrashedTable(): bool
+    {
+        return static::$trashed === true;
+    }
+
+    /**
+     * Add a route for redirect on column click.
+     */
+    public function route(string|array $route): static
+    {
+        $this->withMeta([__FUNCTION__ => $route]);
+
+        return $this;
+    }
+
+    /**
+     * Add a link for redirect on column click.
+     */
+    public function link(string $href): static
+    {
+        $this->withMeta([__FUNCTION__ => $href]);
+
+        return $this;
+    }
+
+    /**
+     * Fill the row data
+     */
+    public function fillRowData(&$row, $model)
+    {
+        if ($this->fillRowDataUsing instanceof Closure) {
+            call_user_func_array($this->fillRowDataUsing, [&$row, $model]);
+        } else {
+            if ($this instanceof RelationshipColumn) {
+                $row[$this->attribute] = $model->getRelation($this->relationName);
+            } else {
+                $row[$this->attribute] = $model->getAttribute($this->attribute);
+            }
+        }
+    }
+
+    /**
+     * Provide a closure to tap the model for the response.
+     */
+    public function fillRowDataUsing(Closure $callback): static
+    {
+        $this->fillRowDataUsing = $callback;
+
+        return $this;
+    }
+
+    /**
+     * Check whether the column should be included in the query.
+     */
+    public function shouldQuery(): bool
+    {
+        return ! $this->isHidden() || $this->queryWhenHidden;
+    }
+
+    /**
+     * Custom query for this column.
      */
     public function queryAs(Expression|Closure|string $queryAs): static
     {
@@ -93,8 +199,22 @@ class Column implements Arrayable, JsonSerializable
         return $this;
     }
 
+    public function with(array|string $relationships)
+    {
+        $this->with = array_merge($this->withCount, (array) $relationships);
+
+        return $this;
+    }
+
+    public function withCount(array|string $relationships)
+    {
+        $this->withCount = array_merge($this->withCount, (array) $relationships);
+
+        return $this;
+    }
+
     /**
-     * Set column name/label
+     * Set column name/label.
      */
     public function label(?string $label): static
     {
@@ -104,7 +224,7 @@ class Column implements Arrayable, JsonSerializable
     }
 
     /**
-     * Set whether the column is sortable
+     * Set whether the column is sortable.
      */
     public function sortable(bool $bool = true): static
     {
@@ -114,7 +234,7 @@ class Column implements Arrayable, JsonSerializable
     }
 
     /**
-     * Check whether the column is sortable
+     * Check whether the column is sortable.
      */
     public function isSortable(): bool
     {
@@ -122,17 +242,7 @@ class Column implements Arrayable, JsonSerializable
     }
 
     /**
-     * Add the column content as HTML
-     */
-    public function asHtml(bool $bool = true): static
-    {
-        $this->asHtml = $bool;
-
-        return $this;
-    }
-
-    /**
-     * Set column visibility
+     * Set column visibility.
      */
     public function hidden(bool $bool = true): static
     {
@@ -142,7 +252,7 @@ class Column implements Arrayable, JsonSerializable
     }
 
     /**
-     * Check whether the column is hidden
+     * Check whether the column is hidden.
      */
     public function isHidden(): bool
     {
@@ -150,7 +260,8 @@ class Column implements Arrayable, JsonSerializable
     }
 
     /**
-     * Set the column as primary
+     * Mark the column as primary.
+     * NOTE: It's recommended to have only 1 primary table column.
      */
     public function primary(bool $bool = true): static
     {
@@ -160,7 +271,7 @@ class Column implements Arrayable, JsonSerializable
     }
 
     /**
-     * Check whether the column is primary
+     * Check whether the column is primary.
      */
     public function isPrimary(): bool
     {
@@ -168,7 +279,7 @@ class Column implements Arrayable, JsonSerializable
     }
 
     /**
-     * Set column td custom class
+     * Set column td custom class.
      */
     public function tdClass(string $class): static
     {
@@ -176,7 +287,7 @@ class Column implements Arrayable, JsonSerializable
     }
 
     /**
-     * Set column th custom class
+     * Set column th custom class.
      */
     public function thClass(string $class): static
     {
@@ -184,7 +295,7 @@ class Column implements Arrayable, JsonSerializable
     }
 
     /**
-     * Set column th/td width
+     * Set column th/td width.
      */
     public function width($width): static
     {
@@ -192,7 +303,7 @@ class Column implements Arrayable, JsonSerializable
     }
 
     /**
-     * Set column th/td min width
+     * Set column th/td min width.
      */
     public function minWidth(?string $minWidth): static
     {
@@ -202,7 +313,15 @@ class Column implements Arrayable, JsonSerializable
     }
 
     /**
-     * Set the column default order
+     * Center the column heading and data.
+     */
+    public function centered(bool $value = true): static
+    {
+        return $this->withMeta([__FUNCTION__ => $value]);
+    }
+
+    /**
+     * Set the column default order.
      */
     public function order(int $order): static
     {
@@ -212,7 +331,7 @@ class Column implements Arrayable, JsonSerializable
     }
 
     /**
-     * Whether to select/query the column when the column hidden
+     * Whether to select/query the column when the column hidden.
      */
     public function queryWhenHidden(bool $bool = true): static
     {
@@ -222,25 +341,41 @@ class Column implements Arrayable, JsonSerializable
     }
 
     /**
-     * Custom column formatter
+     * Add additional fields to be selected when querying the column.
      */
-    public function displayAs(Closure $callback): static
+    public function select(array|string $fields): static
     {
-        $this->displayAs = $callback;
+        $this->select = array_merge(
+            $this->select,
+            (array) $fields
+        );
 
         return $this;
     }
 
     /**
-     * Check whether a column can count relations
+     * Set attributes to appends in the model.
      */
-    public function isCountable(): bool
+    public function appends(array|string $attributes): static
     {
-        return $this instanceof Countable;
+        $this->appends = array_merge(
+            $this->appends,
+            (array) $attributes
+        );
+
+        return $this;
     }
 
     /**
-     * Get the column data component
+     * Check whether the column is a relation.
+     */
+    public function isRelation(): bool
+    {
+        return $this instanceof RelationshipColumn;
+    }
+
+    /**
+     * Get the column data component.
      */
     public function component(): string
     {
@@ -248,7 +383,7 @@ class Column implements Arrayable, JsonSerializable
     }
 
     /**
-     * Set the column data component
+     * Set the column data component for the front-end.
      */
     public function useComponent(string $component): static
     {
@@ -258,19 +393,49 @@ class Column implements Arrayable, JsonSerializable
     }
 
     /**
-     * Check whether the column is a relation
+     * Apply the order by query for the column.
      */
-    public function isRelation(): bool
+    public function orderBy(Builder $query, string $direction): Builder
     {
-        return $this instanceof RelationshipColumn;
+        if (! $this->sortable) {
+            return $query;
+        }
+
+        if (is_callable($this->orderByUsing)) {
+            return call_user_func_array($this->orderByUsing, [$query, $direction, $this]);
+        }
+
+        return $query->orderBy($query->qualifyColumn($this->attribute), $direction);
     }
 
     /**
-     * Center the column heading and data
+     * Order by using custom callback.
      */
-    public function centered(bool $value = true): static
+    public function orderByUsing(callable $callback): static
     {
-        return $this->withMeta([__FUNCTION__ => $value]);
+        $this->orderByUsing = $callback;
+
+        return $this;
+    }
+
+    /**
+     * Set whether the column can be customized.
+     */
+    public function customizeable(bool $value = true)
+    {
+        $this->customizeable = $value;
+
+        return $this;
+    }
+
+    /**
+     * Set the field the column is related to.
+     */
+    public function setField(Field $field)
+    {
+        $this->field = $field;
+
+        return $this;
     }
 
     /**
@@ -284,14 +449,15 @@ class Column implements Arrayable, JsonSerializable
             'attribute' => $this->attribute,
             'label' => $this->label,
             'sortable' => $this->isSortable(),
-            'asHtml' => $this->asHtml,
             'hidden' => $this->isHidden(),
             'primary' => $this->isPrimary(),
             'component' => $this->component(),
             'minWidth' => $this->minWidth,
             'order' => $this->order,
             'helpText' => $this->helpText,
-            // 'isCountable' => $this->isCountable(),
+            'customizeable' => $this->customizeable,
+            'newlineable' => $this->newlineable,
+            'field' => $this->field,
         ], $this->meta());
     }
 

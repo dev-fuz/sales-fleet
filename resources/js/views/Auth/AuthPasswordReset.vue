@@ -1,24 +1,22 @@
 <template>
-  <form @submit.prevent="submit" class="space-y-6" method="POST">
+  <form class="space-y-6" method="POST" @submit.prevent="submit">
     <IAlert variant="success" :show="successMessage !== null">
       {{ successMessage }}
 
-      <p class="mt-1">
-        <!-- We will redirect to login as the user is already logged in and will be redirected to the HOME route -->
-        <a
-          :href="installationUrl + '/login'"
-          class="link mt-1 font-medium"
-          v-text="$t('core::dashboard.dashboard')"
-        />
-      </p>
+      <!-- We will redirect to login as the user is already logged in and will be redirected to the HOME route -->
+      <a
+        :href="installationUrl + '/login'"
+        class="link mt-2 font-medium"
+        v-text="$t('core::dashboard.dashboard')"
+      />
     </IAlert>
 
     <IFormGroup :label="$t('auth.email_address')" label-for="email">
       <IFormInput
-        type="email"
         id="email"
-        name="email"
         v-model="form.email"
+        type="email"
+        name="email"
         autocomplete="email"
         autofocus
         required
@@ -28,9 +26,9 @@
 
     <IFormGroup :label="$t('auth.password')" label-for="password">
       <IFormInput
-        type="password"
-        v-model="form.password"
         id="password"
+        v-model="form.password"
+        type="password"
         name="password"
         required
         autocomplete="new-password"
@@ -43,30 +41,30 @@
       label-for="password-confirm"
     >
       <IFormInput
-        type="password"
-        v-model="form.password_confirmation"
         id="password-confirm"
+        v-model="form.password_confirmation"
+        type="password"
         name="password_confirmation"
         required
         autocomplete="new-password"
       />
     </IFormGroup>
 
-    <div>
-      <IButton
-        type="submit"
-        block
-        @click="resetPassword"
-        :disabled="requestInProgress"
-        :loading="requestInProgress"
-        :text="$t('passwords.reset_password')"
-      />
-    </div>
+    <IButton
+      type="submit"
+      block
+      :disabled="requestInProgress"
+      :loading="requestInProgress"
+      :text="$t('passwords.reset_password')"
+      @click="resetPassword"
+    />
   </form>
 </template>
+
 <script setup>
 import { ref } from 'vue'
-import { useForm } from '~/Core/resources/js/composables/useForm'
+
+import { useForm } from '~/Core/composables/useForm'
 
 const props = defineProps({
   email: String,

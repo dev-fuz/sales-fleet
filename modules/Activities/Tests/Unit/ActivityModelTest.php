@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -17,13 +17,26 @@ use Modules\Activities\Models\Activity;
 use Modules\Activities\Models\ActivityType;
 use Modules\Contacts\Models\Company;
 use Modules\Contacts\Models\Contact;
-use Modules\Core\Date\Carbon;
+use Modules\Core\Support\Date\Carbon;
 use Modules\Deals\Models\Deal;
 use Modules\Users\Models\User;
 use Tests\TestCase;
 
 class ActivityModelTest extends TestCase
 {
+    public function test_it_uses_default_activity_type_when_activity_type_is_empty()
+    {
+        $type = ActivityType::factory()->create();
+
+        ActivityType::setDefault($type->id);
+
+        $activity = Activity::factory()->create([
+            'activity_type_id' => null,
+        ]);
+
+        $this->assertEquals($type->id, $activity->activity_type_id);
+    }
+
     public function test_when_activity_created_by_not_provided_uses_current_user_id()
     {
         $user = $this->signIn();
@@ -93,14 +106,14 @@ class ActivityModelTest extends TestCase
 
     public function test_it_can_determine_whether_activity_is_reminded()
     {
-        $this->assertTrue(Activity::factory()->reminded()->make()->isReminded);
-        $this->assertFalse(Activity::factory()->make(['reminder_minutes_before' => 30])->isReminded);
+        $this->assertTrue(Activity::factory()->reminded()->make()->is_reminded);
+        $this->assertFalse(Activity::factory()->make(['reminder_minutes_before' => 30])->is_reminded);
     }
 
     public function test_it_can_determine_whether_activity_is_completed()
     {
-        $this->assertTrue(Activity::factory()->completed()->make()->isCompleted);
-        $this->assertFalse(Activity::factory()->make()->isCompleted);
+        $this->assertTrue(Activity::factory()->completed()->make()->is_completed);
+        $this->assertFalse(Activity::factory()->make()->is_completed);
     }
 
     public function test_it_can_determine_whether_activity_is_completed_via_attribute()
@@ -343,7 +356,7 @@ class ActivityModelTest extends TestCase
 
         $activity->markAsComplete();
 
-        $this->assertTrue($activity->isCompleted);
+        $this->assertTrue($activity->is_completed);
     }
 
     public function test_activity_can_be_marked_as_incomplete()
@@ -352,6 +365,6 @@ class ActivityModelTest extends TestCase
 
         $activity->markAsIncomplete();
 
-        $this->assertFalse($activity->isCompleted);
+        $this->assertFalse($activity->is_completed);
     }
 }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,14 +12,15 @@
 
 namespace Modules\Deals\Resource;
 
-use Modules\Core\Contracts\Resources\Resourceful;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Contracts\Resources\HasOperations;
+use Modules\Core\Http\Requests\ResourceRequest;
+use Modules\Core\Models\Model;
 use Modules\Core\Resource\Resource;
 use Modules\Core\Rules\UniqueResourceRule;
 use Modules\Deals\Http\Resources\StageResource;
 use Modules\Deals\Models\Stage;
 
-class PipelineStage extends Resource implements Resourceful
+class PipelineStage extends Resource implements HasOperations
 {
     /**
      * The column the records should be default ordered by when retrieving
@@ -40,6 +41,28 @@ class PipelineStage extends Resource implements Resourceful
     }
 
     /**
+     * Create new resource record in storage.
+     */
+    public function create(Model $model, ResourceRequest $request): Model
+    {
+        $model->fill($request->all());
+        $this->performUpdate($model, $request);
+
+        return $model;
+    }
+
+    /**
+     * Update resource record in storage.
+     */
+    public function update(Model $model, ResourceRequest $request): Model
+    {
+        $model->fill($request->all());
+        $this->performUpdate($model, $request);
+
+        return $model;
+    }
+
+    /**
      * Get the resource rules available for create
      */
     public function rules(ResourceRequest $request): array
@@ -56,8 +79,8 @@ class PipelineStage extends Resource implements Resourceful
                     'resourceId'
                 )->where('pipeline_id', $request->integer('pipeline_id')) : null,
             ]),
-            'win_probability' => 'required|integer|max:100|min:0',
-            'display_order' => 'sometimes|integer',
+            'win_probability' => ['required', 'integer', 'max:100', 'min:0'],
+            'display_order' => ['sometimes', 'integer'],
         ];
     }
 }

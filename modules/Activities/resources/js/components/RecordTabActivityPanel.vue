@@ -1,14 +1,14 @@
 <template>
-  <ITabPanel @activated.once="loadData" :lazy="!dataLoadedFirstTime">
+  <ITabPanel :lazy="!dataLoadedFirstTime" @activated.once="loadData">
     <div
       class="-mt-[20px] mb-3 overflow-hidden rounded-b-md border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900 sm:mb-7"
     >
-      <div class="px-4 py-5 sm:p-6" v-show="!showCreateForm">
+      <div v-show="!showCreateForm" class="px-4 py-5 sm:p-6">
         <div class="sm:flex sm:items-start sm:justify-between">
           <div>
             <h3
-              class="text-base/6 font-medium text-neutral-900 dark:text-white"
               v-t="'activities::activity.manage_activities'"
+              class="text-base/6 font-medium text-neutral-900 dark:text-white"
             />
             <div
               class="mt-2 max-w-xl text-sm text-neutral-500 dark:text-neutral-200"
@@ -18,18 +18,18 @@
           </div>
           <div class="mt-5 sm:ml-6 sm:mt-0 sm:flex sm:shrink-0 sm:items-center">
             <IButton
-              @click="showCreateForm = true"
               size="sm"
               icon="Plus"
               :text="$t('activities::activity.add')"
+              @click="showCreateForm = true"
             />
           </div>
         </div>
-        <FormInputSearch
-          class="mt-2"
-          v-model="search"
+        <SearchInput
           v-show="hasActivities || search"
-          @input="performSearch($event, associateable)"
+          v-model="search"
+          class="mt-2"
+          @input="performSearch"
         />
       </div>
       <CreateActivity
@@ -38,14 +38,16 @@
         :ring="false"
         :rounded="false"
         :via-resource="resourceName"
+        :via-resource-id="resourceId"
+        :related-resource="resource"
         @cancel="showCreateForm = false"
       />
     </div>
 
     <div class="sm:block">
       <div
-        class="border-b border-neutral-200 dark:border-neutral-600"
         v-show="hasActivities"
+        class="border-b border-neutral-200 dark:border-neutral-600"
       >
         <div class="flex items-center justify-center">
           <nav
@@ -54,7 +56,6 @@
             <a
               v-for="filter in filters"
               :key="filter.id"
-              @click.prevent="activateFilter(filter)"
               href="#"
               :class="[
                 activeFilter === filter.id
@@ -62,6 +63,7 @@
                   : 'border-transparent text-neutral-500 hover:border-neutral-300 hover:text-neutral-700 dark:text-neutral-100 dark:hover:border-neutral-500 dark:hover:text-neutral-300',
                 'group inline-flex min-w-full shrink-0 snap-start snap-always items-center justify-center whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium sm:min-w-0',
               ]"
+              @click.prevent="activateFilter(filter)"
             >
               {{ filter.title }} <span class="ml-2">({{ filter.total }})</span>
             </a>
@@ -72,8 +74,8 @@
 
     <div class="py-2 sm:py-4">
       <p
-        class="mt-6 flex items-center justify-center font-medium text-neutral-800 dark:text-neutral-200"
         v-if="isFilterDataEmpty"
+        class="mt-6 flex items-center justify-center font-medium text-neutral-800 dark:text-neutral-200"
       >
         <Icon
           :icon="activeFilterInstance.empty.icon"
@@ -82,46 +84,75 @@
         {{ activeFilterInstance.empty.text }}
       </p>
 
-      <Activities
-        :activities="activeFilterInstance.data"
-        :via-resource="resourceName"
-      />
+      <div class="space-y-4">
+        <div v-for="activity in activeFilterInstance.data" :key="activity.id">
+          <RelatedActivity
+            :activity-id="activity.id"
+            :title="activity.title"
+            :comments-count="activity.comments_count"
+            :is-completed="activity.is_completed"
+            :is-reminded="activity.is_reminded"
+            :is-due="activity.is_due"
+            :type-id="activity.activity_type_id"
+            :user-id="activity.user_id"
+            :note="activity.note"
+            :description="activity.description"
+            :reminder-minutes-before="activity.reminder_minutes_before"
+            :due-date="activity.due_date"
+            :end-date="activity.end_date"
+            :attachments-count="activity.media.length"
+            :media="activity.media"
+            :associations="activity.associations"
+            :authorizations="activity.authorizations"
+            :comments="activity.comments || []"
+            :via-resource="resourceName"
+            :via-resource-id="resourceId"
+            :related-resource="resource"
+          />
+        </div>
+      </div>
     </div>
 
     <div
-      class="mt-6 text-center text-neutral-800 dark:text-neutral-200"
-      v-show="isPerformingSearch && !hasSearchResults"
+      v-show="isSearching && !hasSearchResults"
       v-t="'core::app.no_search_results'"
+      class="mt-6 text-center text-neutral-800 dark:text-neutral-200"
     />
 
     <InfinityLoader
-      @handle="infiniteHandler($event, associateable)"
-      :scroll-element="scrollElement"
       ref="infinityRef"
+      :scroll-element="scrollElement"
+      @handle="infiniteHandler($event)"
     />
   </ITabPanel>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
-import Activities from './RelatedActivityList.vue'
-import CreateActivity from './RelatedActivityCreate.vue'
-import InfinityLoader from '~/Core/resources/js/components/InfinityLoader.vue'
-import { watchOnce } from '@vueuse/core'
-import orderBy from 'lodash/orderBy'
+import { computed, inject, ref, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
-import { useRecordTab } from '~/Core/resources/js/composables/useRecordTab'
-import { useApp } from '~/Core/resources/js/composables/useApp'
-import { useDates } from '~/Core/resources/js/composables/useDates'
-import { useComments } from '~/Comments/resources/js/composables/useComments'
-import { useGlobalEventListener } from '~/Core/resources/js/composables/useGlobalEventListener'
+import { watchOnce } from '@vueuse/core'
+import orderBy from 'lodash/orderBy'
+
+import InfinityLoader from '~/Core/components/InfinityLoader.vue'
+import { useApp } from '~/Core/composables/useApp'
+import { useDates } from '~/Core/composables/useDates'
+import { useRecordTab } from '~/Core/composables/useRecordTab'
+
+import { useComments } from '~/Comments/composables/useComments'
+
+import RelatedActivity from './RelatedActivity.vue'
+import CreateActivity from './RelatedActivityCreate.vue'
 
 const props = defineProps({
   resourceName: { required: true, type: String },
+  resourceId: { required: true, type: [String, Number] },
+  resource: { required: true, type: Object },
   scrollElement: { type: String },
 })
 
-const associateable = 'activities'
+const synchronizeResource = inject('synchronizeResource')
+
 const activeFilter = ref('all')
 const infinityRef = ref(null)
 const showCreateForm = ref(false)
@@ -132,29 +163,32 @@ const { currentUser } = useApp()
 const { t } = useI18n()
 const route = useRoute()
 
+const timelineRelation = 'activities'
+
 const { commentsAreVisible } = useComments(
   route.query.resourceId,
-  associateable
+  timelineRelation
 )
 
 const {
   dataLoadedFirstTime,
   focusToAssociateableElement,
   searchResults,
-  record,
-  isPerformingSearch,
+  isSearching,
   hasSearchResults,
   performSearch,
   search,
   loadData,
   infiniteHandler,
-  refresh,
 } = useRecordTab({
   resourceName: props.resourceName,
-  infinityRef,
+  resource: toRef(props, 'resource'),
   scrollElement: props.scrollElement,
   // Because of the filters badges totals, if the user has more then 15 activities, they won't be accurate
   perPage: 100,
+  infinityRef,
+  synchronizeResource,
+  timelineRelation,
 })
 
 const activeFilterInstance = computed(() =>
@@ -213,7 +247,7 @@ const nextWeekActivities = computed(() =>
  */
 const activities = computed(() =>
   orderBy(
-    searchResults.value || record.value.activities,
+    searchResults.value || props.resource.activities,
     [
       'is_completed',
       activity => createDueDateMoment(activity.due_date).toDate(),
@@ -242,7 +276,7 @@ const isFilterDataEmpty = computed(
   () =>
     activeFilterInstance.value.total === 0 &&
     dataLoadedFirstTime.value &&
-    !(isPerformingSearch.value && !hasSearchResults.value)
+    !(isSearching.value && !hasSearchResults.value)
 )
 
 /**
@@ -264,22 +298,6 @@ function createDueDateMoment(date) {
   return appMoment(date.date + ' ' + date.time + ':00')
     .clone()
     .tz(userTimezone.value)
-}
-
-/**
- * Handle resource record updated event
- *
- * We will use this function to retieve again the first page of the activities
- * for the current resource
- *
- * The check is performed e.q. if new activities are created from workflows, it won't be fetched
- * e.q. when deal stage is updated
- */
-function resourceRecordUpdated(updatedRecord) {
-  // When using preview modal it may not be the same resource
-  if (Number(updatedRecord.id) === Number(record.value.id)) {
-    refresh(associateable)
-  }
 }
 
 const filters = computed(() => [
@@ -351,24 +369,15 @@ const filters = computed(() => [
   },
 ])
 
-if (route.query.resourceId && route.query.section === associateable) {
+if (route.query.resourceId && route.query.section === timelineRelation) {
   // Wait till the data is loaded for the first time and the
   // elements are added to the document so we can have a proper scroll
   watchOnce(dataLoadedFirstTime, () => {
-    focusToAssociateableElement(
-      associateable,
-      route.query.resourceId,
-      'activity'
-    ).then(() => {
+    focusToAssociateableElement(route.query.resourceId, 'activity').then(() => {
       if (route.query.comment_id) {
         commentsAreVisible.value = true
       }
     })
   })
 }
-
-useGlobalEventListener(
-  `${props.resourceName}-record-updated`,
-  resourceRecordUpdated
-)
 </script>

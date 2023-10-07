@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,15 +12,17 @@
 
 namespace Modules\Billable\Models;
 
+use Akaunting\Money\Money;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\Billable\Database\Factories\BillableProductFactory;
+use Modules\Core\Concerns\HasDisplayOrder;
 use Modules\Core\Models\Model;
 
 class BillableProduct extends Model
 {
-    use HasFactory;
+    use HasDisplayOrder, HasFactory;
 
     /**
      * The relationships that should always be loaded.
@@ -62,35 +64,41 @@ class BillableProduct extends Model
         'qty' => 'decimal:2',
         'discount_total' => 'decimal:2',
         'amount' => 'decimal:3',
+        'amount_tax_exl' => 'decimal:3',
         'billable_id' => 'int',
         'display_order' => 'int',
         'product_id' => 'int',
     ];
 
     /**
-     * The fields for the model that are searchable.
+     * The columns for the model that are searchable.
      */
-    protected static array $searchableFields = [
+    protected static array $searchableColumns = [
         'originalProduct.sku',
         'name' => 'like',
     ];
 
     /**
-     * Boot the BillableProduct model
+     * Boot the BillableProduct model.
      */
     protected static function boot(): void
     {
         parent::boot();
 
         static::saving(function ($model) {
-            $model->amount = $model->totalAmountBeforeTax();
+            $model->amount = $model->calculateAmount();
+            $model->amount_tax_exl = $model->calculateAmountBeforeTax();
+
+            if (! $model->billable->isTaxable()) {
+                $model->tax_rate = 0;
+            }
         });
     }
 
     /**
-     * Get the underlying original product
+     * Get the underlying original product.
      *
-     * Note that the original product may be null as well if deleted
+     * NOTE: If deleted, the original product may be null
      */
     public function originalProduct(): BelongsTo
     {
@@ -98,15 +106,17 @@ class BillableProduct extends Model
     }
 
     /**
-     * Get the sku attribute
+     * Get the sku attribute.
      */
-    public function sku(): Attribute
+    protected function sku(): Attribute
     {
-        return Attribute::get(fn () => $this->originalProduct?->sku);
+        return Attribute::get(
+            fn () => $this->originalProduct?->sku
+        );
     }
 
     /**
-     * A product belongs to a billable model
+     * A product belongs to a billable model.
      */
     public function billable(): BelongsTo
     {
@@ -114,121 +124,116 @@ class BillableProduct extends Model
     }
 
     /**
-     * Get the taxRate attribute
+     * Get the product unit price in "Money" instance.
      */
-    public function taxRate(): Attribute
+    public function unitPrice(): Money
     {
-        return Attribute::get(function () {
-            // In case the billable is saved with no tax but the product tax_rate attribute has tax
-            if (! $this->billable->isTaxable()) {
-                return 0;
-            }
-
-            return $this->castAttribute('tax_rate', $this->attributes['tax_rate'] ?? 0);
-        });
+        return to_money($this->unit_price);
     }
 
     /**
-     * Get the product total amount with discount included
+     * Get the product amount in "Money" instance.
      */
-    public function totalAmountWithDiscount(): float
+    public function amount(): Money
     {
-        $unitPrice = $this->unit_price;
-        $qty = $this->qty;
-
-        return Billable::round(
-            ($unitPrice * $qty) - $this->totalDiscountAmount()
-        );
+        return to_money($this->amount);
     }
 
     /**
-     * Get the product total discount amount
+     * Get the subtotal of the product.
      */
-    public function totalDiscountAmount(): float
+    public function subtotal(): Money
     {
+        return to_money($this->rawSubtotal());
+    }
+
+    /**
+     * Get the product raw subtotal.
+     */
+    public function rawSubtotal(): float
+    {
+        return floatval($this->qty) * floatval($this->unit_price);
+    }
+
+    /**
+     * Get the product total discounted amount in "Money" instance.
+     */
+    public function discountedAmount(): Money
+    {
+        return to_money($this->rawDiscountedAmount());
+    }
+
+    /**
+     * Get the product raw discounted amount.
+     */
+    public function rawDiscountedAmount(): float
+    {
+        $discount = floatval($this->discount_total);
+
         if ($this->discount_type === 'fixed') {
-            return floatval($this->discount_total);
+            return $discount;
         }
 
-        $discountRate = $this->discount_total;
-        $unitPrice = $this->unit_price;
-        $qty = $this->qty;
+        $discountPercentDecimal = $discount / 100;
 
-        if ($this->billable->isTaxInclusive()) {
-            // (Discount %) x (Unit Price) x Qty
-            return Billable::round(($discountRate / 100) * ($unitPrice) * $qty);
-        }
-
-        // (Discount %) x (Unit Price x Qty)
-        return Billable::round(($discountRate / 100) * ($unitPrice * $qty));
+        return $discountPercentDecimal * $this->rawSubtotal();
     }
 
     /**
-     * Get the product total tax amount
+     * Get the product total tax in "Money" instance.
      */
-    public function totalTaxAmount(): int|float
+    public function totalTax(): Money
     {
-        if (! $this->billable->isTaxable()) {
-            return 0;
-        }
+        return to_money($this->rawTotalTax());
+    }
 
-        $unitPrice = $this->unit_price;
-        $qty = $this->qty;
-        $taxRate = $this->tax_rate;
+    /**
+     * Get the product raw total tax.
+     */
+    public function rawTotalTax(): float
+    {
+        $discountedAmount = $this->rawDiscountedAmount();
+        $taxableAmount = $this->rawSubtotal() - $discountedAmount;
 
         if ($this->billable->isTaxInclusive()) {
-            // Qty x [(Unit Price – Discount Amount) – (Unit Price – Discount Amount / (1+ Tax %))]
-            $amount = $qty * (
-                ($unitPrice - $this->totalDiscountAmount()) -
-                ($unitPrice - $this->totalDiscountAmount()) / (1 + ($taxRate / 100))
-            );
+            return $taxableAmount - ($taxableAmount / (1 + ($this->tax_rate / 100)));
         } else {
-            // Qty x ((Unit Price - Discount Amount) x (Tax %))
-            $amount = $qty * (($unitPrice - $this->totalDiscountAmount()) * ($taxRate / 100));
+            return $taxableAmount * ($this->tax_rate / 100);
         }
-
-        return Billable::round($amount);
     }
 
     /**
-     * Get the product total amount including taxes and discount
+     * Get the product tax rate.
      */
-    public function totalAmount(): float
+    protected function taxRate(): Attribute
     {
-        $taxAmount = $this->totalTaxAmount();
-
-        // Tax amount + Amount before tax
-        return Billable::round(
-            ($taxAmount + $this->totalAmountBeforeTax())
+        return Attribute::make(
+            get: fn (string $value) => floatval($value),
         );
     }
 
     /**
-     * Get the total product amount before tax
+     * Calculate the product total amount with any discounts included.
      */
-    public function totalAmountBeforeTax(): float
+    public function calculateAmount(): float
     {
-        if (! $this->billable->isTaxable()) {
-            return $this->totalAmountWithDiscount();
-        }
-
-        $unitPrice = $this->unit_price;
-        $qty = $this->qty;
-        $taxRate = $this->tax_rate;
-
-        if ($this->billable->isTaxInclusive()) {
-            // Qty x ((Unit Price – Discount Amount) / (1+ Tax %))
-            $amount = $qty * (($unitPrice - $this->totalDiscountAmount()) / (1 + ($taxRate / 100)));
-        } else {
-            // Qty x (Unit Price – Discount Amount)
-            $amount = $qty * ($unitPrice - $this->totalDiscountAmount());
-        }
-
-        return Billable::round($amount);
+        return $this->rawSubtotal() - $this->rawDiscountedAmount();
     }
 
     /**
-     * Get the billable products default discount type
+     * Calculate the product amount before tax.
+     */
+    public function calculateAmountBeforeTax(): float
+    {
+        if (! $this->billable->isTaxable() || $this->billable->isTaxExclusive()) {
+            return $this->calculateAmount();
+        }
+
+        return ($this->rawSubtotal() - $this->rawDiscountedAmount()) / (1 + ($this->tax_rate / 100));
+    }
+
+    /**
+     * Get the billable products default discount type.
      */
     public static function defaultDiscountType(): ?string
     {
@@ -236,7 +241,7 @@ class BillableProduct extends Model
     }
 
     /**
-     * Set the billable products default discount type
+     * Set the billable products default discount type.
      */
     public static function setDefaultDiscountType(?string $value): void
     {
@@ -244,7 +249,7 @@ class BillableProduct extends Model
     }
 
     /**
-     * Get the billable products default tax label
+     * Get the billable products default tax label.
      */
     public static function defaultTaxLabel(): ?string
     {
@@ -252,7 +257,7 @@ class BillableProduct extends Model
     }
 
     /**
-     * Set the billable products default tax label
+     * Set the billable products default tax label.
      */
     public static function setDefaultTaxLabel(?string $value): void
     {
@@ -260,7 +265,7 @@ class BillableProduct extends Model
     }
 
     /**
-     * Get the billable products default tax rate
+     * Get the billable products default tax rate.
      */
     public static function defaultTaxRate(): float|int|null
     {
@@ -268,7 +273,7 @@ class BillableProduct extends Model
     }
 
     /**
-     * Set the billable products default tax label
+     * Set the billable products default tax label.
      */
     public static function setDefaultTaxRate(float|int|null $value): void
     {
@@ -276,7 +281,7 @@ class BillableProduct extends Model
     }
 
     /**
-     * Get the document attributes that are used in a form
+     * Get the document attributes that are used in a form.
      */
     public static function formAttributes(): array
     {

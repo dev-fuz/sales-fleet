@@ -1,11 +1,11 @@
 <template>
   <component
+    :is="section.field.formComponent"
     :field="section.field"
     :form-id="form.formId"
-    view="internal"
-    :is="section.field.component"
   />
 </template>
+
 <script setup>
 import propsDefinition from './props'
 

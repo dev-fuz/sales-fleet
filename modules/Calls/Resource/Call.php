@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,37 +12,27 @@
 
 namespace Modules\Calls\Resource;
 
-use Illuminate\Http\Request;
 use Modules\Calls\Http\Resources\CallOutcomeResource;
 use Modules\Calls\Http\Resources\CallResource;
 use Modules\Calls\Models\CallOutcome;
-use Modules\Calls\Services\CallService;
 use Modules\Comments\Contracts\HasComments;
-use Modules\Core\Contracts\Resources\Resourceful;
+use Modules\Core\Contracts\Resources\HasOperations;
 use Modules\Core\Criteria\RelatedCriteria;
-use Modules\Core\Date\Carbon;
+use Modules\Core\Support\Date\Carbon;
 use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Fields\BelongsTo;
 use Modules\Core\Fields\DateTime;
 use Modules\Core\Fields\Editor;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Resource\Resource;
 use Modules\Core\Settings\SettingsMenuItem;
 
-class Call extends Resource implements Resourceful, HasComments
+class Call extends Resource implements HasComments, HasOperations
 {
     /**
      * The model the resource is related to
      */
     public static string $model = 'Modules\Calls\Models\Call';
-
-    /**
-     * Get the resource service for CRUD operations.
-     */
-    public function service(): CallService
-    {
-        return new CallService();
-    }
 
     /**
      * Get the json resource that should be used for json response
@@ -67,7 +57,7 @@ class Call extends Resource implements Resourceful, HasComments
     /**
      * Set the available resource fields
      */
-    public function fields(Request $request): array
+    public function fields(ResourceRequest $request): array
     {
         return [
             BelongsTo::make('outcome', CallOutcome::class, __('calls::call.outcome.outcome'))
@@ -75,7 +65,7 @@ class Call extends Resource implements Resourceful, HasComments
                 ->setJsonResource(CallOutcomeResource::class)
                 ->showValueWhenUnauthorizedToView() // when viewing related record e.q. deal
                 ->options(Innoclapps::resourceByModel(CallOutcome::class))
-                ->colClass('col-span-12 sm:col-span-6')
+                ->width('half')
                 ->withMeta([
                     'attributes' => [
                         'clearable' => false,
@@ -85,16 +75,16 @@ class Call extends Resource implements Resourceful, HasComments
 
             DateTime::make('date', __('calls::call.date'))
                 ->withDefaultValue(Carbon::parse())
-                ->colClass('col-span-12 sm:col-span-6')
-                ->rules('required', 'date'),
+                ->width('half')
+                ->rules('required'),
 
             Editor::make('body')
-                ->rules('required', 'string')
+                ->rules(['required', 'string'])
                 ->validationMessages(['required' => __('validation.required_without_label')])
+                ->withMentions()
                 ->withMeta([
                     'attributes' => [
                         'placeholder' => __('calls::call.log'),
-                        'with-mention' => true,
                     ],
                 ]),
         ];
@@ -107,7 +97,8 @@ class Call extends Resource implements Resourceful, HasComments
     {
         return [
             (new \Modules\Calls\Cards\LoggedCallsByDay)->withUserSelection()->canSeeWhen('is-super-admin'),
-            (new \Modules\Calls\Cards\LoggedCallsBySaleAgent)->canSeeWhen('is-super-admin')->color('success'),
+            (new \Modules\Calls\Cards\TotalLoggedCallsBySaleAgent)->canSeeWhen('is-super-admin')->color('success'),
+            (new \Modules\Calls\Cards\LoggedCalls)->canSeeWhen('is-super-admin')->withUserSelection(),
             (new \Modules\Calls\Cards\OverviewByCallOutcome)->color('info')->withUserSelection(function () {
                 return auth()->user()->isSuperAdmin();
             }),
@@ -144,8 +135,8 @@ class Call extends Resource implements Resourceful, HasComments
     public function rules(ResourceRequest $request): array
     {
         return [
-            'via_resource' => 'required|in:contacts,companies,deals|string',
-            'via_resource_id' => 'required|numeric',
+            'via_resource' => ['required', 'in:contacts,companies,deals', 'string'],
+            'via_resource_id' => ['required', 'numeric'],
         ];
     }
 

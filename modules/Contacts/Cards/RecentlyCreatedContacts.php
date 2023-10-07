@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,10 +12,11 @@
 
 namespace Modules\Contacts\Cards;
 
+use Illuminate\Http\Request;
 use Modules\Contacts\Criteria\ViewAuthorizedContactsCriteria;
 use Modules\Contacts\Models\Contact;
 use Modules\Core\Card\TableCard;
-use Modules\Core\Date\Carbon;
+use Modules\Core\Support\Date\Carbon;
 
 class RecentlyCreatedContacts extends TableCard
 {
@@ -34,11 +35,11 @@ class RecentlyCreatedContacts extends TableCard
     protected $days = 30;
 
     /**
-     * Provide the table items
+     * Provide the table items.
      *
      * @return \Illuminate\Support\Collection
      */
-    public function items(): iterable
+    public function items(Request $request): iterable
     {
         return Contact::select(['id', 'first_name', 'last_name', 'created_at', 'email'])
             ->criteria(ViewAuthorizedContactsCriteria::class)
@@ -46,15 +47,13 @@ class RecentlyCreatedContacts extends TableCard
             ->latest()
             ->limit($this->limit)
             ->get()
-            ->map(function ($contact) {
-                return [
-                    'id' => $contact->id,
-                    'display_name' => $contact->display_name,
-                    'email' => $contact->email,
-                    'created_at' => $contact->created_at,
-                    'path' => $contact->path,
-                ];
-            });
+            ->map(fn (Contact $contact) => [
+                'id' => $contact->id,
+                'display_name' => $contact->display_name,
+                'email' => $contact->email,
+                'created_at' => $contact->created_at,
+                'path' => $contact->path,
+            ]);
     }
 
     /**
@@ -83,7 +82,7 @@ class RecentlyCreatedContacts extends TableCard
     public function jsonSerialize(): array
     {
         return array_merge(parent::jsonSerialize(), [
-            'help' => __('contacts::contact.cards.recently_created_info', ['total' => $this->limit, 'days' => $this->days]),
+            'helpText' => __('contacts::contact.cards.recently_created_info', ['total' => $this->limit, 'days' => $this->days]),
         ]);
     }
 }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,7 +14,6 @@ namespace Modules\Core\Tests\Feature\Resource;
 
 use Modules\Contacts\Models\Company;
 use Modules\Contacts\Models\Contact;
-use Modules\Core\Database\Seeders\PermissionsSeeder;
 use Modules\Deals\Models\Deal;
 use Tests\TestCase;
 
@@ -36,8 +35,6 @@ class AssociationsSyncControllerTest extends TestCase
 
     public function test_unauthorized_user_to_view_the_associations_cannot_attach_them_to_the_resource()
     {
-        $this->seed(PermissionsSeeder::class);
-
         $user = $this->asRegularUser()->withPermissionsTo(['view own contacts', 'edit own contacts'])->signIn();
         $anotherUser = $this->createUser();
         $contact = Contact::factory()->for($user)->create();
@@ -124,23 +121,28 @@ class AssociationsSyncControllerTest extends TestCase
 
         $contact = Contact::factory()->has(Company::factory())->create();
 
-        $this->deleteJson('/api/associations/contacts/'.$contact->id, [
-            'companies' => [$contact->companies->first()->id],
-        ])->assertNoContent();
+        $this
+            ->deleteJson('/api/associations/contacts/'.$contact->id, [
+                'companies' => $contact->companies->modelKeys(),
+            ])
+            ->assertOk()
+            ->assertJson(['id' => $contact->id]);
 
         $this->assertCount(0, $contact->companies()->get());
     }
 
     public function test_unauthorized_user_to_view_the_associations_cannot_detach_from_to_the_resource()
     {
-        $this->seed(PermissionsSeeder::class);
         $user = $this->asRegularUser()->withPermissionsTo(['view own contacts', 'edit own contacts'])->signIn();
         $anotherUser = $this->createUser();
         $contact = Contact::factory()->has(Company::factory()->for($anotherUser))->for($user)->create();
 
-        $this->deleteJson('/api/associations/contacts/'.$contact->id, [
-            'companies' => [$contact->companies->first()->id],
-        ])->assertNoContent();
+        $this
+            ->deleteJson('/api/associations/contacts/'.$contact->id, [
+                'companies' => $contact->companies->modelKeys(),
+            ])
+            ->assertOk()
+            ->assertJson(['id' => $contact->id]);
 
         $this->assertCount(1, $contact->companies);
     }
@@ -151,10 +153,13 @@ class AssociationsSyncControllerTest extends TestCase
 
         $contact = Contact::factory()->has(Company::factory())->create();
 
-        $this->deleteJson('/api/associations/contacts/'.$contact->id, [
-            'companies' => [$contact->companies->first()->id],
-            'deals' => null,
-        ])->assertNoContent();
+        $this
+            ->deleteJson('/api/associations/contacts/'.$contact->id, [
+                'companies' => $contact->companies->modelKeys(),
+                'deals' => null,
+            ])
+            ->assertOk()
+            ->assertJson(['id' => $contact->id]);
     }
 
     public function test_it_validates_associatebles_resources()
@@ -165,14 +170,14 @@ class AssociationsSyncControllerTest extends TestCase
 
         $this->deleteJson('/api/associations/contacts/'.$contact->id, [
             'calendars' => [],
-        ])->assertStatus(400);
+        ])->assertStatus(409);
 
         $this->postJson('/api/associations/contacts/'.$contact->id, [
             'calendars' => [],
-        ])->assertStatus(400);
+        ])->assertStatus(409);
 
         $this->putJson('/api/associations/contacts/'.$contact->id, [
             'calendars' => [],
-        ])->assertStatus(400);
+        ])->assertStatus(409);
     }
 }

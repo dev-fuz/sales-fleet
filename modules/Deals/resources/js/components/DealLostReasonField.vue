@@ -3,16 +3,18 @@
     v-if="(!manualLostReason && lostReasons.length > 0) || !allowCustom"
     :options="lostReasons"
     :input-id="manualLostReason ? `${attribute}-hidden` : attribute"
-    @update:modelValue="$emit('update:modelValue', $event ? $event.name : null)"
     label="name"
+    @update:model-value="
+      $emit('update:modelValue', $event ? $event.name : null)
+    "
   />
 
   <div v-show="manualLostReason">
     <IFormTextarea
-      :modelValue="modelValue"
       :id="!manualLostReason ? `${attribute}-hidden` : attribute"
-      @update:modelValue="$emit('update:modelValue', $event)"
+      :model-value="modelValue"
       rows="2"
+      @update:model-value="$emit('update:modelValue', $event)"
     />
   </div>
 
@@ -21,10 +23,6 @@
     class="mt-2 inline-flex items-center space-x-1"
   >
     <a
-      href="#"
-      tabindex="-1"
-      class="focus:outline-none"
-      @click.prevent="manualLostReason = !manualLostReason"
       v-t="
         `deals::deal.lost_reasons.${
           manualLostReason
@@ -32,6 +30,10 @@
             : 'choose_lost_reason_or_enter'
         }`
       "
+      href="#"
+      tabindex="-1"
+      class="focus:outline-none"
+      @click.prevent="manualLostReason = !manualLostReason"
     />
     <a
       href="#"
@@ -55,10 +57,13 @@
     </a>
   </IFormText>
 </template>
+
 <script setup>
-import { ref, nextTick, onMounted } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
+
 import { useLostReasons } from '../composables/useLostReasons'
-const emit = defineEmits(['update:modelValue'])
+
+defineEmits(['update:modelValue'])
 
 const props = defineProps({
   modelValue: String,

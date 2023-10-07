@@ -1,11 +1,12 @@
 <template>
-  <p class="flex items-center font-normal">
+  <div class="mt-2 flex items-center font-normal">
     <span class="mr-1 font-medium text-neutral-800 dark:text-neutral-100">
       {{ field.label }}:
     </span>
     <slot v-bind="slotProps"></slot>
-  </p>
+  </div>
 </template>
+
 <script setup>
 import { computed } from 'vue'
 

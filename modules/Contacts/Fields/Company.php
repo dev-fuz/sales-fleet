@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -30,6 +30,8 @@ class Company extends BelongsTo
         parent::__construct($relationName, CompanyModel::class, $label ?? __('contacts::company.company'), $foreignKey);
 
         $this->setJsonResource(CompanyResource::class)
+            ->lazyLoad('/companies', ['order' => 'created_at|desc'])
+            ->onOptionClickRedirectTo('/companies/{id}')
             ->async('/companies/search');
     }
 }

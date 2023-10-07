@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,47 +13,67 @@
 namespace Modules\Deals\Resource;
 
 use App\Http\View\FrontendComposers\Template;
-use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\Rule;
+use Modules\Activities\Fields\NextActivityDate;
 use Modules\Activities\Filters\ResourceActivitiesFilter;
-use Modules\Activities\Filters\ResourceNextActivityDate as ResourceNextActivityDateFilter;
 use Modules\Billable\Contracts\BillableResource;
+use Modules\Billable\Fields\Amount;
 use Modules\Billable\Filters\BillableProductsFilter;
+use Modules\Billable\Services\BillableService;
 use Modules\Comments\Contracts\PipesComments;
+use Modules\Contacts\Fields\Companies;
+use Modules\Contacts\Fields\Contacts;
 use Modules\Core\Actions\DeleteAction;
 use Modules\Core\Contracts\Resources\AcceptsCustomFields;
 use Modules\Core\Contracts\Resources\Exportable;
+use Modules\Core\Contracts\Resources\HasOperations;
 use Modules\Core\Contracts\Resources\Importable;
 use Modules\Core\Contracts\Resources\Mediable;
-use Modules\Core\Contracts\Resources\Resourceful;
 use Modules\Core\Contracts\Resources\Tableable;
+use Modules\Core\Facades\Fields;
 use Modules\Core\Facades\Permissions;
+use Modules\Core\Fields\Date;
+use Modules\Core\Fields\DateTime;
+use Modules\Core\Fields\RelationshipCount;
+use Modules\Core\Fields\Tags;
+use Modules\Core\Fields\Text;
+use Modules\Core\Fields\User;
 use Modules\Core\Filters\Date as DateFilter;
 use Modules\Core\Filters\DateTime as DateTimeFilter;
 use Modules\Core\Filters\MultiSelect as MultiSelectFilter;
 use Modules\Core\Filters\Numeric as NumericFilter;
 use Modules\Core\Filters\Select as SelectFilter;
+use Modules\Core\Filters\Tags as TagsFilter;
 use Modules\Core\Filters\Text as TextFilter;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Menu\MenuItem;
 use Modules\Core\Models\Model;
-use Modules\Core\Resource\Http\ResourceRequest;
 use Modules\Core\Resource\Import\Import;
 use Modules\Core\Resource\Resource;
 use Modules\Core\Settings\SettingsMenuItem;
+use Modules\Core\Support\Date\Carbon;
+use Modules\Core\Table\Column;
 use Modules\Core\Table\Table;
 use Modules\Deals\Criteria\ViewAuthorizedDealsCriteria;
+use Modules\Deals\Enums\DealStatus;
+use Modules\Deals\Events\DealMovedToStage;
+use Modules\Deals\Fields\LostReasonField;
+use Modules\Deals\Fields\Pipeline as PipelineField;
+use Modules\Deals\Fields\PipelineStage;
 use Modules\Deals\Filters\DealStatusFilter;
 use Modules\Deals\Http\Resources\DealResource;
 use Modules\Deals\Models\Pipeline;
 use Modules\Deals\Models\Stage;
-use Modules\Deals\Resource\Frontend\ViewComponent;
-use Modules\Deals\Services\DealService;
+use Modules\Deals\Resource\Pages\DetailComponent;
 use Modules\Documents\Filters\ResourceDocumentsFilter;
 use Modules\MailClient\Filters\ResourceEmailsFilter;
+use Modules\Notes\Fields\ImportNote;
 use Modules\Users\Filters\ResourceUserTeamFilter;
 use Modules\Users\Filters\UserFilter;
 use Modules\WebForms\Models\WebForm;
 
-class Deal extends Resource implements Resourceful, Tableable, Mediable, Importable, Exportable, BillableResource, AcceptsCustomFields, PipesComments
+class Deal extends Resource implements AcceptsCustomFields, BillableResource, Exportable, HasOperations, Importable, Mediable, PipesComments, Tableable
 {
     /**
      * Indicates whether the resource has Zapier hooks
@@ -64,6 +84,11 @@ class Deal extends Resource implements Resourceful, Tableable, Mediable, Importa
      * The column the records should be default ordered by when retrieving
      */
     public static string $orderBy = 'name';
+
+    /**
+     * Indicates whether the resource has detail view.
+     */
+    public static bool $hasDetailView = true;
 
     /**
      * Indicates whether the resource is globally searchable
@@ -79,14 +104,6 @@ class Deal extends Resource implements Resourceful, Tableable, Mediable, Importa
      * The model the resource is related to
      */
     public static string $model = 'Modules\Deals\Models\Deal';
-
-    /**
-     * Get the resource service for CRUD operations.
-     */
-    public function service(): DealService
-    {
-        return new DealService();
-    }
 
     /**
      * Get the menu items for the resource
@@ -117,7 +134,7 @@ class Deal extends Resource implements Resourceful, Tableable, Mediable, Importa
         return [
             (new \Modules\Deals\Cards\ClosingDeals)->onlyOnDashboard()
                 ->withUserSelection(function ($instance) {
-                    return $instance->canViewOtherUsersCardData() ? auth()->id() : false;
+                    return $instance->authorizedToFilterByUser() ? auth()->id() : false;
                 })
                 ->help(__('deals::deal.cards.closing_info')),
 
@@ -130,12 +147,13 @@ class Deal extends Resource implements Resourceful, Tableable, Mediable, Importa
             (new \Modules\Deals\Cards\DealsWonInStage)->color('success')
                 ->onlyOnDashboard(),
 
-            (new \Modules\Deals\Cards\WonDealsByDay)->refreshOnActionExecuted()->withUserSelection(function ($instance) {
-                return $instance->canViewOtherUsersCardData();
-            })->color('success'),
+            (new \Modules\Deals\Cards\WonDealsByDay)->refreshOnActionExecuted()
+                ->withUserSelection(function ($instance) {
+                    return $instance->authorizedToFilterByUser();
+                })->color('success'),
 
             (new \Modules\Deals\Cards\WonDealsByMonth)->withUserSelection(function ($instance) {
-                return $instance->canViewOtherUsersCardData();
+                return $instance->authorizedToFilterByUser();
             })->color('success')->onlyOnDashboard(),
 
             (new \Modules\Deals\Cards\RecentlyCreatedDeals)->onlyOnDashboard(),
@@ -146,10 +164,14 @@ class Deal extends Resource implements Resourceful, Tableable, Mediable, Importa
                 ->canSeeWhen('is-super-admin')
                 ->onlyOnDashboard(),
 
-            (new \Modules\Deals\Cards\CreatedDealsBySaleAgent)->canSeeWhen('is-super-admin')
+            (new \Modules\Deals\Cards\CreatedDealsBySaleAgent)->canSee(function ($request) {
+                return $request->user()?->canAny(['view all deals', 'view team deals']);
+            })
                 ->onlyOnDashboard(),
 
-            (new \Modules\Deals\Cards\AssignedDealsBySaleAgent)->canSeeWhen('is-super-admin')
+            (new \Modules\Deals\Cards\AssignedDealsBySaleAgent)->canSee(function ($request) {
+                return $request->user()?->canAny(['view all deals', 'view team deals']);
+            })
                 ->onlyOnDashboard(),
         ];
     }
@@ -159,7 +181,7 @@ class Deal extends Resource implements Resourceful, Tableable, Mediable, Importa
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $query
      */
-    public function table($query, Request $request): Table
+    public function table($query, ResourceRequest $request): Table
     {
         return new DealTable($query, $request);
     }
@@ -183,9 +205,188 @@ class Deal extends Resource implements Resourceful, Tableable, Mediable, Importa
     /**
      * Provides the resource available CRUD fields
      */
-    public function fields(Request $request): array
+    public function fields(ResourceRequest $request): array
     {
-        return (new DealFields)($this);
+        return [
+            Text::make('name', __('deals::fields.deals.name'))
+                ->primary()
+                ->tapIndexColumn(fn (Column $column) => $column
+                    ->minWidth('300px')
+                    ->width('300px')
+                    ->primary()
+                    ->route(! $column->isForTrashedTable() ? ['name' => 'view-deal', 'params' => ['id' => '{id}']] : '')
+                )
+                ->creationRules(['required', 'string'])
+                ->updateRules(['filled', 'string'])
+                ->importRules('required')
+                ->rules('max:191')
+                ->hideFromDetail()
+                ->excludeFromSettings(Fields::DETAIL_VIEW)
+                ->required(true),
+
+            $pipeline = PipelineField::make()->primary()
+                ->rules('filled')
+                ->required(true)
+                ->hideFromDetail()
+                ->hideWhenUpdating()
+                ->hideFromIndex()
+                ->excludeFromImport()
+                ->excludeFromSettings()
+                ->showValueWhenUnauthorizedToView()
+                ->tapIndexColumn(fn (Column $column) => $column->queryWhenHidden()) // index inline edit of stage
+                ->inlineEditWith([
+                    $inlinePipeline = PipelineField::make()->required(),
+                    PipelineStage::make()->dependsOn($inlinePipeline, 'stages'),
+                ]),
+
+            PipelineStage::make()->primary()
+                ->dependsOn($pipeline, 'stages')
+                ->hideFromDetail()
+                ->hideWhenUpdating()
+                ->excludeFromSettings()
+                ->inlineEditWith([$pipeline, PipelineStage::make()->dependsOn($pipeline, 'stages')])
+                ->showValueWhenUnauthorizedToView(),
+
+            Amount::make('amount', __('deals::fields.deals.amount'))
+                ->readOnly(fn () => $this->resource?->hasProducts() ?? false)
+                ->primary()
+                ->currency(),
+
+            Date::make('expected_close_date', __('deals::fields.deals.expected_close_date'))
+                ->primary()
+                ->clearable()
+                ->withDefaultValue(Carbon::parse()->endOfMonth()->format('Y-m-d')),
+
+            Tags::make()
+                ->forType('deals')
+                ->rules(['sometimes', 'nullable', 'array'])
+                ->hideFromDetail()
+                ->hideFromIndex()
+                ->excludeFromSettings(Fields::DETAIL_VIEW),
+
+            Text::make('status', __('deals::deal.status.status'))
+                ->excludeFromSettings()
+                ->hideFromDetail()
+                ->hideWhenCreating()
+                ->hideWhenUpdating()
+                ->excludeFromImport()
+                ->fillUsing(function (Model $model, string $attribute, ResourceRequest $request, mixed $value, string $requestAttribute) {
+                    $status = DealStatus::find($value);
+
+                    abort_if(
+                        $model->isStatusLocked($status),
+                        409,
+                        'The deal first must be marked as open in order to apply the "'.$status->name.'" status.'
+                    );
+
+                    $model->fillStatus($status, $request->lost_reason);
+                })
+                ->rules(['sometimes', 'nullable', 'string', Rule::in(DealStatus::names())])
+                ->showValueWhenUnauthorizedToView()
+                ->resolveUsing(fn ($model) => $model->status->name)
+                ->displayUsing(fn ($model, $value) => DealStatus::find($value)->label()) // For mail placeholder
+                ->tapIndexColumn(function (Column $column) {
+                    $column->centered()
+                        ->withMeta([
+                            'statuses' => collect(DealStatus::cases())->mapWithKeys(function ($status) {
+                                return [$status->value => [
+                                    'name' => $status->name,
+                                    'badge' => $status->badgeVariant(),
+                                ]];
+                            }),
+                        ])
+                        ->orderByUsing(function (Builder $query, string $direction) {
+                            return $query->orderByRaw('CASE
+                                WHEN status ="'.DealStatus::open->value.'" THEN 1
+                                WHEN status ="'.DealStatus::lost->value.'" THEN 2
+                                WHEN status ="'.DealStatus::won->value.'" THEN 3
+                            END '.$direction);
+                        });
+                }),
+
+            LostReasonField::make('lost_reason', __('deals::deal.lost_reasons.lost_reason'))
+                ->hidden()
+                ->excludeFromSettings()
+                ->excludeFromImportSample()
+                ->disableInlineEdit()
+                ->rules(array_filter([
+                    Rule::excludeIf(fn () => $request->resourceId()
+                         && $request->record()->isLost() &&
+                         $request->missing('lost_reason')
+                    ),
+                    (bool) settings('lost_reason_is_required') ? 'required_if:status,lost' : null,
+                    'nullable',
+                    'string',
+                    'max:191',
+                ])),
+
+            User::make(__('deals::fields.deals.user.name'))
+                ->primary()
+                ->acceptLabelAsValue(false)
+                ->withMeta(['attributes' => ['placeholder' => __('core::app.no_owner')]])
+                ->notification(\Modules\Deals\Notifications\UserAssignedToDeal::class)
+                ->trackChangeDate('owner_assigned_date')
+                ->hideFromDetail()
+                ->excludeFromSettings(Fields::DETAIL_VIEW)
+                ->showValueWhenUnauthorizedToView(),
+
+            Companies::make()
+                ->excludeFromSettings(Fields::DETAIL_VIEW)
+                ->hideFromDetail()
+                ->hideFromIndex()
+                ->order(1001),
+
+            Contacts::make()
+                ->excludeFromSettings(Fields::DETAIL_VIEW)
+                ->hideFromDetail()
+                ->hideFromIndex()
+                ->order(1002),
+
+            DateTime::make('owner_assigned_date', __('deals::fields.deals.owner_assigned_date'))
+                ->exceptOnForms()
+                ->hidden(),
+
+            RelationshipCount::make('contacts', __('contacts::contact.total'))
+                ->hidden(),
+
+            RelationshipCount::make('companies', __('contacts::company.total'))
+                ->hidden(),
+
+            RelationshipCount::make('unreadEmailsForUser', __('mailclient::inbox.unread_count'))
+                ->hidden()
+                ->authRequired()
+                ->excludeFromZapierResponse(),
+
+            RelationshipCount::make('incompleteActivitiesForUser', __('activities::activity.incomplete_activities'))
+                ->hidden()
+                ->authRequired()
+                ->excludeFromZapierResponse(),
+
+            RelationshipCount::make('documents', __('documents::document.total_documents'))
+                ->hidden()
+                ->excludeFromZapierResponse(),
+
+            RelationshipCount::make('draftDocuments', __('documents::document.total_draft_documents'))
+                ->hidden()
+                ->excludeFromZapierResponse(),
+
+            RelationshipCount::make('calls', __('calls::call.total_calls'))
+                ->hidden(),
+
+            NextActivityDate::make(),
+
+            ImportNote::make(),
+
+            DateTime::make('updated_at', __('core::app.updated_at'))
+                ->excludeFromImportSample()
+                ->onlyOnIndex()
+                ->hidden(),
+
+            DateTime::make('created_at', __('core::app.created_at'))
+                ->excludeFromImportSample()
+                ->onlyOnIndex()
+                ->hidden(),
+        ];
     }
 
     /**
@@ -197,22 +398,12 @@ class Deal extends Resource implements Resourceful, Tableable, Mediable, Importa
     }
 
     /**
-     * Get the resource rules available for create and update
-     */
-    public function rules(ResourceRequest $request): array
-    {
-        return [
-            'lost_reason' => 'sometimes|nullable|string|max:191',
-        ];
-    }
-
-    /**
      * Get the resource available filters
      */
     public function filters(ResourceRequest $request): array
     {
         return [
-            TextFilter::make('name', __('deals::fields.deals.name'))->withoutEmptyOperators(),
+            TextFilter::make('name', __('deals::fields.deals.name'))->withoutNullOperators(),
             NumericFilter::make('amount', __('deals::fields.deals.amount')),
             DateFilter::make('expected_close_date', __('deals::fields.deals.expected_close_date')),
 
@@ -235,17 +426,17 @@ class Deal extends Resource implements Resourceful, Tableable, Mediable, Importa
 
             DateTimeFilter::make('stage_changed_date', __('deals::deal.stage.changed_date')),
 
+            TagsFilter::make('tags', __('core::tags.tags'))->forType('deals'),
+
             DateTimeFilter::make('won_date', __('deals::deal.won_date'))
-                ->help(__('deals::deal.status_related_filter_notice', ['status' => __('deals::deal.status.won')])),
+                ->help(__('deals::deal.status_related_filter_notice', ['status' => DealStatus::won->label()])),
 
             DateTimeFilter::make('lost_date', __('deals::deal.lost_date'))
-                ->help(__('deals::deal.status_related_filter_notice', ['status' => __('deals::deal.status.lost')])),
+                ->help(__('deals::deal.status_related_filter_notice', ['status' => DealStatus::lost->label()])),
 
             DealStatusFilter::make(),
 
-            TextFilter::make('lost_reason', __('deals::deal.lost_reasons.lost_reason'))
-                ->withNullOperators()
-                ->withoutEmptyOperators(),
+            TextFilter::make('lost_reason', __('deals::deal.lost_reasons.lost_reason')),
 
             UserFilter::make(__('deals::fields.deals.user.name')),
             ResourceUserTeamFilter::make(__('users::team.owner_team')),
@@ -258,11 +449,10 @@ class Deal extends Resource implements Resourceful, Tableable, Mediable, Importa
             SelectFilter::make('web_form_id', __('webforms::form.form'))
                 ->labelKey('title')
                 ->valueKey('id')
-                ->withNullOperators()
                 ->options(fn () => WebForm::select(['id', 'title'])->get())
                 ->canSeeWhen('is-super-admin'),
 
-            ResourceNextActivityDateFilter::make(),
+            DateTimeFilter::make('next_activity_date', __('activities::activity.next_activity_date')),
             UserFilter::make(__('core::app.created_by'), 'created_by')->withoutNullOperators()->canSeeWhen('view all deals'),
             DateTimeFilter::make('updated_at', __('core::app.updated_at')),
             DateTimeFilter::make('created_at', __('core::app.created_at')),
@@ -275,20 +465,30 @@ class Deal extends Resource implements Resourceful, Tableable, Mediable, Importa
     public function actions(ResourceRequest $request): array
     {
         return [
-            (new \Modules\Users\Actions\AssignOwnerAction)->onlyOnIndex(),
-            new \Modules\Deals\Actions\ChangeDealStage,
             (new \Modules\Deals\Actions\MarkAsWon)->withoutConfirmation(),
             new \Modules\Deals\Actions\MarkAsLost,
             (new \Modules\Deals\Actions\MarkAsOpen)->withoutConfirmation(),
 
-            (new DeleteAction)->useName(__('core::app.delete')),
+            new \Modules\Core\Actions\BulkEditAction($this),
+
+            new \Modules\Deals\Actions\ChangeDealStage,
+
+            (new DeleteAction)->setName(__('core::app.delete')),
 
             (new DeleteAction)->isBulk()
-                ->useName(__('core::app.delete'))
+                ->setName(__('core::app.delete'))
                 ->authorizedToRunWhen(
                     fn ($request, $model) => $request->user()->can('bulk delete deals')
                 ),
         ];
+    }
+
+    /**
+     * Prepare global search query.
+     */
+    public function globalSearchQuery(ResourceRequest $request): Builder
+    {
+        return parent::globalSearchQuery($request)->select(['id', 'name', 'created_at']);
     }
 
     /**
@@ -340,7 +540,47 @@ class Deal extends Resource implements Resourceful, Tableable, Mediable, Importa
      */
     public function frontendTemplate(): Template
     {
-        return (new Template)->viewComponent(new ViewComponent);
+        return (new Template)->detailComponent(new DetailComponent);
+    }
+
+    /**
+     * Handle the "afterCreate" resource record hook.
+     */
+    public function afterCreate(Model $model, ResourceRequest $request): void
+    {
+        // We will check if the provided billable has products, if yes, then in this case the user
+        // wants to add products however, if no, we won't save the billable as it will update the
+        // amount column of the deal to 0 but the user may have entered an amount for this deal when creating
+        if (count($request->billable['products'] ?? []) > 0) {
+            (new BillableService)->save($request->billable, $model);
+        }
+    }
+
+    /**
+     * Handle the "beforeUpdate" resource record hook.
+     */
+    public function beforeUpdate(Model $model, ResourceRequest $request): void
+    {
+        if ($model->isDirty('stage_id')) {
+            $request->merge(['_original_stage' => $model->getOriginal('stage_id')]);
+        }
+    }
+
+    /**
+     * Handle the "afterUpdate" resource record hook.
+     */
+    public function afterUpdate(Model $model, ResourceRequest $request): void
+    {
+        if ($request->billable) {
+            (new BillableService)->save($request->billable, $model);
+        }
+
+        if ($model->wasChanged('stage_id')) {
+            DealMovedToStage::dispatch(
+                $model,
+                Stage::findFromObjectCache($request->input('_original_stage'))
+            );
+        }
     }
 
     /**
@@ -349,7 +589,7 @@ class Deal extends Resource implements Resourceful, Tableable, Mediable, Importa
     public function jsonSerialize(): array
     {
         return array_merge(parent::jsonSerialize(), [
-            'frontend' => $this->frontendTemplate(),
+            'pages' => $this->frontendTemplate(),
         ]);
     }
 }

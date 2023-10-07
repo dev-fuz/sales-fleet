@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,20 +12,29 @@
 
 namespace Modules\Core\Fields;
 
+use Closure;
+use Illuminate\Validation\Validator;
+use Modules\Core\Contracts\Fields\Customfieldable;
 use Modules\Core\Contracts\Fields\Dateable;
-use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Filters\Filter;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Models\CustomField;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Models\Model;
 use Modules\Core\Table\BelongsToColumn;
+use Modules\Core\Table\Column;
 use Modules\Core\Table\MorphToManyColumn;
 
 class CustomFieldFactory
 {
     /**
-     * The optionable custom field option id.
+     * The optionable custom field option id key.
      */
     protected static string $optionId = 'id';
+
+    /**
+     * The optionable custom field option label key.
+     */
+    protected static string $optionLabel = 'name';
 
     /**
      * Filters namespace.
@@ -45,100 +54,133 @@ class CustomFieldFactory
     }
 
     /**
-     * Create fields from custom fields intended for filters
+     * Create filters from the custom fields.
      */
-    public function createFieldsForFilters(): array
+    public function createFiltersFromFields(): array
     {
-        $fields = [];
+        $filters = [];
 
         foreach ($this->fields() as $field) {
-            if ($instance = $this->createFilterInstance($field->field_type, $field)) {
-                $fields[] = $instance;
-            }
+            $filters[] = $this->createFilterInstance($field->field_type, $field);
         }
 
-        return $fields;
+        return array_filter($filters);
     }
 
     /**
-     * Create field class from the given custom field
+     * Create field class from the given custom field.
      */
     public static function createInstance(CustomField $field): Field
     {
         $instance = static::createFieldInstance(static::$fieldNamespace, $field);
 
-        // Default is hidden on index
-        $instance->tapIndexColumn(fn ($column) => $column->hidden(true));
+        // By default the custom fields are hidden on "index" view.
+        $instance->tapIndexColumn(fn (Column $column) => $column->hidden(true));
 
         $rules = [];
 
         if ($instance->isMultiOptionable()) {
-            $rules[] = 'array';
-
-            $instance->tapIndexColumn(fn ($column) => $column->queryAs('name as label'))
-                ->saveUsing(function ($request, $requestAttribute, $value, $field) {
-                    if (! $request->missing($requestAttribute)) {
-                        return function ($model) use ($value, $field) {
-                            return (new CustomFieldService())->syncOptionsForModel(
-                                $model,
-                                $field,
-                                $value,
-                                $model->wasRecentlyCreated ? 'create' : 'update'
-                            );
-                        };
-                    }
-                })->resolveUsing(fn ($model, $attribute) => $field->prepareRelatedOptions($model));
-        }
-
-        if ($instance::class === Text::class) {
+            $instance
+                ->eachOnNewLine()
+                ->fillUsing(static::multiOptionableFillCallback($instance))
+                ->resolveUsing(fn ($model) => $field->prepareRelatedOptions($model));
+        } elseif ($instance->isOptionable()) {
+            $instance->fillUsing(static::optionableFillCallback($instance));
+        } elseif ($instance::class === Text::class) {
             $rules[] = 'max:191';
         } elseif ($instance instanceof Dateable) {
             $instance->withMeta(['attributes' => [
                 'clearable' => ! $instance->isRequired(app(ResourceRequest::class)),
             ]]);
+        } elseif ($instance instanceof Url) {
+            $rules[] = 'nullable';
+            $rules[] = 'url';
         }
 
         if ($field->is_unique) {
             $rules[] = 'nullable';
 
-            $instance->unique(
-                Innoclapps::resourceByName($field->resource_name)::$model,
-            );
+            $instance->unique($field->resource()->model());
         }
 
-        if ($instance->isOptionable()) {
-            $instance->importUsing(function ($value, $row, $original, $field) {
-                // The labelAsValue was unable to find id for the provided label
-                // In this case, we will try to create the actual option in database
-                if (is_null($value) && is_string($original[$field->attribute])) {
-                    return [$field->attribute => static::getOptionIdViaLabel($field, $original[$field->attribute])];
-                }
-
-                return [$field->attribute => $value];
-            });
-
-            $instance->displayUsing(function ($model) use ($field, $instance) {
-                return $instance->isMultiOptionable() ?
-                    $model->{$field->relationName}->pluck('name')->implode(', ') :
-                    $field->options->find($model->{$field->field_id})->name ?? '';
-            });
-
-            $instance->tapIndexColumn(fn ($column) => $column->select('swatch_color')->useComponent('table-data-option-column'));
-
-            $instance->acceptLabelAsValue()->swapIndexColumn(fn () => $instance->isMultiOptionable() ?
-            static::createColumnWhenMultiOptionable($field) :
-            static::createColumnWhenSingleOptionable($field));
-        }
-
-        $instance->rules($rules);
+        $instance->rules(array_unique($rules));
 
         return $instance->setCustomField($field);
     }
 
     /**
-     * Create new field class instance
+     * Get the optionable field fill callback.
      *
-     * @return \Modules\Core\Fields\Field|\Modules\Core\Fields\Optionable|\Modules\Core\Filters\Filter
+     * @return Closure(Model $model, string $attribute, ResourceRequest $request, mixed $value, string $requestAttribute): void
+     */
+    protected static function optionableFillCallback(Field&Optionable&Customfieldable $field)
+    {
+        return function (Model $model,
+            string $attribute,
+            ResourceRequest $request,
+            mixed $value,
+            string $requestAttribute
+        ) {
+            if (! is_null($value)) {
+                $model->{$attribute} = $value;
+            }
+        };
+    }
+
+    /**
+     * Get the multi optionable field fill callback.
+     *
+     * @return Closure(Model $model, string $attribute, ResourceRequest $request, mixed $value, string $requestAttribute): void
+     */
+    protected static function multiOptionableFillCallback(Field&Optionable&Customfieldable $field): Closure
+    {
+        return function (Model $model,
+            string $attribute,
+            ResourceRequest $request,
+            mixed $value,
+            string $requestAttribute
+        ) use ($field) {
+            return function () use ($model, $value, $field) {
+                if (! is_null($value)) {
+                    (new CustomFieldService)->syncOptionsForModel(
+                        $model,
+                        $field,
+                        $value,
+                        $model->wasRecentlyCreated ? 'create' : 'update'
+                    );
+                }
+            };
+        };
+    }
+
+    /**
+     * Configure optionable field.
+     */
+    protected static function configureOptionableField(CustomField $customField, Field&Optionable&Customfieldable $field): void
+    {
+        $field
+            ->acceptLabelAsValue()
+            ->prepareForValidation(function (mixed $value, ResourceRequest $request, Validator $validator) use ($field) {
+                return static::parseOptionableFieldPreValidationValue($value, $request, $validator, $field);
+            })
+            ->tapIndexColumn(fn (Column $column) => $column->select('swatch_color'))
+            ->displayUsing(function ($model) use ($customField, $field) {
+                return $field->isMultiOptionable() ?
+                    $model->{$customField->relationName}->pluck(static::$optionLabel)->implode(', ') :
+                    $customField->options->find($model->{$customField->field_id})->{static::$optionLabel} ?? '';
+            })
+            ->displayAsPills()
+            ->swapIndexColumn(
+                fn () => $field->isMultiOptionable() ?
+                static::createColumnWhenMultiOptionable($customField) :
+                static::createColumnWhenSingleOptionable($customField)
+            );
+    }
+
+    /**
+     * Create new field class instance.
+     *
+     * @return (\Modules\Core\Fields\Field&\Modules\Core\Contracts\Fields\Customfieldable)|\Modules\Core\Fields\Optionable|\Modules\Core\Filters\Filter
      */
     protected static function createFieldInstance(
         string $namespace,
@@ -146,21 +188,26 @@ class CustomFieldFactory
         string $type = null,
     ): Field|Filter {
         $class = '\\'.$namespace.'\\'.($type ?? $field->field_type);
+
         $instance = (new $class($field->field_id, $field->label));
 
         if ($instance->isOptionable()) {
-            $instance->valueKey(static::$optionId)->options($field->prepareOptions());
+            $instance->valueKey(static::$optionId)->labelKey(static::$optionLabel)->options($field->prepareOptions());
+
+            if ($instance instanceof Field) {
+                static::configureOptionableField($field, $instance);
+            }
         }
 
         return $instance;
     }
 
     /**
-     * Create filter instance from the given custom field
+     * Create filter instance from the given custom field.
      */
     protected function createFilterInstance(string $type, CustomField $field): Filter|bool
     {
-        if ($type == 'Textarea') {
+        if ($type == 'Textarea' || $type == 'ColorSwatch') {
             return false;
         } elseif ($type === 'Email') {
             $type = 'Text';
@@ -180,30 +227,30 @@ class CustomFieldFactory
     }
 
     /**
-     * Create table column when fields is multi optionable field
+     * Create table column when fields is multi optionable field.
      */
     protected static function createColumnWhenMultiOptionable(CustomField $field): MorphToManyColumn
     {
-        return new MorphToManyColumn($field->relationName, 'name', $field->label);
+        return new MorphToManyColumn($field->relationName, static::$optionLabel, $field->label, $field->field_id);
 
         // $callback = function ($model) use ($field) {
         //     return $model->{$field->relationName}
         //         ->map(fn ($option) => $option->label)->implode(', ');
         // };
 
-        // return (new MorphToManyColumn($field->relationName, 'name', $field->label))->displayAs($callback);
+        // return (new MorphToManyColumn($field->relationName, static::$optionLabel, $field->label));
     }
 
     /**
-     * Create table column when field is single optionable field
+     * Create table column when field is single optionable field.
      */
     protected static function createColumnWhenSingleOptionable(CustomField $field): BelongsToColumn
     {
-        return new BelongsToColumn($field->relationName, 'name', $field->label);
+        return new BelongsToColumn($field->relationName, static::$optionLabel, $field->label, $field->field_id);
     }
 
     /**
-     * Create multi option filter query
+     * Create multi option filter query.
      */
     protected function multiOptionFilterQuery(CustomField $field): callable
     {
@@ -217,7 +264,7 @@ class CustomFieldFactory
     }
 
     /**
-     * Get the resource custom fields
+     * Get the resource custom fields.
      *
      * @return \Illuminate\Support\Collection
      */
@@ -227,58 +274,70 @@ class CustomFieldFactory
     }
 
     /**
-     * Handle the label option when custom field is optionable
-     *
-     * @param  \Modules\Core\Fields\Optionable  $field
-     * @param  string  $label The original provided label
-     * @return array|int
+     * Handle the label option when custom field is optionable.
      */
-    protected static function getOptionIdViaLabel(Optionable $field, $label)
+    protected static function parseOptionableFieldPreValidationValue(
+        mixed $value,
+        ResourceRequest $request,
+        Validator $validator,
+        Field&Customfieldable&Optionable $field): mixed
     {
-        if (! $field->isMultiOptionable()) {
-            return static::resolveImportLabelOption($field, $label);
+        if (is_null($value)) {
+            return $value;
         }
 
-        return with([], function ($value) use ($field, $label) {
-            $labels = explode(',', $label);
+        if ($field->isMultiOptionable()) {
+            [$valid, $invalid] = $field->parseValueAsLabelViaMultiOptionable($value);
 
-            array_walk($labels, 'trim');
+            if (count($invalid) > 0) {
+                $validator->after(function (Validator $validator) use ($request, $field, $invalid) {
+                    if ($validator->errors()->isEmpty()) {
+                        foreach ($invalid as $label) {
+                            $optionId = static::createOption($label, $field);
 
-            foreach ($labels as $label) {
-                $value[] = static::resolveImportLabelOption($field, $label);
+                            $request->merge([
+                                $field->requestAttribute() => [...$request->input($field->requestAttribute()), ...[$optionId]],
+                            ]);
+                        }
+                    }
+                });
+            }
+
+            return $valid;
+        } else {
+            if ($option = $field->optionByLabel($value)) {
+                $value = $field->getKeyFromOption($option);
+            } elseif (! $field->optionByKey($value)) {
+                // Provided option is key and does not exists, create new.
+                $validator->after(function (Validator $validator) use ($value, $request, $field) {
+                    if ($validator->errors()->isEmpty()) {
+                        $optionId = static::createOption($value, $field);
+                        $request->merge([$field->requestAttribute() => $optionId]);
+                    }
+                });
+
             }
 
             return $value;
-        });
+        }
     }
 
     /**
-     * Get custom field option by given option label
-     *
-     * @param  \Modules\Core\Fields\Optionable  $field
-     * @param  string  $label
-     * @return int
+     * Create new optionable custom field option.
      */
-    protected static function resolveImportLabelOption(Optionable $field, $label)
+    protected static function createOption(string|int $label, Field&Optionable&Customfieldable $field): int
     {
-        // First check if the option actually exists in the options collection
-        // Perhaps was created in the below create code block
-        if ($option = $field->optionByLabel($label)) {
-            return $option[$field->valueKey];
-        }
-
-        // If option not found, we will create this option for the custom field
         $customField = app(CustomFieldService::class)->createOptions([
-            'name' => $label,
+            static::$optionLabel => $label,
         ], $field->customField);
 
-        // Get fresh options and update the value
         $options = $customField->options()->get();
-        $value = $options->firstWhere('name', $label)->getKey();
+        $id = $options->firstWhere(static::$optionLabel, $label)->getKey();
 
-        // Update field options and clear the cached collection
-        $field->options($customField->prepareOptions($options))->clearCachedOptionsCollection();
+        $field->setCustomField($customField)
+            ->clearCachedOptions()
+            ->options($customField->prepareOptions($options));
 
-        return $value;
+        return (int) $id;
     }
 }

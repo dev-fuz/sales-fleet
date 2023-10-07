@@ -13,7 +13,6 @@
       :icon-class="iconClass"
       :to="to"
       :rounded="false"
-      @click="$emit('click', $event)"
       :disabled="disabled"
       :loading="loading"
       :class="[
@@ -21,6 +20,7 @@
         size != 'sm' ? 'rounded-l-md' : 'rounded-l',
         { '-mr-px': !disabled },
       ]"
+      @click="$emit('click', $event)"
     >
       <slot name="button-content">
         {{ text }}
@@ -49,6 +49,7 @@
     </IDropdown>
   </span>
 </template>
+
 <script setup>
 defineEmits(['click'])
 
@@ -57,8 +58,8 @@ defineProps({
   to: [Object, String],
   placement: { type: String, default: 'bottom-end' },
   size: { type: String, default: 'md' },
-  disabled: { type: Boolean, default: false },
-  loading: { type: Boolean, default: false },
+  disabled: Boolean,
+  loading: Boolean,
   variant: { type: String, default: 'primary' },
   icon: { type: String },
   type: { type: String, default: 'button' },

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -46,12 +46,12 @@ class ActivitiesCreatedBySaleAgentCardTest extends ResourceTestCase
 
         $this->getJson("api/cards/{$this->card->uriKey()}")
             ->assertJson(
-                fn (AssertableJson $json) => $json->has('result', 2)
+                fn (AssertableJson $json) => $json->has('value', 2)
                     ->has(
-                        'result.0',
+                        'value.0',
                         fn ($json) => $json->where('value', $json->toArray()['label'] === $user1->name ? 1 : 2)->etc()
                     )->has(
-                        'result.1',
+                        'value.1',
                         fn ($json) => $json->where('value', $json->toArray()['label'] === $user1->name ? 1 : 2)->etc()
                     )->etc()
             );

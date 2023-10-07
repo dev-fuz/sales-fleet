@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,91 +12,100 @@
 
 namespace Modules\Core\Fields;
 
+use Closure;
 use Illuminate\Support\Facades\Auth;
-use Modules\Core\Facades\Innoclapps;
+use Illuminate\Support\Facades\Cache;
+use Modules\Core\Http\Requests\ResourceRequest;
+use Modules\Core\Models\Model;
+use Modules\Core\Table\BelongsToColumn;
 use Modules\Users\Http\Resources\UserResource;
 use Modules\Users\Models\User as UserModel;
 
 class User extends BelongsTo
 {
     /**
-     * The notification class name to be sent after user change
+     * The notification class name to be sent after user change.
      */
     public ?string $notification = null;
 
     /**
-     * Whether to skip sending the previously specified notification
-     */
-    public static bool $skipNotification = false;
-
-    /**
-     * The date column name to track changed date
+     * The date column name to track changed date.
      */
     public ?string $trackChangeDateColumn = null;
 
     /**
-     * The assigneer
-     *
-     * @var \Modules\Users\Models\User
+     * The assigneer.
      */
-    public static $assigneer;
+    public static ?UserModel $assigneer = null;
 
     /**
-     * Creat new User instance field
+     * Creat new User instance field.
      *
      * @param  string  $label Custom label
      * @param  string  $relationName
      * @param  string|null  $attribute
      */
-    public function __construct($label = null, $relationName = null, $attribute = null)
+    public function __construct($label = null, $relationName = 'user', $attribute = null)
     {
-        parent::__construct(
-            $relationName ?: 'user',
-            UserModel::class,
-            $label ?: __('users::user.user'),
-            $attribute
-        );
+        parent::__construct($relationName, UserModel::class, $label ?: __('users::user.user'), $attribute);
+
+        static::useIndexComponent('index-user-field');
 
         // Auth check for console usage
-        $this->withDefaultValue(Auth::check() ? $this->createOption(Auth::user()) : null)
-            ->importRules($this->getUserImportRules())
+        $this->withDefaultValue(Auth::check() ? $this->makeOption(Auth::user()) : null)
+            ->importRules($this->userFieldImportRules())
             ->setJsonResource(UserResource::class)
-            ->tapIndexColumn(fn ($column) => $column->minWidth('100px'));
+            ->fillUsing(function (Model $model, string $attribute, ResourceRequest $request, mixed $value, string $requestAttribute) {
+                $model->{$attribute} = $value;
+
+                $this->handleChangeColumnFill($model, $attribute, $value);
+
+                return function () use ($model, $request) {
+                    if ($this->notification) {
+                        $this->handleUserChangeNotification($model, $request);
+                    }
+                };
+            });
     }
 
     /**
-     * Skip sending the notification
+     * Provide the User field options.
      */
-    public static function skipNotification(bool $value = true): void
+    public function resolveOptions(): array
     {
-        static::$skipNotification = $value;
+        // The user field is the most used field in the APP,
+        // in this case we will make sure to cache them in an array.
+        return Cache::store('array')->rememberForever(
+            'user-field-options',
+            fn () => UserModel::select([$this->valueKey, $this->labelKey, 'avatar'])
+                ->orderBy($this->labelKey)
+                ->get()
+                ->map($this->makeOption(...))
+                ->all()
+        );
     }
 
     /**
-     * Provides the User instance options
-     *
-     * @return \Illuminate\Support\Collection
+     * Provide the column used for index.
      */
-    public function resolveOptions()
+    public function indexColumn(): BelongsToColumn
     {
-        return UserModel::select([$this->valueKey, $this->labelKey, 'avatar'])
-            ->orderBy($this->labelKey)
-            ->get()
-            ->map(fn ($user) => $this->createOption($user));
+        return parent::indexColumn()
+            ->select('avatar')
+            ->appends('avatar_url')
+            ->minWidth('100px');
     }
 
     /**
-     * Set the user that perform the assignee
-     *
-     * @param  \Modules\Users\Models\User  $user
+     * Set the user that perform the assignee.
      */
-    public static function setAssigneer($user)
+    public static function setAssigneer(?UserModel $user)
     {
         static::$assigneer = $user;
     }
 
     /**
-     * Send a notification when the user changes
+     * Send a notification when the user changes.
      */
     public function notification(string $notification): static
     {
@@ -116,111 +125,52 @@ class User extends BelongsTo
     }
 
     /**
-     * Handle the resource record "creating" event
-     *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return void
+     * Handle the user change notification.
      */
-    public function recordCreating($model)
-    {
-        $foreignKey = $model->{$this->belongsToRelation}()->getForeignKeyName();
-
-        if ($this->trackChangeDateColumn && ! empty($model->{$foreignKey})) {
-            $model->{$this->trackChangeDateColumn} = now();
-        }
-    }
-
-    /**
-     * Handle the resource record "created" event
-     *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return void
-     */
-    public function recordCreated($model)
-    {
-        if ($this->notification && ! static::$skipNotification) {
-            $this->handleUserChangedNotification($model);
-        }
-    }
-
-    /**
-     * Handle the resource record "updating" event
-     *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return void
-     */
-    public function recordUpdating($model)
-    {
-        if ($this->trackChangeDateColumn) {
-            $date = false;
-            $foreignKey = $model->{$this->belongsToRelation}()->getForeignKeyName();
-
-            if (empty($model->{$foreignKey})) {
-                $date = null;
-            } elseif ($model->getOriginal($foreignKey) !== $model->{$foreignKey}) {
-                $date = now();
-            }
-
-            if ($date !== false) {
-                $model->{$this->trackChangeDateColumn} = $date;
-            }
-        }
-    }
-
-    /**
-     * Handle the resource record "updated" event
-     *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return void
-     */
-    public function recordUpdated($model)
-    {
-        if ($this->notification && ! static::$skipNotification) {
-            $this->handleUserChangedNotification($model);
-        }
-    }
-
-    /**
-     * Handle the user changed notification
-     *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return void
-     */
-    protected function handleUserChangedNotification($model)
+    protected function handleUserChangeNotification(Model $model, ResourceRequest $request): void
     {
         /** @var \Modules\Users\Models\User */
         $assigneer = static::$assigneer ?? Auth::user();
 
         if ($id = $this->shouldSendNotification($model, $assigneer)) {
-            $notification = $this->notification;
-            // Retrieve new instance of the user as if we access the relation directly,
-            // it may be cached by Laravel and the old user will be returned
+            // Retrieve new instance of the user, if we access the relation directly,
+            // it may be cached by Laravel and the notification will be sent to the old user.
             UserModel::find($id)->notify(
-                new $notification($model, $assigneer)
+                with($this->notification, fn ($notification) => new $notification($model, $assigneer))
             );
         }
     }
 
     /**
-     * Check whether a notification should be sent for the given model and assigneer
-     *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @param  \Modules\Users\Models\User|null  $assigneer
+     * Fill the change column when the user has changed.
      */
-    protected function shouldSendNotification($model, $assigneer): int|bool
+    protected function handleChangeColumnFill(Model $model, string $attribute, mixed $value)
     {
-        // Do not trigger additional queries to retrieve the record assignee
-        // when importing data, in all cases, there are no notifications sent during import
-        if (Innoclapps::isImportInProgress()) {
-            return false;
+        if ($this->trackChangeDateColumn) {
+            if (! $model->exists) {
+                if (! empty($value)) {
+                    $model->{$this->trackChangeDateColumn} = now();
+                }
+            } else {
+                if (empty($value)) {
+                    $model->{$this->trackChangeDateColumn} = null;
+                } elseif ($model->isDirty($attribute)) {
+                    $model->{$this->trackChangeDateColumn} = now();
+                }
+            }
         }
+    }
 
+    /**
+     * Check whether a notification should be sent for the given model and assigneer.
+     */
+    protected function shouldSendNotification(Model $model, ?UserModel $assigneer): int|bool
+    {
         if (! $assigneer) {
             return false;
         }
 
-        $foreignKeyName = $model->{$this->belongsToRelation}()->getForeignKeyName();
-        $currentId = $model->{$foreignKeyName};
+        $currentId = $model->{$this->attribute};
 
         // Asssigned user not found
         if (! $currentId) {
@@ -228,7 +178,7 @@ class User extends BelongsTo
         }
 
         // Is update and is the same user
-        if ((! $model->wasRecentlyCreated && $model->getOriginal($foreignKeyName) === $currentId)) {
+        if ((! $model->wasRecentlyCreated && ! $model->wasChanged($this->attribute))) {
             return false;
         }
 
@@ -247,12 +197,9 @@ class User extends BelongsTo
     }
 
     /**
-     * Create option for the front-end
-     *
-     * @param  \Modules\Users\Models\User  $user
-     * @return array
+     * Make option for the front-end.
      */
-    protected function createOption($user)
+    protected function makeOption(UserModel $user): array
     {
         return [
             $this->valueKey => $user->{$this->valueKey},
@@ -262,20 +209,18 @@ class User extends BelongsTo
     }
 
     /**
-     * Get the user import rules
-     *
-     * @return array
+     * Get the user import rules.
      */
-    protected function getUserImportRules()
+    protected function userFieldImportRules(): array
     {
-        return [function ($attribute, $value, $fail) {
+        return [function (string $attribute, mixed $value, Closure $fail) {
             if (is_null($value)) {
                 return;
             }
 
-            if (! $this->getCachedOptionsCollection()->filter(function ($user) use ($value) {
+            if ($this->getCachedOptions()->filter(function ($user) use ($value) {
                 return $user[$this->valueKey] == $value || $user[$this->labelKey] == $value;
-            })->count() > 0) {
+            })->isEmpty()) {
                 $fail('validation.import.user.invalid')->translate(['attribute' => $this->label]);
             }
         }];

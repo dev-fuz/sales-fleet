@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -138,8 +138,8 @@ class EditorPendingMediaProcessor
     /**
      * Get the removed media from the editor content
      *
-     * @param  string|array|null  $originalContent
-     * @param  string|array  $newContent
+     * @param  string|\Stringable|array|null  $originalContent
+     * @param  string|\Stringable|array  $newContent
      */
     protected function getRemovedMedia($originalContent, $newContent): array
     {
@@ -164,7 +164,7 @@ class EditorPendingMediaProcessor
     /**
      * Get the media current token via the content
      *
-     * @param  string  $content
+     * @param  string|\Stringable  $content
      */
     protected function getMediaTokensFromContent($content): array
     {

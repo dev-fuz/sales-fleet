@@ -1,41 +1,49 @@
 <template>
   <div>
-    <FormInputSearch v-model="search" />
+    <SearchInput v-model="search" />
 
     <div class="mt-4 flex flex-wrap">
       <div
         v-for="placeholder in filteredPlaceholders"
         :key="placeholder.tag"
-        class="mb-1 mr-1 flex items-center rounded border border-neutral-200 px-3 py-1 dark:border-neutral-700 dark:hover:border-neutral-600"
+        class="relative mb-1 mr-1 flex items-center rounded border border-neutral-200 px-4 py-1 dark:border-neutral-700 dark:hover:border-neutral-600"
       >
         <a
+          v-i-tooltip.top="
+            `${placeholder.interpolation_start} ${placeholder.tag} ${placeholder.interpolation_end}`
+          "
           href="#"
-          v-i-tooltip.top="`{{ ${placeholder.tag} }}`"
-          :class="{
-            'pointer-events-none':
-              justInsertedPlaceholder &&
-              justInsertedPlaceholder.tag === placeholder.tag,
-          }"
-          class="mr-1 text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-200 dark:hover:text-neutral-400"
+          :data-placeholder="`${placeholder.interpolation_start} ${placeholder.tag} ${placeholder.interpolation_end}`"
+          :class="[
+            'mr-1 text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-200 dark:hover:text-neutral-400',
+            {
+              'pointer-events-none':
+                justInsertedPlaceholder &&
+                justInsertedPlaceholder.tag === placeholder.tag,
+            },
+          ]"
+          @dragstart="onDragStart"
           @click.prevent="requestInsert(placeholder)"
           @mouseup.right="copyPlaceholder(placeholder)"
           @contextmenu.prevent
           v-text="placeholder.description"
         />
-        <IActionMessage
+        <Icon
           v-show="
             justInsertedPlaceholder &&
             justInsertedPlaceholder.tag === placeholder.tag
           "
-          message="Added!"
+          icon="Check"
+          class="absolute right-1 top-2 h-3 w-3 rounded-full text-neutral-600 dark:text-neutral-100"
         />
       </div>
       <slot></slot>
     </div>
   </div>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useClipboard } from '@vueuse/core'
 
 const emit = defineEmits(['insert-requested'])
@@ -76,5 +84,9 @@ function requestInsert(placeholder) {
   justInsertedPlaceholder.value = placeholder
   emit('insert-requested', placeholder)
   setTimeout(() => (justInsertedPlaceholder.value = null), 3000)
+}
+
+function onDragStart(e) {
+  e.dataTransfer.setData('text/plain', e.target.dataset.placeholder)
 }
 </script>

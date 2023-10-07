@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,6 +15,8 @@
  * order: array,
  * }
  */
+import Paginator from '~/Core/services/ResourcePaginator'
+
 const DefaultCollection = {
   order: [
     {
@@ -23,8 +25,6 @@ const DefaultCollection = {
     },
   ],
 }
-
-import Paginator from '~/Core/resources/js/services/ResourcePaginator'
 /**
  * Collection Class
  * Laravel Paginator Compatible Schema
@@ -47,6 +47,7 @@ class Collection extends Paginator {
   append(obj, dupes = false) {
     if (!this.first(obj) || dupes) this.state.data.push(obj)
     this.state.total++
+
     return this
   }
 
@@ -59,6 +60,7 @@ class Collection extends Paginator {
   prepend(obj, dupes = false) {
     if (!this.first(obj) || dupes) this.state.data.unshift(obj)
     this.state.total++
+
     return this
   }
 
@@ -99,11 +101,13 @@ class Collection extends Paginator {
    */
   update(obj, prop = 'id') {
     const entries = this.find(obj, prop)
+
     if (entries) {
       entries.forEach(entry =>
         this.replace(entry, Object.assign({}, entry, obj))
       )
     }
+
     return this
   }
 
@@ -115,12 +119,14 @@ class Collection extends Paginator {
    */
   remove(obj, prop = 'id') {
     const entries = this.find(obj, prop)
+
     if (entries) {
       entries.forEach(entry => {
         this.state.data.splice(this.state.data.indexOf(entry), 1)
         this.state.total--
       })
     }
+
     return this
   }
 
@@ -132,6 +138,7 @@ class Collection extends Paginator {
    */
   replace(entry, obj) {
     this.state.data.splice(this.state.data.indexOf(entry), 1, obj)
+
     return this
   }
 
@@ -222,6 +229,7 @@ class Collection extends Paginator {
    */
   set(field, value) {
     this.state[field] = value
+
     return this
   }
 }

@@ -1,10 +1,10 @@
 <template>
-  <th class="group text-left" ref="elRef">
+  <th ref="elRef" class="group text-left">
     <a
       v-if="isSortable"
       href="#"
+      class="inline-flex w-full items-center hover:text-neutral-700 focus:outline-none dark:hover:text-neutral-400"
       @click.prevent="toggleSortable"
-      class="inline-flex w-full items-center focus:outline-none hover:text-neutral-700 dark:hover:text-neutral-400"
     >
       {{ heading }}
       <Icon
@@ -20,8 +20,9 @@
     <span v-else v-text="heading" />
   </th>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const emit = defineEmits(['update:ctx'])
 
@@ -53,6 +54,7 @@ const isSortedAscending = computed(() => {
  */
 function toggleSortable() {
   const ctx = {}
+
   if (isTableOrderedByCurrentField.value) {
     ctx.sortBy = props.headingKey
     ctx.direction = props.ctx.direction === 'desc' ? 'asc' : 'desc'

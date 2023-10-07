@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -31,32 +31,33 @@ use Modules\Activities\Contracts\Attendeeable;
 use Modules\Core\Card\DashboardService;
 use Modules\Core\Concerns\HasAvatar;
 use Modules\Core\Concerns\HasMeta;
+use Modules\Core\Contracts\HasNotificationsSettings;
 use Modules\Core\Contracts\Localizeable;
 use Modules\Core\Contracts\Metable;
-use Modules\Core\Media\HasAttributesWithPendingMedia;
 use Modules\Core\Models\Dashboard;
 use Modules\Core\Models\Filter;
 use Modules\Core\Models\Model;
 use Modules\Core\Models\ModelVisibilityGroupDependent;
 use Modules\Core\Models\ZapierHook;
+use Modules\Core\Support\Media\HasAttributesWithPendingMedia;
 use Modules\Users\Concerns\HasTeams;
 use Modules\Users\Database\Factories\UserFactory;
 use Modules\Users\Notifications\ResetPassword as ResetPasswordNotification;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Model implements HasLocalePreference, Localizeable, Metable, Attendeeable, AuthenticatableContract, AuthorizableContract, CanResetPasswordContract
+class User extends Model implements Attendeeable, AuthenticatableContract, AuthorizableContract, CanResetPasswordContract, HasLocalePreference, HasNotificationsSettings, Localizeable, Metable
 {
-    use Notifiable,
-        HasApiTokens,
-        HasRoles,
-        HasMeta,
-        HasAttributesWithPendingMedia,
-        HasFactory,
-        HasAvatar,
-        Authenticatable,
+    use Authenticatable,
         Authorizable,
         CanResetPassword,
-        HasTeams;
+        HasApiTokens,
+        HasAttributesWithPendingMedia,
+        HasAvatar,
+        HasFactory,
+        HasMeta,
+        HasRoles,
+        HasTeams,
+        Notifiable;
 
     /**
      * Permissions guard name
@@ -74,6 +75,7 @@ class User extends Model implements HasLocalePreference, Localizeable, Metable, 
         'name', 'email', 'password', 'avatar', 'timezone',
         'date_format', 'time_format', 'first_day_of_week',
         'locale', 'mail_signature', 'super_admin', 'access_api',
+        'notifications_settings',
     ];
 
     /**
@@ -95,15 +97,21 @@ class User extends Model implements HasLocalePreference, Localizeable, Metable, 
         'super_admin' => 'boolean',
         'access_api' => 'boolean',
         'first_day_of_week' => 'int',
+        'notifications_settings' => 'array',
     ];
 
     /**
-     * The fields for the model that are searchable.
+     * The columns for the model that are searchable.
      */
-    protected static array $searchableFields = [
+    protected static array $searchableColumns = [
+        'email',
         'name' => 'like',
-        'email' => 'like',
     ];
+
+    public function getNotificationPreference(string $key): array
+    {
+        return $this->notifications_settings[$key] ?? [];
+    }
 
     /**
      * Boot User model
@@ -134,6 +142,14 @@ class User extends Model implements HasLocalePreference, Localizeable, Metable, 
     }
 
     /**
+     * Get all of the user connected calendars.
+     */
+    public function connectedCalendars(): HasMany
+    {
+        return $this->hasMany(\Modules\Activities\Models\Calendar::class);
+    }
+
+    /**
      * Get the user connected oAuth calendar
      */
     public function calendar(): HasOne
@@ -142,6 +158,14 @@ class User extends Model implements HasLocalePreference, Localizeable, Metable, 
             ->whereHas('synchronization', function ($query) {
                 return $query->notDisabled();
             });
+    }
+
+    /**
+     * Get all of the data imports instances for the user.
+     */
+    public function imports(): HasMany
+    {
+        return $this->hasMany(\Modules\Core\Models\Import::class);
     }
 
     /**
@@ -422,6 +446,8 @@ class User extends Model implements HasLocalePreference, Localizeable, Metable, 
             'latestFifteenNotifications',
             'roles.permissions',
             'dashboards',
+            'managedTeams',
+            'teams',
         ]);
     }
 

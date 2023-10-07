@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -35,6 +35,14 @@ abstract class Chart extends Card
     abstract public function calculate(Request $request);
 
     /**
+     * Get the card value.
+     */
+    public function value(Request $request): mixed
+    {
+        return $this->calculate($request);
+    }
+
+    /**
      * The chart available labels
      */
     public function labels($result): array
@@ -58,7 +66,6 @@ abstract class Chart extends Card
     public function jsonSerialize(): array
     {
         return array_merge(parent::jsonSerialize(), [
-            'result' => $this->calculate(request()),
             'amount_value' => $this->amountValue,
             'color' => $this->color,
         ]);

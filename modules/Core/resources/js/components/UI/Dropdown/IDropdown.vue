@@ -30,7 +30,6 @@
         <!-- Must be <button> element -->
         <MenuButton
           :as="IButton"
-          @click="toggle"
           :variant="variant"
           :disabled="disabled"
           :loading="loading"
@@ -39,6 +38,7 @@
           :icon="icon"
           :icon-class="iconClass"
           :class="['w-full', $attrs.class, { 'justify-between': !noCaret }]"
+          @click="toggle"
         >
           <slot name="toggle-content">
             {{ text }}
@@ -56,7 +56,7 @@
         static
         :class="[
           itemsClass,
-          'rounded-md outline-none',
+          'c-dropdown rounded-md outline-none',
           colorMaps.white.backgroundColorClasses,
           bordered ? 'border ' + colorMaps.white.borderColorClasses : '',
           {
@@ -86,17 +86,34 @@
     </Float>
   </Menu>
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
-import { ref, provide, onMounted } from 'vue'
+import { onMounted, provide, ref } from 'vue'
 import { Menu, MenuButton, MenuItems } from '@headlessui/vue'
 import { Float, FloatArrow } from '@headlessui-float/vue'
 import { onClickOutside } from '@vueuse/core'
-import IButton from '~/Core/resources/js/components/UI/Buttons/IButton.vue'
+
+import IButton from '~/Core/components/UI/Buttons/IButton.vue'
+
+const emit = defineEmits(['show', 'hide'])
+
+defineProps({
+  text: String,
+  full: { type: Boolean, default: true },
+  disabled: Boolean,
+  loading: Boolean,
+  rounded: { type: Boolean, default: true },
+  icon: { type: String },
+  iconClass: [String, Array, Object],
+  wrapperClass: [String, Array, Object],
+  itemsClass: [String, Array, Object],
+  size: { type: String, default: 'md' },
+  noCaret: Boolean,
+  variant: { type: String, default: 'white' },
+  bordered: { type: Boolean, default: true },
+  arrow: { type: Boolean, default: true },
+  shadow: { type: Boolean, default: true },
+})
 
 const colorMaps = {
   white: {
@@ -105,24 +122,8 @@ const colorMaps = {
   },
 }
 
-const emit = defineEmits(['show', 'hide'])
-
-const props = defineProps({
-  text: String,
-  full: { type: Boolean, default: true },
-  disabled: { type: Boolean, default: false },
-  loading: { type: Boolean, default: false },
-  rounded: { type: Boolean, default: true },
-  icon: { type: String },
-  iconClass: [String, Array, Object],
-  wrapperClass: [String, Array, Object],
-  itemsClass: [String, Array, Object],
-  size: { type: String, default: 'md' },
-  noCaret: { default: false, type: Boolean },
-  variant: { type: String, default: 'white' },
-  bordered: { type: Boolean, default: true },
-  arrow: { type: Boolean, default: true },
-  shadow: { type: Boolean, default: true },
+defineOptions({
+  inheritAttrs: false,
 })
 
 provide('hide', hide)

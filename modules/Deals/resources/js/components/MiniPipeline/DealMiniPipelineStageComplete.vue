@@ -1,10 +1,10 @@
 <template>
   <a
     href="#"
-    @click.prevent="$emit('click')"
     class="group flex w-full items-center"
+    @click.prevent="$emit('click')"
   >
-    <span class="flex items-center py-2 px-4 text-sm font-medium">
+    <span class="flex items-center px-4 py-2 text-sm font-medium">
       <span
         class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
         :class="[
@@ -60,10 +60,11 @@
     </span>
   </a>
 </template>
+
 <script setup>
 import { computed } from 'vue'
 
-const emit = defineEmits(['click'])
+defineEmits(['click'])
 
 const props = defineProps({
   dealStatus: { type: String, required: true },

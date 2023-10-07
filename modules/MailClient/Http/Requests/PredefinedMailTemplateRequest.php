@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -32,9 +32,9 @@ class PredefinedMailTemplateRequest extends FormRequest
                 UniqueRule::make(PredefinedMailTemplate::class, 'template'),
                 'max:191',
             ],
-            'subject' => 'required|string|max:191',
-            'body' => 'required|string',
-            'is_shared' => 'required|boolean',
+            'subject' => ['required', 'string', 'max:191'],
+            'body' => ['required', 'string'],
+            'is_shared' => ['required', 'boolean'],
         ];
     }
 }

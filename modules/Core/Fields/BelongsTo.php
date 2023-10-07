@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,8 +12,10 @@
 
 namespace Modules\Core\Fields;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Validator;
+use Modules\Core\Http\Requests\ResourceRequest;
+use Modules\Core\Models\Model;
 use Modules\Core\Table\BelongsToColumn;
 
 class BelongsTo extends Optionable
@@ -28,19 +30,19 @@ class BelongsTo extends Optionable
     /**
      * Can be used to connect multiple fields
      *
-     * @var null|\Modules\Core\Fields\BelongsTo|\Modules\Core\Fields\Field
+     * @var null|\Modules\Core\Fields\BelongsTo
      */
     public $dependsOn;
 
     /**
      * The relation name related to $dependsOn
      */
-    public ?string $dependsOnRelation = null;
+    public ?string $dependsOnRelationship = null;
 
     /**
-     * Field component
+     * Field component.
      */
-    public ?string $component = 'belongs-to-field';
+    public static $component = 'belongs-to-field';
 
     /**
      * Field relationship name
@@ -74,20 +76,23 @@ class BelongsTo extends Optionable
      */
     public function __construct($name, $model, $label = null, $attribute = null)
     {
-        $this->model = ! $model instanceof Model
-            ? app($model)
-            : $model;
-
-        $this->belongsToRelation = $name;
-        $this->valueKey = $this->model->getKeyName();
+        $this->model = ! $model instanceof Model ? new $model : $model;
 
         parent::__construct($attribute ?? $this->model->getForeignKey(), $label);
+
+        $this->belongsToRelation = $name;
+
+        $this
+            ->valueKey($this->model->getKeyName())
+            ->displayUsing(function ($model) {
+                return $model->{$this->belongsToRelation}->{$this->labelKey} ?? null;
+            });
     }
 
     /**
-     * Set the JSON resource class for the BelongsTo relation
+     * Set the JSON resource class for the BelongsTo relation.
      */
-    public function setJsonResource(?string $resourceClass)
+    public function setJsonResource(?string $resourceClass): static
     {
         $this->jsonResource = $resourceClass;
 
@@ -95,17 +100,15 @@ class BelongsTo extends Optionable
     }
 
     /**
-     * Get the related model
-     *
-     * @return \Modules\Core\Models\Model
+     * Get the related model.
      */
-    public function getModel()
+    public function getModel(): Model
     {
         return $this->model;
     }
 
     /**
-     * Provide the column used for index
+     * Provide the column used for index.
      */
     public function indexColumn(): BelongsToColumn
     {
@@ -119,56 +122,38 @@ class BelongsTo extends Optionable
     public function dependsOn(BelongsTo $field, string $relation): static
     {
         $this->dependsOn = $field;
-        $this->dependsOnRelation = $relation;
+        $this->dependsOnRelationship = $relation;
 
         return $this;
     }
 
     /**
-     * Provides the BelongsTo instance options
-     *
-     * @return array
+     * Provides the BelongsTo instance options.
      */
-    public function resolveOptions()
+    public function resolveOptions(): array
     {
         $options = parent::resolveOptions();
 
-        if (count($options) === 0 &&
-            ! isset($this->meta['asyncUrl'])) {
-            $options = $this->model->newQuery()->select([$this->labelKey, $this->valueKey])
+        if (count($options) === 0 && ! $this->isAsync()) {
+            $options = $this->model->newQuery()
+                ->select([$this->labelKey, $this->valueKey])
                 ->orderBy($this->labelKey)
-                ->get();
+                ->get()
+                ->all();
         }
 
         return $options;
     }
 
     /**
-     * Resolve the displayable field value
-     *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return string|null
+     * Get the sample value for the field.
      */
-    public function resolveForDisplay($model)
-    {
-        if (is_callable($this->displayCallback)) {
-            return parent::resolveForDisplay($model);
-        }
-
-        return $model->{$this->belongsToRelation}->{$this->labelKey} ?? null;
-    }
-
-    /**
-     * Get the sample value for the field
-     *
-     * @return string
-     */
-    public function sampleValue()
+    public function sampleValue(): mixed
     {
         if ($this->dependsOn) {
             $dependent = $this->dependsOn->getModel()
                 ->first()
-                ->{$this->dependsOnRelation}()
+                ->{$this->dependsOnRelationship}()
                 ->first();
 
             return $dependent->{$this->acceptLabelAsValue ? $this->labelKey : $this->valueKey};
@@ -178,31 +163,37 @@ class BelongsTo extends Optionable
     }
 
     /**
-     * Resolve the value for JSON Resource
+     * Resolve the value for JSON Resource.
      *
      * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return array|null
+     * @return array
      */
     public function resolveForJsonResource($model)
     {
-        if (! $this->shouldResolveForJson($model)) {
-            // Only return the foreign key
-            return [$this->attribute => $model->{$this->attribute}];
+        $attributes = [
+            $this->attribute => $this->resolve($model),
+            $this->belongsToRelation => null,
+        ];
+
+        if ($model->relationLoaded($this->belongsToRelation) && $related = $model->getRelation($this->belongsToRelation)) {
+            if ($this->jsonResource) {
+                $attributes[$this->belongsToRelation] = with($this->jsonResource, fn ($class) => new $class($related));
+            } else {
+                $attributes[$this->belongsToRelation] = [
+                    $this->valueKey => $related->getAttribute($this->valueKey),
+                    $this->labelKey => $related->getAttribute($this->labelKey),
+                ];
+            }
         }
 
-        return with($this->jsonResource, function ($jsonResource) use ($model) {
-            return [
-                $this->belongsToRelation => new $jsonResource($model->{$this->belongsToRelation}),
-                $this->attribute => $this->resolve($model),
-            ];
-        });
+        return $attributes;
     }
 
     /**
-     * Get the mailable template placeholder
+     * Get the mailable template placeholder.
      *
      * @param  \Modules\Core\Models\Model|null  $model
-     * @return \Modules\Core\Placeholders\Placeholder
+     * @return \Modules\Core\Support\Placeholders\Placeholder
      */
     public function mailableTemplatePlaceholder($model)
     {
@@ -212,126 +203,96 @@ class BelongsTo extends Optionable
     }
 
     /**
-     * Get the field value when label is provided
-     *
-     * @param  string  $value
-     * @param  array  $input
-     * @return mixed
+     * Accept string value.
      */
-    protected function parseValueAsLabelViaOptionable($value, $input)
-    {
-        if (! $this->dependsOn) {
-            return parent::parseValueAsLabelViaOptionable($value, $input);
-        }
-
-        $dependsOnId = $input[$this->dependsOn->attribute] ?? null;
-
-        if (! $dependsOnId) {
-            throw new \Exception(
-                'The '.$this->dependsOn->attribute.' must be provided when providing label based '.$this->attribute.'. Either provide the actual '.$this->attribute.' as ID or include the '.$this->dependsOn->attribute.' value in as ID'
-            );
-        }
-
-        return $this->findDependentOptionByLabel($value, $dependsOnId);
-    }
-
-    /**
-     * Find dependent option by given label
-     *
-     * @param  string  $value
-     * @param  int|string|null  $dependsOnId
-     * @return mixed
-     */
-    public function findDependentOptionByLabel($value, $dependsOnId)
-    {
-        $value = is_string($value) ? Str::lower($value) : $value;
-
-        return $this->getCachedOptionsCollection()->first(function ($option) use ($value, $dependsOnId) {
-            // In case the depends on field accept label as value and the $dependsOnId is
-            // provided as label, try to find the actual depends on id from the field option
-            if (! is_numeric($dependsOnId) && ! is_null($dependsOnId) && $this->dependsOn->acceptLabelAsValue) {
-                $dependsOnId = $this->dependsOn->optionByLabel($dependsOnId)[$this->dependsOn->valueKey] ?? null;
-            }
-
-            $option = (object) $option;
-
-            $optionLabel = is_string($option->{$this->labelKey}) ?
-                Str::lower($option->{$this->labelKey}) :
-                $option->{$this->labelKey};
-
-            return $optionLabel == $value && $dependsOnId == $option->{$this->dependsOn->attribute};
-        })[$this->dependsOn->valueKey] ?? null;
-    }
-
-    /**
-     * Accept string value
-     *
-     *
-     * @return static
-     */
-    public function acceptLabelAsValue(bool $createIfMissing = true)
+    public function acceptLabelAsValue(bool $createIfMissing = true): static
     {
         $this->createRecordIfLabelIsMissing = $createIfMissing;
+        $this->acceptLabelAsValue = true;
 
-        return parent::acceptLabelAsValue();
+        $this->prepareForValidation(function (mixed $value, ResourceRequest $request, Validator $validator) {
+            if (is_null($value)) {
+                return $value;
+            }
+
+            if ($option = $this->optionByKeyOrLabel($value)) {
+                $value = $this->getKeyFromOption($option);
+            } elseif ($optionFromNonFiltered = $this->optionByKeyOrLabelFromNonFilteredOptions($value)) {
+                if ($id = $this->handleNonAuthorizedOptionProvided($optionFromNonFiltered, $request, $validator)) {
+                    $value = $id;
+                }
+            } elseif ($this->createRecordIfLabelIsMissing) {
+                $this->createNewOptionAfterValidationPasses($value, $request, $validator);
+            } else {
+                $this->addInvalidOptionValidationError($validator);
+            }
+
+            return $value;
+        });
+
+        return $this;
     }
 
     /**
-     * Resolve the field value for import
-     *
-     * @param  string|null  $value
-     * @param  array  $row
-     * @param  array  $original
-     * @return array
+     * Handle when user provides non authorized options.
      */
-    public function resolveForImport($value, $row, $original)
+    protected function handleNonAuthorizedOptionProvided(array|object $option, ResourceRequest $request, Validator $validator): mixed
     {
-        $value = parent::resolveForImport(
-            $value,
-            $row,
-            $original
-        )[$this->attribute];
+        // The user has provided foreign ID from the non-filtered options
+        // in this case, when update request, we will check if the value matches the current record value
+        // if yes, we will leave it as it is, otherwise, will fail
+        // as the user is not authorized to provide the value as the option does not exists in the
+        // the front-end options collection but exists in the non filtered options.
+        $foreignId = $this->getKeyFromOption($option);
 
-        // The labelAsValue was unable to find id for the provided label
-        // In this case, we will try to create the actual option in database
-        if (is_null($value) && is_string($original[$this->attribute])) {
-            // Original provided label
-            $label = $original[$this->attribute];
-
-            // First check if the option actually exists in the options collection
-            // Perhaps was created in the below create code block
-            if ($this->dependsOn &&
-                $option = $this->findDependentOptionByLabel($label, $row[$this->dependsOn->attribute] ?? null)) {
-                $value = $option[$this->valueKey];
-            } elseif (! $this->dependsOn && $option = $this->optionByLabel($label)) {
-                $value = $option[$this->valueKey];
-            } elseif ($this->createRecordIfLabelIsMissing) {
-                $value = $this->model->create(
-                    array_filter(array_merge([
-                        $this->labelKey => $label,
-                        $this->dependsOn ? [$this->dependsOn->attribute => $row[$this->dependsOn->attribute]] : null,
-                    ]))
-                )->getKey();
-
-                // Clear the cached options collection as next rows may
-                // contain the same option and in this case, because the collection
-                // was cached, the newly created option won't be available
-                $this->clearCachedOptionsCollection();
-            }
+        if ($request->isUpdateRequest() && $request->record()->getAttribute($this->attribute) == $foreignId) {
+            return $foreignId;
+        } else {
+            $this->addInvalidOptionValidationError($validator);
         }
 
-        return [$this->attribute => $value];
+        return null;
     }
 
     /**
-     * Check whether the fields values should be resolved for JSON resource
+     * Create new option after validation passes.
      *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return bool
+     * @param  string  $label
      */
-    protected function shouldResolveForJson($model)
+    protected function createNewOptionAfterValidationPasses($label, ResourceRequest $request, Validator $validator)
     {
-        return $model->relationLoaded($this->belongsToRelation) && $this->jsonResource;
+        $validator->after(function (Validator $validator) use ($request, $label) {
+            if ($validator->errors()->isEmpty()) {
+                $this->createNewOption($label, $request);
+            }
+        });
+    }
+
+    /**
+     * Create new option in storage.
+     *
+     * @param  string  $label
+     */
+    protected function createNewOption($label, ResourceRequest $request): void
+    {
+        if ($option = $this->model->create($this->attributesForNewOption($label, $request))) {
+            $request->merge([$this->requestAttribute() => $option->getKey()]);
+            // Clear the cached options collection as next rows may
+            // contain the same option and in this case, because the collection
+            // was cached, the newly created option won't be available
+            $this->clearCachedOptions();
+        }
+    }
+
+    /**
+     * Get the attributes when creating a new option.
+     */
+    protected function attributesForNewOption(string $label, ResourceRequest $request): array
+    {
+        return array_filter(array_merge([
+            $this->labelKey => $label,
+            $this->dependsOn ? [$this->dependsOn->attribute => $request->input($this->dependsOn->attribute)] : null,
+        ]));
     }
 
     /**

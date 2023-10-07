@@ -1,8 +1,8 @@
 <template>
   <!--  Todo for multiple check if valueKey and labelKey will work -->
   <ICustomSelect
-    :multiple="true"
     v-model="selectValue"
+    :multiple="true"
     :disabled="readOnly"
     size="sm"
     :input-id="'rule-' + rule.id + '-' + index"
@@ -11,22 +11,25 @@
     :options="options"
   />
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
-import { ref, toRef, computed, watch } from 'vue'
-import { useType } from './useType'
-import propsDefinition from './props'
-import { useElementOptions } from '~/Core/resources/js/composables/useElementOptions'
-import map from 'lodash/map'
-import isEqual from 'lodash/isEqual'
-import { isValueEmpty } from '@/utils'
+import { computed, ref, toRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import isEqual from 'lodash/isEqual'
+import map from 'lodash/map'
+
+import { isValueEmpty } from '@/utils'
+
+import { useElementOptions } from '~/Core/composables/useElementOptions'
+
+import propsDefinition from './props'
+import { useType } from './useType'
 
 const props = defineProps(propsDefinition)
+
+defineOptions({
+  inheritAttrs: false,
+})
 
 const { t } = useI18n()
 
@@ -106,6 +109,7 @@ function setInitialValue() {
 function setSelectValue(value) {
   if (isValueEmpty(value)) {
     selectValue.value = []
+
     return
   }
 

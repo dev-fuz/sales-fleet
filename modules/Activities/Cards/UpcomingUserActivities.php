@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,9 +14,9 @@ namespace Modules\Activities\Cards;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Expression;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Modules\Activities\Models\Activity;
-use Modules\Core\Card\Card;
 use Modules\Core\Card\TableAsyncCard;
 use Modules\Core\ProvidesBetweenArgumentsViaString;
 
@@ -34,14 +34,14 @@ class UpcomingUserActivities extends TableAsyncCard
     /**
      * Provide the query that will be used to retrieve the items.
      */
-    public function query(): Builder
+    public function query(Request $request): Builder
     {
         return Activity::with('type')
             ->upcoming()
             ->incomplete()
             ->where('user_id', Auth::id())
             ->whereBetween(Activity::dueDateQueryExpression(), $this->getBetweenArguments(
-                $this->getCurrentRange(request())
+                $this->getCurrentRange($request)
             ))
             ->orderBy(Activity::dueDateQueryExpression());
     }
@@ -60,10 +60,10 @@ class UpcomingUserActivities extends TableAsyncCard
     /**
      * Get the columns that should be selected in the query
      */
-    protected function selectColumns(): array
+    protected function selectColumns(Request $request): array
     {
         return array_merge(
-            parent::selectColumns(),
+            parent::selectColumns($request),
             // user_id is for authorization
             ['user_id']
         );

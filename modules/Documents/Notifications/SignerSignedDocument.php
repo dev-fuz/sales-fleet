@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -33,10 +33,7 @@ class SignerSignedDocument extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): SignerSignedDocumentMailable&MailableTemplate
     {
-        return $this->viaMailableTemplate(
-            new SignerSignedDocumentMailable($this->document, $this->signer),
-            $notifiable
-        );
+        return (new SignerSignedDocumentMailable($this->document, $this->signer))->to($notifiable);
     }
 
     /**

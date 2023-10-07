@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,8 +14,8 @@ namespace Modules\Core\Http\Controllers\Api\Resource;
 
 use Illuminate\Http\JsonResponse;
 use Modules\Core\Http\Controllers\ApiController;
-use Modules\Core\Resource\Http\ResourceRequest;
-use Modules\Core\Timeline\Timelineables;
+use Modules\Core\Http\Requests\ResourceRequest;
+use Modules\Core\Support\Timeline\Timelineables;
 
 class AssociationsController extends ApiController
 {
@@ -38,9 +38,8 @@ class AssociationsController extends ApiController
 
         $method = $request->isForTimeline() ? 'timelineQuery' : 'associatedIndexQuery';
 
-        $records = $associatedResource->{$method}($request->record())
-            ->criteria($request->resource()->getRequestCriteria($request))
-            ->paginate($request->integer('per_page', null));
+        $records = $associatedResource->{$method}($request->record(), $request)
+            ->paginate($request->integer('per_page') ?: null);
 
         $associatedResource->jsonResource()::topLevelResource($request->record());
 

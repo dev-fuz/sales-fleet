@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -23,11 +23,19 @@ enum DealStatus: int
     case lost = 3;
 
     /**
+     * Get the status label.
+     */
+    public function label(): string
+    {
+        return __('deals::deal.status.'.$this->name);
+    }
+
+    /**
      * Get the deal status badge variant.
      */
     public function badgeVariant(): string
     {
-        return static::badgeVariants()[$this->name];
+        return self::badgeVariants()[$this->name];
     }
 
     /**

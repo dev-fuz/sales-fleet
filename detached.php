@@ -108,7 +108,7 @@ class DetachedHelper
         $statusesPath = __DIR__.DIRECTORY_SEPARATOR.'modules_statuses.json';
 
         if (! is_file($statusesPath)) {
-            exit('Missing modules_statuses.json file.');
+            exit('<h1>Missing modules_statuses.json file.</h1>');
         }
 
         $modules = json_decode(file_get_contents($statusesPath), true);
@@ -197,6 +197,6 @@ class DetachedHelper
         }
 
         // If we were unable to retrieve the details, fail gracefully to assume it's changeable.
-        return (bool) (! is_array(static::$iniAllData));
+        return ! is_array(static::$iniAllData);
     }
 }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,13 +13,14 @@
 namespace Modules\Users\Filters;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Modules\Core\Filters\Select;
 use Modules\Users\Models\User;
 
 class UserFilter extends Select
 {
     /**
-     * Initialize User class
+     * Initialize new User instance.
      *
      * @param  string|null  $label
      * @param  string|null  $field
@@ -28,28 +29,35 @@ class UserFilter extends Select
     {
         parent::__construct($field ?? 'user_id', $label ?? __('users::user.user'));
 
-        $this->withNullOperators()
-            ->valueKey('id')
-            ->labelKey('name');
+        $this->valueKey('id')->labelKey('name');
     }
 
     /**
-     * Provides the User instance options
-     *
-     * @return \Illuminate\Support\Collection
+     * Provides the User filter options.
      */
-    public function resolveOptions()
+    public function resolveOptions(): array
     {
-        return User::select(['id', 'name'])
-            ->orderBy('name')
-            ->get()
-            ->map(function ($user) {
-                $isLoggedInUser = $user->is(Auth::user());
+        // The user filter is the most used field in the APP,
+        // in this case we will make sure to cache them in an array.
+        return Cache::store('array')->rememberForever('user-filter-options', function () {
+            return User::select([$this->valueKey, $this->labelKey])
+                ->orderBy($this->labelKey)
+                ->get()
+                ->map(function ($user) {
+                    if ($user->is(Auth::user())) {
+                        return [
+                            'id' => 'me',
+                            'name' => __('core::filters.me'),
+                        ];
+                    }
 
-                return [
-                    'id' => ! $isLoggedInUser ? $user->id : 'me',
-                    'name' => ! $isLoggedInUser ? $user->name : __('core::filters.me'),
-                ];
-            });
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                    ];
+                })
+                ->all();
+        });
+
     }
 }

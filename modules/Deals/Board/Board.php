@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -17,9 +17,8 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Modules\Core\Contracts\Criteria\QueryCriteria;
-use Modules\Core\Criteria\FilterRulesCriteria;
 use Modules\Core\Facades\Innoclapps;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Resource\Resource;
 use Modules\Deals\Models\Stage;
 use Modules\Deals\Services\SummaryService;
@@ -46,6 +45,7 @@ class Board
         'user_id',
         'name',
         'expected_close_date',
+        'next_activity_date',
         'amount',
         'status',
     ];
@@ -72,14 +72,14 @@ class Board
         $stages = Stage::where('pipeline_id', $pipelineId)->get();
         $summary = $this->summary($query, $pipelineId);
 
-        return $stages->map(function ($stage) use ($query, $summary, $pages) {
+        return $stages->map(function (Stage $stage) use ($query, $summary, $pages) {
             $deals = $this->getDealsForStage($query, $stage->getKey(), $pages[$stage->getKey()] ?? null);
 
             $stage->setAttribute('deals', $deals);
             $stage->setAttribute('summary', $summary[$stage->getKey()]);
 
             return $stage;
-        })->sortBy('display_order', SORT_NUMERIC);
+        });
     }
 
     /**
@@ -94,9 +94,13 @@ class Board
         return $stage;
     }
 
-    protected function getDealsForStage(Builder $baseQuery, int $stageId, ?int $loadTillPage = null): EloquentCollection
+    protected function getDealsForStage(Builder $baseQuery, int $stageId, int $loadTillPage = null): EloquentCollection
     {
-        $count = ['incompleteActivitiesForUser as incomplete_activities_for_user_count'];
+        $count = [
+            'incompleteActivitiesForUser as incomplete_activities_for_user_count',
+            'products',
+        ];
+
         $filtersCriteria = $this->createFiltersCriteria();
 
         $query = $baseQuery->clone()
@@ -139,11 +143,12 @@ class Board
     /**
      * Get the summary for the board
      */
-    public function summary(Builder $query, int $pipelineId): Collection
+    public function summary(Builder $query, int $pipelineId, int $stageId = null): Collection
     {
         return (new SummaryService())->calculate(
             $query->clone()->criteria($this->createFiltersCriteria()),
-            $pipelineId
+            $pipelineId,
+            $stageId
         );
     }
 
@@ -154,15 +159,12 @@ class Board
     {
         $resource = $this->getResource();
 
-        $criteria = new FilterRulesCriteria(
-            $this->request->get('rules'),
-            $resource->filtersForResource(
+        return $resource
+            ->getFiltersCriteria(
                 app(ResourceRequest::class)->setResource($resource->name())
-            ),
-            $this->request
-        );
-
-        return $criteria->setIdentifier($resource->name())->setView(static::FILTERS_VIEW);
+            )
+            ->setIdentifier($resource->name())
+            ->setView(static::FILTERS_VIEW);
     }
 
     /**

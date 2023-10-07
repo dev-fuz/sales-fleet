@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,56 +12,32 @@ export default {
   /**
    * Currency symbol.
    */
-  currency: {
-    type: String,
-    default: '',
-    required: false,
-  },
+  currency: { type: String, default: '' },
 
   /**
    * Maximum value allowed.
    */
-  max: {
-    type: Number,
-    default: Number.MAX_SAFE_INTEGER || 9007199254740991,
-    required: false,
-  },
+  max: { type: Number, default: Number.MAX_SAFE_INTEGER || 9007199254740991 },
 
   /**
    * Minimum value allowed.
    */
-  min: {
-    type: Number,
-    default: Number.MIN_SAFE_INTEGER || -9007199254740991,
-    required: false,
-  },
+  min: { type: Number, default: Number.MIN_SAFE_INTEGER || -9007199254740991 },
 
   /**
    * Enable/Disable minus value.
    */
-  minus: {
-    type: Boolean,
-    default: false,
-    required: false,
-  },
+  minus: Boolean,
 
   /**
    * Input placeholder.
    */
-  placeholder: {
-    type: String,
-    default: '',
-    required: false,
-  },
+  placeholder: { type: String, default: '' },
 
   /**
    * Value when the input is empty
    */
-  emptyValue: {
-    type: [Number, String],
-    default: '',
-    required: false,
-  },
+  emptyValue: { type: [Number, String], default: '' },
 
   /**
    * Number of decimals.
@@ -69,31 +45,21 @@ export default {
    */
   precision: {
     type: Number,
-    default() {
-      return Number(Innoclapps.config('currency.precision'))
-    },
-    required: false,
+    default: () => Number(Innoclapps.config('currency.precision')),
   },
 
   /**
    * Thousand separator type.
    * Separator props accept either . or , (default).
    */
-  separator: {
-    type: String,
-    default: ',',
-    required: false,
-  },
+  separator: { type: String, default: ',' },
 
   /**
    * Forced thousand separator.
    * Accepts any string.
    */
   thousandSeparator: {
-    default() {
-      return Innoclapps.config('currency.thousands_separator')
-    },
-    required: false,
+    default: () => Innoclapps.config('currency.thousands_separator'),
     type: String,
   },
 
@@ -102,44 +68,25 @@ export default {
    * Accepts any string.
    */
   decimalSeparator: {
-    default() {
-      return Innoclapps.config('currency.decimal_mark')
-    },
-    required: false,
+    default: () => Innoclapps.config('currency.decimal_mark'),
     type: String,
   },
   /**
    * The output type used for v-model.
    * It can either be String or Number (default).
    */
-  outputType: {
-    required: false,
-    type: String,
-    default: 'Number',
-  },
+  outputType: { type: String, default: 'Number' },
 
   /**
    * v-model value.
    */
-  modelValue: {
-    type: [Number, String],
-    default: '',
-    required: true,
-  },
+  modelValue: { type: [Number, String], default: '', required: true },
 
-  disabled: {
-    type: Boolean,
-    default: false,
-    required: false,
-  },
+  disabled: Boolean,
 
   /**
    * Position of currency symbol
    * Symbol position props accept either 'suffix' or 'prefix' (default).
    */
-  currencySymbolPosition: {
-    type: String,
-    default: 'prefix',
-    required: false,
-  },
+  currencySymbolPosition: { type: String, default: 'prefix' },
 }

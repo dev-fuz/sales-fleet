@@ -6,14 +6,14 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Modules\Comments\Models\Comment;
 use Modules\Core\Contracts\Presentable;
-use Modules\Core\Media\HasMedia;
 use Modules\Core\Models\Model;
 use Modules\Core\Resource\Resourceable;
+use Modules\Core\Support\Media\HasMedia;
 use Modules\Users\Models\User;
 
 class Event extends Model implements Presentable
 {
-    use HasFactory, Resourceable, HasMedia;
+    use HasFactory, HasMedia, Resourceable;
 
     protected $casts = [
         'start' => 'datetime',
@@ -29,7 +29,9 @@ class Event extends Model implements Presentable
 
     public function path(): Attribute
     {
-        return Attribute::get(fn () => '/events/'.$this->getKey());
+        return Attribute::get(
+            fn () => '/events/'.$this->getKey()
+        );
     }
 
     public function status()

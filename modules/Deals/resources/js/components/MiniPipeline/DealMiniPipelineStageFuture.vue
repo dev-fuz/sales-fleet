@@ -1,6 +1,6 @@
 <template>
-  <a href="#" @click.prevent="$emit('click')" class="group flex items-center">
-    <span class="flex items-center py-2 px-4 text-sm font-medium">
+  <a href="#" class="group flex items-center" @click.prevent="$emit('click')">
+    <span class="flex items-center px-4 py-2 text-sm font-medium">
       <span
         class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-neutral-300 group-hover:border-neutral-400 dark:border-neutral-500 dark:group-hover:border-neutral-100"
       >
@@ -22,6 +22,7 @@
     </span>
   </a>
 </template>
+
 <script setup>
 defineEmits(['click'])
 

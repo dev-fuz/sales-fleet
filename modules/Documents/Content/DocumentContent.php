@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -143,8 +143,8 @@ class DocumentContent implements Stringable
 
         $this->ensureAllColumnsAreWithWidth($dom);
 
-        $reStylePadding = '/(padding(-left|right|top|bottom)?)[ ]*:([ ]*((-*\d+(px|em|%|cm|in|pc|pt|mm|ex)?|auto|inherit)*)(!important)*);/';
-
+        $reStylePadding = '/(padding-?(left|right|top|bottom)?)\s?:((([ ]*((-*\d+(px|em|%|cm|in|pc|pt|mm|ex)?|auto|inherit)*))*(!important)*));/';
+        // $reStylePadding = '/(padding-?(left|right|top|bottom)?).*:(([ ]*((-*\d+(px|em|%|cm|in|pc|pt|mm|ex)?|auto|inherit)*))*(!important)*);/';
         // The content builder editor is modyfing the wrapper div .column class e.q. for padding, margins etc...
         // this is causing issues when the column is rendered via PDF, the column size is not properly calculated
         // in this case, we will transfer the .column div styles and classes that includes padding in a child wrapper div
@@ -155,6 +155,7 @@ class DocumentContent implements Stringable
 
             // First, we will check if any classes needs to be transfered to the wrapper div
             if ($classes = $element->getAttribute('class')) {
+
                 $classes = array_map('trim', explode(' ', $classes));
 
                 foreach ($classes as $class) {
@@ -223,7 +224,13 @@ class DocumentContent implements Stringable
                 $parsedColumns->each(function ($column) use ($totalColumns) {
                     $width = round(100 / $totalColumns);
 
-                    $column['instance']->setAttribute('style', $column['style'].'width:'.$width.'%;');
+                    $style = $column['style'];
+
+                    if ($style) {
+                        $style = rtrim($style, ';').';';
+                    }
+
+                    $column['instance']->setAttribute('style', $style.'width:'.$width.'%;');
                 });
 
                 continue;
@@ -252,11 +259,17 @@ class DocumentContent implements Stringable
 
             foreach ($columnsWithoutWidth as $column) {
                 // Remove width on columns with 100% width.
-                $column['style'] = preg_replace($inlineWidthStyleRegex, '', $column['style']);
+                $style = $column['style'];
+
+                $style = preg_replace($inlineWidthStyleRegex, '', $style);
+
+                if ($style) {
+                    $style = rtrim($style, ';').';';
+                }
 
                 $percent = round((100 - $totalWidthInPercent) / count($columnsWithoutWidth));
 
-                $column['instance']->setAttribute('style', $column['style'].';width:'.$percent.'%;');
+                $column['instance']->setAttribute('style', $style.'width:'.$percent.'%;');
             }
         }
     }
@@ -348,7 +361,7 @@ class DocumentContent implements Stringable
         }
 
         // Relative src?
-        if (file_exists(public_path($src))) {
+        if (! str_starts_with($src, 'http') && file_exists(public_path($src))) {
             return public_path($src);
         }
 
@@ -407,7 +420,7 @@ class DocumentContent implements Stringable
     public function usedGoogleFonts()
     {
         return (new FontsExtractor(
-            $this->model->brand->pdfFont()
+            $this->model->pdfFont()
         ))->extractGoogleFonts($this->html());
     }
 
@@ -418,11 +431,7 @@ class DocumentContent implements Stringable
      */
     protected function dom()
     {
-        if (! is_null($this->dom)) {
-            return $this->dom;
-        }
-
-        return $this->dom = $this->newDomInstance($this->value);
+        return $this->dom ??= $this->newDomInstance($this->value);
     }
 
     /**

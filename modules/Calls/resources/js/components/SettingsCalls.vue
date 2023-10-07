@@ -1,6 +1,7 @@
 <template>
-  <CallOutcomeIndex></CallOutcomeIndex>
+  <CallsOutcomesIndex></CallsOutcomesIndex>
 </template>
+
 <script setup>
-import CallOutcomeIndex from '../views/CallOutcomeIndex.vue'
+import CallsOutcomesIndex from '../views/CallsOutcomesIndex.vue'
 </script>

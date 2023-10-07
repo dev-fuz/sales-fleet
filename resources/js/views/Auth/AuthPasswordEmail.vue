@@ -1,14 +1,15 @@
 <template>
-  <form @submit.prevent="submit" class="space-y-6" method="POST">
+  <form class="space-y-6" method="POST" @submit.prevent="submit">
     <IAlert variant="success" :show="successMessage !== null">
       {{ successMessage }}
     </IAlert>
+
     <IFormGroup :label="$t('auth.email_address')" label-for="email">
       <IFormInput
-        type="email"
         id="email"
-        name="email"
         v-model="form.email"
+        type="email"
+        name="email"
         autocomplete="email"
         autofocus
         required
@@ -18,29 +19,29 @@
 
     <IFormGroup v-if="reCaptcha.validate">
       <VueRecaptcha
+        ref="reCaptchaRef"
         :sitekey="reCaptcha.siteKey"
         @verify="handleReCaptchaVerified"
-        ref="reCaptchaRef"
       />
       <IFormError v-text="form.getError('g-recaptcha-response')" />
     </IFormGroup>
 
-    <div>
-      <IButton
-        type="submit"
-        block
-        @click="sendPasswordResetEmail"
-        :disabled="requestInProgress || !Boolean(form.email)"
-        :loading="requestInProgress"
-        :text="$t('passwords.send_password_reset_link')"
-      />
-    </div>
+    <IButton
+      type="submit"
+      block
+      :disabled="requestInProgress || !Boolean(form.email)"
+      :loading="requestInProgress"
+      :text="$t('passwords.send_password_reset_link')"
+      @click="sendPasswordResetEmail"
+    />
   </form>
 </template>
+
 <script setup>
 import { ref } from 'vue'
 import { VueRecaptcha } from 'vue-recaptcha'
-import { useForm } from '~/Core/resources/js/composables/useForm'
+
+import { useForm } from '~/Core/composables/useForm'
 
 const reCaptcha = Innoclapps.config('reCaptcha') || {}
 const installationUrl = Innoclapps.config('url')

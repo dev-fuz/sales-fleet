@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -65,7 +65,7 @@ class PendingMention
     /**
      * Add query parameter to the mention url
      */
-    public function withUrlQueryParameter(array|string $key, ?string $value = null): static
+    public function withUrlQueryParameter(array|string $key, string $value = null): static
     {
         if (is_array($key)) {
             foreach ($key as $parameter => $value) {

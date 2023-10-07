@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,6 +12,7 @@
 
 namespace Modules\Core\Http\Requests;
 
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Schema;
@@ -34,7 +35,7 @@ class CustomFieldRequest extends FormRequest
     {
         return [
             'resource_name' => [
-                'required',
+                Rule::requiredIf($this->isCreation()),
                 'string',
                 Rule::in(
                     Innoclapps::registeredResources()
@@ -42,8 +43,11 @@ class CustomFieldRequest extends FormRequest
                         ->map(fn ($resource) => $resource->name())
                 ),
             ],
+
             'label' => 'required|string|max:191',
+
             'field_type' => [Rule::requiredIf($this->isCreation()), Rule::in(Fields::customFieldsTypes())],
+
             'is_unique' => [
                 'sometimes',  'nullable', 'boolean', Rule::prohibitedIf(
                     function () {
@@ -61,8 +65,10 @@ class CustomFieldRequest extends FormRequest
                     }
                 ),
             ],
+
             'field_id' => $this->getFieldIdRules(),
-            'options' => ['nullable', 'array', function ($attribute, $value, $fail) {
+
+            'options' => ['nullable', 'array', function (string $attribute, mixed $value, Closure $fail) {
                 $customField = ! $this->isCreation() ?
                     CustomField::find($this->route('custom_field')) :
                     null;
@@ -79,10 +85,17 @@ class CustomFieldRequest extends FormRequest
                     $fail('core::fields.validation.requires_options')->translate();
                 }
 
+                foreach ($optionNames as $name) {
+                    if (str_contains($name, ',')) {
+                        $fail(__('core::fields.validation.option_coma'))->translate();
+                    }
+                }
+
                 if (count($optionNames) !== count(array_unique($optionNames))) {
                     $fail('All field options must be unique.');
                 }
             }],
+
             'options.*.data' => 'nullable|array',
         ];
     }
@@ -107,7 +120,7 @@ class CustomFieldRequest extends FormRequest
             'regex:/^[a-z_]+$/',
             'starts_with:'.$prefix,
             UniqueRule::make(CustomField::class, 'custom_field')->where('resource_name', $this->resource_name),
-            function ($attribute, $value, $fail) {
+            function (string $attribute, mixed $value, Closure $fail) {
                 $resource = Innoclapps::resourceByName($this->resource_name);
 
                 // First we will check if database column exists

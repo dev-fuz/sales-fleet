@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -47,7 +47,7 @@ return [
         'redirect' => 'Redirecionar para outro site',
         'title' => 'Título',
         'title_placeholder' => 'Digite o texto para a mensagem de sucesso.',
-        'message' => 'Mensagem (opcional)',
+        'message' => 'Mensagem',
         'redirect_url' => 'URL do site',
         'redirect_url_placeholder' => 'Digite a URL para redirecionar após o envio do formulário.',
     ],

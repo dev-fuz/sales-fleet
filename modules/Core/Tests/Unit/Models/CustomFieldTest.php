@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,6 +12,7 @@
 
 namespace Modules\Core\Tests\Unit\Models;
 
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Str;
 use Modules\Contacts\Models\Contact;
 use Modules\Core\Fields\Text;
@@ -73,17 +74,6 @@ class CustomFieldTest extends TestCase
         $this->assertFalse($field->isMultiOptionable());
     }
 
-    public function test_can_determine_whether_custom_field_is_not_optionable()
-    {
-        $field = $this->makeField(['field_type' => 'Text']);
-
-        $this->assertTrue($field->isNotMultiOptionable());
-
-        $field = $this->makeField(['field_type' => 'Checkbox']);
-
-        $this->assertFalse($field->isNotMultiOptionable());
-    }
-
     public function test_can_determine_whether_custom_field_optionable()
     {
         $field = $this->makeField(['field_type' => 'Radio']);
@@ -93,17 +83,6 @@ class CustomFieldTest extends TestCase
         $field = $this->makeField(['field_type' => 'Text']);
 
         $this->assertFalse($field->isOptionable());
-    }
-
-    public function test_can_determine_whether_custom_field_not_optionable()
-    {
-        $field = $this->makeField(['field_type' => 'Radio']);
-
-        $this->assertFalse($field->isNotOptionable());
-
-        $field = $this->makeField(['field_type' => 'Text']);
-
-        $this->assertTrue($field->isNotOptionable());
     }
 
     public function test_custom_field_options_are_prepared_properly()
@@ -119,13 +98,13 @@ class CustomFieldTest extends TestCase
 
         $this->assertEquals([
             'id' => $field->options[0]->id,
-            'label' => 'Option 1',
+            'name' => 'Option 1',
             'swatch_color' => '#333333',
         ], $prepared[0]);
 
         $this->assertEquals([
             'id' => $field->options[1]->id,
-            'label' => 'Option 2',
+            'name' => 'Option 2',
             'swatch_color' => '#333332',
         ], $prepared[1]);
     }
@@ -145,9 +124,37 @@ class CustomFieldTest extends TestCase
 
         $this->assertEquals([
             'id' => $field->options[0]->id,
-            'label' => 'Option 1',
+            'name' => 'Option 1',
             'swatch_color' => '#333333',
         ], $prepared[0]);
+    }
+
+    public function test_custom_field_can_be_translated_with_custom_group()
+    {
+        $model = $this->makeField(['label' => 'Original']);
+        $model->save();
+
+        Lang::addLines(['custom.custom_field.'.$model->field_id => 'Changed'], 'en');
+
+        $this->assertSame('Changed', $model->label);
+    }
+
+    public function test_custom_field_can_be_translated_with_lang_key()
+    {
+        $model = $this->makeField(['label' => 'custom.custom_field.some']);
+        $model->save();
+
+        Lang::addLines(['custom.custom_field.some' => 'Changed'], 'en');
+
+        $this->assertSame('Changed', $model->label);
+    }
+
+    public function test_it_uses_database_name_when_no_custom_trans_available()
+    {
+        $model = $this->makeField(['label' => 'Database Label']);
+        $model->save();
+
+        $this->assertSame('Database Label', $model->label);
     }
 
     protected function makeField($attrs = [])

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -18,14 +18,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Lang;
 use Modules\Core\Contracts\Primaryable;
-use Modules\Core\Models\Model;
-use Modules\Core\VisibilityGroup\HasVisibilityGroups;
-use Modules\Core\VisibilityGroup\RestrictsModelVisibility;
+use Modules\Core\Models\CacheModel;
+use Modules\Core\Support\VisibilityGroup\HasVisibilityGroups;
+use Modules\Core\Support\VisibilityGroup\RestrictsModelVisibility;
 use Modules\Documents\Database\Factories\DocumentTypeFactory;
 
-class DocumentType extends Model implements Primaryable, HasVisibilityGroups
+class DocumentType extends CacheModel implements HasVisibilityGroups, Primaryable
 {
-    use HasFactory, RestrictsModelVisibility;
+    use HasFactory,
+        RestrictsModelVisibility;
 
     /**
      * The attributes that are mass assignable.
@@ -37,9 +38,9 @@ class DocumentType extends Model implements Primaryable, HasVisibilityGroups
     ];
 
     /**
-     * The fields for the model that are searchable.
+     * The columns for the model that are searchable.
      */
-    protected static array $searchableFields = [
+    protected static array $searchableColumns = [
         'name' => 'like',
     ];
 
@@ -117,7 +118,7 @@ class DocumentType extends Model implements Primaryable, HasVisibilityGroups
      *
      * Supports translation from language file
      */
-    public function title(): Attribute
+    public function name(): Attribute
     {
         return Attribute::get(function (string $value, array $attributes) {
             if (! array_key_exists('id', $attributes)) {

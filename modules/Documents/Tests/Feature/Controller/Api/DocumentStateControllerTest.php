@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,7 +12,6 @@
 
 namespace Modules\Documents\Tests\Feature\Controller\Api;
 
-use Modules\Core\Database\Seeders\PermissionsSeeder;
 use Modules\Documents\Enums\DocumentStatus;
 use Modules\Documents\Models\Document;
 use Tests\TestCase;
@@ -41,8 +40,6 @@ class DocumentStateControllerTest extends TestCase
 
     public function test_authorized_user_can_mark_document_as_lost()
     {
-        $this->seed(PermissionsSeeder::class);
-
         $this->asRegularUser()->withPermissionsTo(['edit all documents'])->signIn();
         $document = Document::factory()->draft()->create();
 
@@ -51,8 +48,6 @@ class DocumentStateControllerTest extends TestCase
 
     public function test_authorized_user_can_mark_own_document_as_lost()
     {
-        $this->seed(PermissionsSeeder::class);
-
         $user = $this->asRegularUser()->withPermissionsTo(['edit own documents'])->signIn();
         $document = Document::factory()->for($user)->draft()->create();
 
@@ -90,8 +85,6 @@ class DocumentStateControllerTest extends TestCase
 
     public function test_authorized_user_can_mark_document_as_accepted()
     {
-        $this->seed(PermissionsSeeder::class);
-
         $this->asRegularUser()->withPermissionsTo(['edit all documents'])->signIn();
         $document = Document::factory()->draft()->create();
 
@@ -100,8 +93,6 @@ class DocumentStateControllerTest extends TestCase
 
     public function test_authorized_user_can_mark_own_document_as_accepted()
     {
-        $this->seed(PermissionsSeeder::class);
-
         $user = $this->asRegularUser()->withPermissionsTo(['edit own documents'])->signIn();
         $document = Document::factory()->for($user)->draft()->create();
 
@@ -130,8 +121,6 @@ class DocumentStateControllerTest extends TestCase
 
     public function test_authorized_user_can_mark_document_as_draft()
     {
-        $this->seed(PermissionsSeeder::class);
-
         $this->asRegularUser()->withPermissionsTo(['edit all documents'])->signIn();
         $document = Document::factory()->lost()->create();
 
@@ -140,8 +129,6 @@ class DocumentStateControllerTest extends TestCase
 
     public function test_authorized_user_can_mark_own_document_as_draft()
     {
-        $this->seed(PermissionsSeeder::class);
-
         $user = $this->asRegularUser()->withPermissionsTo(['edit own documents'])->signIn();
         $document = Document::factory()->for($user)->lost()->create();
 

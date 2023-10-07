@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -56,17 +56,15 @@ class LoginController extends Controller
     /**
      * Validate the user login request.
      *
-     *
-     * @return void
-     *
      * @throws \Illuminate\Validation\ValidationException
      */
-    protected function validateLogin(Request $request)
+    protected function validateLogin(Request $request): void
     {
-        $request->validate(array_merge([
+        $request->validate([
             $this->username() => 'required|string',
             'password' => 'required|string',
-        ], ReCaptcha::shouldShow() ? ['g-recaptcha-response' => ['required', new ValidRecaptchaRule]] : []));
+            ...ReCaptcha::shouldShow() ? ['g-recaptcha-response' => ['required', new ValidRecaptchaRule]] : [],
+        ]);
     }
 
     /**
@@ -79,18 +77,19 @@ class LoginController extends Controller
     {
         $response = redirect()->intended($this->redirectPath());
 
-        return $request->wantsJson()
-        ? new JsonResponse([
-            'redirect_path' => Str::endsWith($response->getTargetUrl(), ['.js', '.css', '.ico', '.png', '.jpg', '.jpeg']) ?
-                $this->redirectPath() :
-                $response->getTargetUrl(),
-        ], 200)
-        : $response;
+        if (! $request->wantsJson()) {
+            return $response;
+        }
+
+        $redirectTo = Str::endsWith($response->getTargetUrl(), ['.js', '.css', '.ico', '.png', '.jpg', '.jpeg']) ?
+            $this->redirectPath() :
+            $response->getTargetUrl();
+
+        return new JsonResponse(['redirect_path' => $redirectTo], 200);
     }
 
     /**
      * Log the user out of the application.
-     *
      *
      * @return \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
      */

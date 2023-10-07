@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -36,9 +36,10 @@ class TranslatorServiceProvider extends ServiceProvider
         // Add after booted because Modules\Core\SettingsServiceProvider is booted last
         // and the system settings menu won't exists yet as this provider is booted first
         Innoclapps::booted(function () {
-            $menuItem = SettingsMenuItem::make(__('translator::translator.translator'), '/settings/translator')->setId('translator');
-
-            SettingsMenu::add('system', $menuItem);
+            SettingsMenu::add('system', SettingsMenuItem::make(
+                __('translator::translator.translator'),
+                '/settings/translator'
+            )->setId('translator'));
         });
 
         $this->registerCommands();

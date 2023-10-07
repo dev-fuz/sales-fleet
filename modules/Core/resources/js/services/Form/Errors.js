@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -48,7 +48,7 @@ export default class Errors {
    * @return {Boolean}
    */
   has(field) {
-    return this.errors.hasOwnProperty(field)
+    return Object.hasOwn(this.errors, field)
   }
 
   /**

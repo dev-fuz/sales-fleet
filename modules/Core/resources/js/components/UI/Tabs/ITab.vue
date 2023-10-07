@@ -1,5 +1,5 @@
 <template>
-  <Tab as="template" :disabled="disabled" v-slot="{ selected }" ref="tabRef">
+  <Tab v-slot="{ selected }" ref="tabRef" as="template" :disabled="disabled">
     <button
       type="button"
       data-tab="true"
@@ -7,7 +7,7 @@
         selected
           ? 'border-primary-500 text-primary-600 dark:border-primary-400 dark:text-primary-300'
           : 'border-transparent text-neutral-600 hover:border-neutral-300 hover:text-neutral-800 dark:text-neutral-100 dark:hover:border-neutral-500 dark:hover:text-neutral-300',
-        'group inline-flex min-w-full shrink-0 snap-start snap-always items-center justify-center whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium focus:outline-none sm:min-w-0',
+        'group inline-flex min-w-full shrink-0 snap-start snap-always items-center justify-center whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium focus:outline-none sm:min-w-0',
         { 'pointer-events-none opacity-70': disabled },
       ]"
     >
@@ -36,12 +36,21 @@
     </button>
   </Tab>
 </template>
+
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { Tab } from '@headlessui/vue'
 import { useActiveElement } from '@vueuse/core'
 
 const emit = defineEmits(['activated'])
+
+defineProps({
+  title: String,
+  disabled: Boolean,
+  icon: String,
+  badge: [String, Number],
+  badgeVariant: { default: 'info', type: String },
+})
 
 const tabRef = ref(null)
 const activeElement = useActiveElement()
@@ -56,13 +65,5 @@ onMounted(() => {
   if (tabRef.value.el.getAttribute('aria-selected') === 'true') {
     emit('activated')
   }
-})
-
-const props = defineProps({
-  title: String,
-  disabled: Boolean,
-  icon: String,
-  badge: [String, Number],
-  badgeVariant: { default: 'info', type: String },
 })
 </script>

@@ -11,6 +11,7 @@
         'text-primary-600 dark:text-primary-300':
           $route.name === 'settings-general',
       }"
+      href="/settings/general"
       :to="{ name: 'settings-general' }"
     />
     <IVerticalNavigationItem
@@ -18,7 +19,7 @@
       :key="item.id"
       :title="item.title"
       :to="item.route"
-      :href="$router.resolve({ to: item.route }).href"
+      :href="item.route ? $router.resolve(item.route).href : undefined"
       :icon="item.icon"
     >
       <template v-if="item.children.length">
@@ -26,7 +27,7 @@
           v-for="child in item.children"
           :key="item.id + '-' + child.id"
           :to="child.route"
-          :href="$router.resolve({ to: child.route }).href"
+          :href="child.route ? $router.resolve(child.route).href : undefined"
           :title="child.title"
           :icon="child.icon"
         />
@@ -34,6 +35,7 @@
     </IVerticalNavigationItem>
   </IVerticalNavigation>
 </template>
+
 <script setup>
 const items = Innoclapps.config('settings.menu')
 </script>

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,7 +15,7 @@ namespace Modules\MailClient\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Console\Isolatable;
 use Illuminate\Support\Collection;
-use Modules\Core\Date\Carbon;
+use Modules\Core\Support\Date\Carbon;
 use Modules\MailClient\Events\EmailAccountsSyncFinished;
 use Modules\MailClient\Models\EmailAccount;
 use Modules\MailClient\Synchronization\EmailAccountSynchronizationManager;
@@ -100,7 +100,7 @@ class EmailAccountsSyncCommand extends Command implements Isolatable
             ->get();
 
         if ($this->option('account')) {
-            $accounts = $accounts->filter(function ($account) {
+            $accounts = $accounts->filter(function (EmailAccount $account) {
                 return (int) $account->id === (int) $this->option('account');
             })->values();
         }

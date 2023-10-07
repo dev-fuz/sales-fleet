@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -27,16 +27,18 @@ class ViewAuthorizedProductsCriteria implements QueryCriteria
         /** @var \Modules\Users\Models\User */
         $user = Auth::user();
 
-        $query->unless($user->can('view all products'), function ($query) use ($user) {
-            $query->where(function ($query) use ($user) {
-                $query->criteria(new QueriesByUserCriteria($user, 'created_by'));
+        if ($user->can('view all products')) {
+            return;
+        }
 
-                if ($user->can('view team products')) {
-                    $query->orWhereHas('creator.teams', function ($query) use ($user) {
-                        $query->where('teams.user_id', $user->getKey());
-                    });
-                }
-            });
+        $query->where(function ($query) use ($user) {
+            $query->criteria(new QueriesByUserCriteria($user, 'created_by'));
+
+            if ($user->can('view team products')) {
+                $query->orWhereHas('creator.teams', function ($query) use ($user) {
+                    $query->where('teams.user_id', $user->getKey());
+                });
+            }
         });
     }
 }

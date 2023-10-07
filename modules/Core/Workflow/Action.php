@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,7 +15,6 @@ namespace Modules\Core\Workflow;
 use Closure;
 use JsonSerializable;
 use Modules\Core\Contracts\Workflow\ModelTrigger;
-use Modules\Core\Facades\Innoclapps;
 
 abstract class Action implements JsonSerializable
 {
@@ -32,6 +31,8 @@ abstract class Action implements JsonSerializable
      * @var \Modules\Core\Workflow\Trigger|null
      */
     protected $trigger;
+
+    protected static bool $disabled = false;
 
     /**
      * Provide the action name
@@ -58,7 +59,15 @@ abstract class Action implements JsonSerializable
      */
     public static function allowedForExecution(): bool
     {
-        return Innoclapps::importStatus() === false;
+        return static::$disabled === false;
+    }
+
+    /**
+     * Disable the actions executions.
+     */
+    public static function disableExecutions(bool $value = true): void
+    {
+        static::$disabled = $value;
     }
 
     /**
@@ -81,8 +90,6 @@ abstract class Action implements JsonSerializable
 
     /**
      * Set the action trigger
-     *
-     * @param  \Modules\Core\Workflow\Trigger  $trigger
      */
     public function setTrigger(Trigger $trigger): static
     {

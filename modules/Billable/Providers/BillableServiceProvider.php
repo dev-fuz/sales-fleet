@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -17,6 +17,8 @@ use Modules\Billable\Enums\TaxType;
 use Modules\Billable\Listeners\TransferProductsUserData;
 use Modules\Billable\Models\Billable;
 use Modules\Billable\Models\BillableProduct;
+use Modules\Billable\Models\Product;
+use Modules\Billable\Observers\ProductObserver;
 use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Settings\DefaultSettings;
 use Modules\Users\Events\TransferringUserData;
@@ -47,6 +49,7 @@ class BillableServiceProvider extends ServiceProvider
         $this->app->booted(function () {
             $this->registerResources();
             Innoclapps::whenReadyForServing($this->bootModule(...));
+            Product::observe(ProductObserver::class);
         });
     }
 

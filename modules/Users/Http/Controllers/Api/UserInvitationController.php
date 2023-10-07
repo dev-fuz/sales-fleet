@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -38,7 +38,7 @@ class UserInvitationController extends ApiController
         ], [], ['emails.*' => __('users::user.email')]);
 
         foreach ($data['emails'] as $email) {
-            $this->invite(array_merge($data, ['email' => $email]));
+            $this->invite(array_merge($data, ['email' => $email]), $request);
         }
 
         return $this->response('', 204);
@@ -47,7 +47,7 @@ class UserInvitationController extends ApiController
     /**
      * Perform invitation.
      */
-    protected function invite(array $attributes): void
+    protected function invite(array $attributes, Request $request): void
     {
         UserInvitation::where('email', $attributes['email'])->first()?->delete();
 
@@ -61,8 +61,8 @@ class UserInvitationController extends ApiController
 
         $invitation->save();
 
-        Mail::to($invitation->email)->send(
-            new InvitationCreated($invitation)
-        );
+        Mail::to($invitation->email)
+            ->locale($request->user()->preferredLocale())
+            ->send(new InvitationCreated($invitation));
     }
 }

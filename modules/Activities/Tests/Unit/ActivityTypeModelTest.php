@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,6 +12,7 @@
 
 namespace Modules\Activities\Tests\Unit;
 
+use Illuminate\Support\Facades\Lang;
 use Modules\Activities\Models\Activity;
 use Modules\Activities\Models\ActivityType;
 use Tests\TestCase;
@@ -90,5 +91,30 @@ class ActivityTypeModelTest extends TestCase
         ]);
 
         $this->assertSame(1, Activity::overdue()->count());
+    }
+
+    public function test_activity_type_can_be_translated_with_custom_group()
+    {
+        $model = ActivityType::factory()->create(['name' => 'Original']);
+
+        Lang::addLines(['custom.activity_type.'.$model->id => 'Changed'], 'en');
+
+        $this->assertSame('Changed', $model->name);
+    }
+
+    public function test_activity_type_can_be_translated_with_lang_key()
+    {
+        $model = ActivityType::factory()->create(['name' => 'custom.activity_type.some']);
+
+        Lang::addLines(['custom.activity_type.some' => 'Changed'], 'en');
+
+        $this->assertSame('Changed', $model->name);
+    }
+
+    public function test_it_uses_database_name_when_no_custom_trans_available()
+    {
+        $model = ActivityType::factory()->create(['name' => 'Database Name']);
+
+        $this->assertSame('Database Name', $model->name);
     }
 }

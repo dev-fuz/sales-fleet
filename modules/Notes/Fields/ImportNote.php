@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,16 +14,12 @@ namespace Modules\Notes\Fields;
 
 use Exception;
 use Modules\Core\Fields\Field;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Table\Column;
 use Modules\Notes\Models\Note;
 
 class ImportNote extends Field
 {
-    /**
-     * Field component
-     */
-    public ?string $component = null;
-
     /**
      * Initialize new ImportNote instance class
      *
@@ -34,22 +30,15 @@ class ImportNote extends Field
     {
         parent::__construct($attribute, $label ?: __('notes::note.note'));
 
-        $this->strictlyForImport()
-            ->excludeFromZapierResponse()
-            ->saveUsing(function ($request, $requestAttribute, $value, $field) {
-                return function ($model) use ($request, $value) {
-                    if (empty($value)) {
-                        return;
-                    }
+        $this->onlyForImport()
+            ->fillUsing(function ($model, $attribute, ResourceRequest $request, $value, $requestAttribute) {
+                if (empty($value)) {
+                    return;
+                }
 
+                return function () use ($model, $request, $value) {
                     if (! $model->notes()->where('body', $value)->exists()) {
-                        $note = new Note([
-                            'body' => $value,
-                            'via_resource' => $request->resource()->name(),
-                            'via_resource_id' => $model->getKey(),
-                        ]);
-
-                        $note->save();
+                        $note = Note::create(['body' => $value]);
 
                         $note->{$request->resource()->associateableName()}()->attach($model);
                     }
@@ -60,8 +49,7 @@ class ImportNote extends Field
     /**
      * Get the mailable template placeholder
      *
-     * @param  \Modules\Core\Models\Model  $model
-     * @return null
+     * @param  \Modules\Core\Models\Model|null  $model
      */
     public function mailableTemplatePlaceholder($model)
     {
@@ -93,7 +81,6 @@ class ImportNote extends Field
      * Resolve the displayable field value
      *
      * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return null
      */
     public function resolveForDisplay($model)
     {
@@ -104,22 +91,8 @@ class ImportNote extends Field
      * Resolve the field value for export
      *
      * @param  \Modules\Core\Models\Model  $model
-     * @return null
      */
     public function resolveForExport($model)
-    {
-        return null;
-    }
-
-    /**
-     * Resolve the field value for import
-     *
-     * @param  string|null  $value
-     * @param  array  $row
-     * @param  array  $original
-     * @return null
-     */
-    public function resolveForImport($value, $row, $original)
     {
         return null;
     }
@@ -128,7 +101,6 @@ class ImportNote extends Field
      * Resolve the field value for JSON Resource
      *
      * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return null
      */
     public function resolveForJsonResource($model)
     {
@@ -137,22 +109,16 @@ class ImportNote extends Field
 
     /**
      * Add custom value resolver
-     *
-     *
-     * @return static
      */
-    public function resolveUsing(callable $resolveCallback)
+    public function resolveUsing(callable $resolveCallback): never
     {
         throw new Exception(__CLASS__.' cannot have custom resolve callback');
     }
 
     /**
      * Add custom display resolver
-     *
-     *
-     * @return static
      */
-    public function displayUsing(callable $displayCallback)
+    public function displayUsing(callable $displayCallback): never
     {
         throw new Exception(__CLASS__.' cannot have custom display callback');
     }

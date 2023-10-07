@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -10,9 +10,8 @@
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
 
-namespace Tests\Feature\Controller\Api;
+namespace Modules\WebForms\Tests\Feature\Controller\Api;
 
-use Illuminate\Support\Facades\Auth;
 use Modules\Core\Fields\User;
 use Modules\Deals\Models\Pipeline;
 use Modules\Deals\Models\Stage;
@@ -62,6 +61,26 @@ class WebFormControllerTest extends TestCase
         $this->getJson('/api/forms')
             ->assertJsonCount(5)
             ->assertJsonFragment(['title' => $forms->first()->title]);
+    }
+
+    public function test_user_can_fetch_web_form()
+    {
+        $this->signIn();
+
+        $form = WebForm::factory()->create();
+
+        $this->getJson('/api/forms/'.$form->id)
+            ->assertJsonFragment(['title' => $form->title]);
+    }
+
+    public function test_user_can_delete_web_form()
+    {
+        $this->signIn();
+
+        $form = WebForm::factory()->create();
+
+        $this->deleteJson('/api/forms/'.$form->id)->assertNoContent();
+        $this->assertDatabaseEmpty('web_forms');
     }
 
     public function test_user_can_create_web_form()
@@ -114,7 +133,7 @@ class WebFormControllerTest extends TestCase
 
     public function test_defaults_are_merged_on_web_form_creation()
     {
-        $this->signIn();
+        $user = $this->signIn();
 
         $pipeline = Pipeline::factory()->primary()->withStages()->create();
 
@@ -131,8 +150,8 @@ class WebFormControllerTest extends TestCase
                     'success_title' => 'Form submitted.',
                 ],
                 'status' => 'active',
-                'locale' => Auth::user()->preferredLocale(),
-                'user_id' => Auth::id(),
+                'locale' => $user->preferredLocale(),
+                'user_id' => $user->id,
             ]);
     }
 
@@ -190,6 +209,71 @@ class WebFormControllerTest extends TestCase
             'action' => 'not-valid-action',
         ])->make()->toArray())
             ->assertJsonValidationErrors('submit_data.action');
+    }
+
+    public function test_web_form_success_message_is_clean()
+    {
+        $this->signIn();
+
+        $form = WebForm::factory()->mergeSubmitData([
+            'success_message' => '<script>alert("OK")</script>Message',
+        ])->create();
+
+        $this->getJson('/api/forms/'.$form->getKey())->assertJsonPath(
+            'submit_data.success_message', 'Message',
+        );
+    }
+
+    public function test_web_form_field_section_label_is_clean()
+    {
+        $this->signIn();
+
+        $form = WebForm::factory()
+            ->addFieldSection('first_name', 'contacts', ['label' => '<script>alert("OK")</script>Label'])
+            ->create();
+
+        $this->getJson('/api/forms/'.$form->getKey())->assertJsonPath(
+            'sections.0.label', 'Label',
+        );
+    }
+
+    public function test_web_form_file_section_label_is_clean()
+    {
+        $this->signIn();
+
+        $form = WebForm::factory()
+            ->addFileSection('contacts', ['label' => '<script>alert("OK")</script>Label'])
+            ->create();
+
+        $this->getJson('/api/forms/'.$form->getKey())->assertJsonPath(
+            'sections.0.label', 'Label',
+        );
+    }
+
+    public function test_web_form_introduction_section_message_is_clean()
+    {
+        $this->signIn();
+
+        $form = WebForm::factory()
+            ->withIntroductionSection(['message' => '<script>alert("OK")</script>Message'])
+            ->create();
+
+        $this->getJson('/api/forms/'.$form->getKey())->assertJsonPath(
+            'sections.0.message', 'Message',
+        );
+    }
+
+    public function test_web_form_message_section_is_clean()
+    {
+        $this->signIn();
+
+        $form = WebForm::factory()
+            ->withMessageSection('<script>alert("OK")</script>Message')
+            ->create();
+
+        $this->getJson('/api/forms/'.$form->getKey())->assertJsonPath(
+            'sections.0.message', 'Message',
+        );
     }
 
     public function test_web_form_requires_redirect_url_if_submit_action_is_redirect()
@@ -306,7 +390,7 @@ class WebFormControllerTest extends TestCase
         $this->postJson('/api/forms', $form)->assertJson([
             'submit_data' => [
                 'pipeline_id' => $pipeline->getKey(),
-                'stage_id' => $pipeline->stages->sortBy('display_order')->first()->getKey(),
+                'stage_id' => $pipeline->stages->first()->getKey(),
             ],
         ]);
     }

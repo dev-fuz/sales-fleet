@@ -1,25 +1,25 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import i18n from '~/Core/resources/js/i18n'
-
 import { useStorage } from '@vueuse/core'
 
-import ImportDeal from './views/ImportDeal.vue'
-import DealIndex from './views/DealIndex.vue'
-import CreateDeal from './views/CreateDeal.vue'
-import ViewDeal from './views/ViewDeal.vue'
-import DealBoard from './views/DealBoard.vue'
+import i18n from '~/Core/i18n'
 
-import CreateCompany from '~/Contacts/resources/js/views/Companies/CreateCompany.vue'
-import CreateContact from '~/Contacts/resources/js/views/Contacts/CreateContact.vue'
+import CompaniesCreate from '~/Contacts/views/CompaniesCreate.vue'
+import ContactsCreate from '~/Contacts/views/ContactsCreate.vue'
+
+import DealsBoard from './views/DealsBoard.vue'
+import DealsCreate from './views/DealsCreate.vue'
+import DealsImport from './views/DealsImport.vue'
+import DealsIndex from './views/DealsIndex.vue'
+import DealsView from './views/DealsView.vue'
 
 const isBoardDefaultView = useStorage('deals-board-view-default', false)
 
@@ -27,7 +27,7 @@ export default [
   {
     path: '/deals',
     name: 'deal-index',
-    component: DealIndex,
+    component: DealsIndex,
     meta: {
       title: i18n.t('deals::deal.deals'),
       subRoutes: ['create-deal'],
@@ -55,7 +55,7 @@ export default [
         path: 'create',
         name: 'create-deal',
         components: {
-          create: CreateDeal,
+          create: DealsCreate,
         },
         meta: { title: i18n.t('deals::deal.create') },
       },
@@ -64,13 +64,13 @@ export default [
   {
     path: '/import/deals',
     name: 'import-deal',
-    component: ImportDeal,
+    component: DealsImport,
     meta: { title: i18n.t('deals::deal.import') },
   },
   {
     path: '/deals/board',
     name: 'deal-board',
-    component: DealBoard,
+    component: DealsBoard,
     meta: {
       title: i18n.t('deals::deal.deals'),
     },
@@ -81,19 +81,16 @@ export default [
   {
     path: '/deals/:id',
     name: 'view-deal',
-    component: ViewDeal,
-    props: {
-      resourceName: 'deals',
-    },
+    component: DealsView,
     children: [
       {
         path: 'contacts/create',
-        component: CreateContact,
+        component: ContactsCreate,
         name: 'createContactViaDeal',
       },
       {
         path: 'companies/create',
-        component: CreateCompany,
+        component: CompaniesCreate,
         name: 'createCompanyViaDeal',
       },
     ].map(route => Object.assign(route, { meta: { scrollToTop: false } })),

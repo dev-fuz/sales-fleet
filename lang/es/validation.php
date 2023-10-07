@@ -137,7 +137,6 @@ return [
         ],
     ],
     'import' => [
-        'dependent' => 'El :attribute no pertenece al :dependsOn, asegúrese de que el :attribute esté relacionado con el :dependsOn.',
         'user' => [
             'invalid' => 'Ha proporcionado un usuario que no existe. Debe agregar la identificación de usuario o el nombre completo del usuario.',
         ],

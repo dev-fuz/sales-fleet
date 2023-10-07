@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,12 +15,13 @@ namespace Modules\Deals\Actions;
 use Illuminate\Support\Collection;
 use Modules\Core\Actions\Action;
 use Modules\Core\Actions\ActionFields;
-use Modules\Core\Actions\ActionRequest;
+use Modules\Core\Http\Requests\ActionRequest;
+use Modules\Deals\Models\Deal;
 
 class MarkAsOpen extends Action
 {
     /**
-     * Indicates that the action will be hidden on the view/update view.
+     * Indicates that the action will be hidden on the update view.
      */
     public bool $hideOnUpdate = true;
 
@@ -31,9 +32,7 @@ class MarkAsOpen extends Action
      */
     public function handle(Collection $models, ActionFields $fields)
     {
-        foreach ($models as $model) {
-            $model->markAsOpen();
-        }
+        $models->reject(fn (Deal $model) => $model->isOpen())->each->markAsOpen();
     }
 
     /**

@@ -1,16 +1,18 @@
 <template>
   <TimelineEntry
     :resource-name="resourceName"
+    :resource-id="resourceId"
     :created-at="log.created_at"
     :is-pinned="log.is_pinned || false"
     :timelineable-id="log.id"
     :timeline-relationship="log.timeline_relation"
+    :timeline-subject-key="resource.timeline_subject_key"
     :timelineable-key="log.timeline_key"
     :icon="log.type.icon"
     :heading="$t('documents::document.timeline.heading')"
     heading-class="font-medium"
   >
-    <Document
+    <RelatedDocument
       class="mt-3"
       :document-id="log.id"
       :type-id="log.document_type_id"
@@ -24,12 +26,17 @@
       :authorizations="log.authorizations"
       :associations="log.associations"
       :via-resource="resourceName"
+      :via-resource-id="resourceId"
+      :related-resource="resource"
     />
   </TimelineEntry>
 </template>
+
 <script setup>
-import Document from './RelatedDocumentListItem.vue'
-import TimelineEntry from '~/Core/resources/js/views/Timeline/RecordTabTimelineTemplate.vue'
-import propsDefinition from '~/Core/resources/js/views/Timeline/props'
+import propsDefinition from '~/Core/views/Timeline/props'
+import TimelineEntry from '~/Core/views/Timeline/RecordTabTimelineTemplate.vue'
+
+import RelatedDocument from './RelatedDocument.vue'
+
 defineProps(propsDefinition)
 </script>

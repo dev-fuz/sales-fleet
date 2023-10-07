@@ -5,10 +5,10 @@
         <th
           v-for="channel in allAvailableChannels"
           :key="'heading-' + channel"
+          v-i-tooltip="$t('core::notifications.channels.' + channel)"
           class="text-left"
           width="6%"
           scope="col"
-          v-i-tooltip="$t('core::notifications.channels.' + channel)"
         >
           <Icon class="h-5 w-5" :icon="iconMaps[channel]" />
         </th>
@@ -20,14 +20,16 @@
       </tr>
     </thead>
     <tbody>
-      <tr v-for="notification in notifications" :key="notification.key">
+      <tr v-for="notification in settings" :key="notification.key">
         <td v-for="channel in allAvailableChannels" :key="channel">
           <IFormCheckbox
             v-if="notification.channels.indexOf(channel) > -1"
             :id="channel + '-' + notification.key"
-            v-model:checked="form.notifications[notification.key][channel]"
+            v-model:checked="
+              form.notifications_settings[notification.key][channel]
+            "
           />
-          <Icon class="h-5 w-5" icon="X" v-else />
+          <Icon v-else class="h-5 w-5" icon="X" />
         </td>
         <td>
           <p
@@ -44,26 +46,26 @@
     </tbody>
   </ITable>
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
+import flatten from 'lodash/flatten'
 import map from 'lodash/map'
 import uniq from 'lodash/uniq'
-import flatten from 'lodash/flatten'
 
-const props = defineProps({
+defineProps({
   form: { required: true, type: Object },
 })
 
-const notifications = Innoclapps.config('notifications_information')
+defineOptions({
+  inheritAttrs: false,
+})
+
+const settings = Innoclapps.config('notifications_settings')
 
 const iconMaps = {
   mail: 'Mail',
   database: 'Bell',
 }
 
-const allAvailableChannels = uniq(flatten(map(notifications, 'channels')))
+const allAvailableChannels = uniq(flatten(map(settings, 'channels')))
 </script>

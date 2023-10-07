@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,7 @@
 namespace Modules\Core\Tests\Unit\Mail\Headers;
 
 use Illuminate\Contracts\Support\Arrayable;
-use Modules\Core\Mail\Headers\Header;
+use Modules\Core\Support\Mail\Headers\Header;
 use Tests\TestCase;
 
 class HeaderTest extends TestCase

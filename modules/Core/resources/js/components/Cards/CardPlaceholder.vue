@@ -16,9 +16,10 @@
     />
   </ICard>
 </template>
+
 <script setup>
 defineProps({
-  pulse: { type: Boolean, default: false },
+  pulse: Boolean,
   size: { type: String, default: 'md' },
 })
 </script>

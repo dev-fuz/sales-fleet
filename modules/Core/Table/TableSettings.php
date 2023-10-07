@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,8 +16,9 @@ use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\Collection;
 use JsonSerializable;
 use Modules\Core\Contracts\Metable;
-use Modules\Core\Filters\UserFiltersService;
+use Modules\Core\Facades\Fields;
 use Modules\Core\Http\Resources\FilterResource;
+use Modules\Core\Models\Filter;
 use Modules\Core\Table\Exceptions\OrderByNonExistingColumnException;
 use Modules\Users\Models\User;
 
@@ -36,7 +37,7 @@ class TableSettings implements Arrayable, JsonSerializable
     /**
      * Create new TableSettings instance.
      */
-    public function __construct(protected Table $table, protected Metable $user)
+    public function __construct(protected Table $table, protected User&Metable $user)
     {
     }
 
@@ -57,7 +58,7 @@ class TableSettings implements Arrayable, JsonSerializable
      */
     public function savedFilters(): Collection
     {
-        return (new UserFiltersService())->get($this->user->id, $this->table->identifier());
+        return Filter::forUser($this->user->id, $this->table->identifier())->get();
     }
 
     /**
@@ -104,7 +105,7 @@ class TableSettings implements Arrayable, JsonSerializable
     /**
      * Get the user columns meta name
      */
-    public function getMetaName(): string
+    protected function getMetaName(): string
     {
         return $this->meta.'-'.$this->table->identifier();
     }
@@ -150,32 +151,48 @@ class TableSettings implements Arrayable, JsonSerializable
      */
     public function getColumns(): Collection
     {
-        if ($this->columns) {
-            return $this->columns;
-        }
+        return $this->columns ??= $this->retrieveAndConfigureColumns()
+            ->sortBy('order')
+            ->each(function (Column $column) {
+                if ($column->field) {
+                    // In case are used for update inline
+                    Fields::applyCustomizedAttributes(
+                        $column->field,
+                        $this->table->identifier(),
+                        Fields::UPDATE_VIEW
+                    );
+                }
+            })
+            ->values();
+    }
 
-        $customizedColumns = collect($this->getCustomizedColumns());
+    /**
+     * Retrieve and configure the table columns.
+     */
+    protected function retrieveAndConfigureColumns(): Collection
+    {
+        $customizedColumns = $this->getCustomizedColumns();
         $availableColumns = $this->table->getColumns()->filter->authorizedToSee()->values();
 
         // Merge the order and the visibility and all columns so we can filter them later
-        $columns = $availableColumns->map(function ($column, $index) use ($customizedColumns) {
+        return $availableColumns->map(function (Column $column, int $index) use ($customizedColumns) {
             if ($column instanceof ActionColumn) {
                 $column->order(1000)->hidden(false);
             } else {
-                $customizedColumn = $customizedColumns->firstWhere('attribute', $column->attribute);
-                $column->order($customizedColumn ? (int) $customizedColumn['order'] : $index + 1);
+                $data = $customizedColumns->firstWhere('attribute', $column->attribute);
+
+                $column->order($data ? (int) $data['order'] : $index + 1);
+
                 // We will first check if the column has customization applied, if yes, we will
                 // use the option from the customization otherwise column is not yet in customized columns, perhaps is added later
                 // either set the visibility if defined from the column config or set it default true if not defined
                 $column->hidden(
-                    $customizedColumn ? ($customizedColumn['hidden'] ?? false) : ($column->hidden ?? false)
+                    $data ? ($data['hidden'] ?? false) : ($column->hidden ?? false)
                 );
             }
 
             return $column;
         });
-
-        return $this->columns = $columns->sortBy('order')->values();
     }
 
     /**
@@ -187,7 +204,7 @@ class TableSettings implements Arrayable, JsonSerializable
     }
 
     /**
-     * Get table customized user
+     * Get table customized user order
      */
     public function getCustomizedOrder(): array
     {
@@ -195,11 +212,11 @@ class TableSettings implements Arrayable, JsonSerializable
     }
 
     /**
-     * Get table customized columns
+     * Get table customized user columns
      */
-    public function getCustomizedColumns(): array
+    public function getCustomizedColumns(): Collection
     {
-        return $this->getCustomizedSettings()['columns'] ?? [];
+        return new Collection($this->getCustomizedSettings()['columns'] ?? []);
     }
 
     /**
@@ -224,7 +241,7 @@ class TableSettings implements Arrayable, JsonSerializable
             $column = $this->table->getColumn($column['attribute']);
 
             // Reset with the default attributes for additional protection
-            if ($column->isPrimary()) {
+            if ($column?->isPrimary()) {
                 $payload['columns'][$key]['hidden'] = $column->isHidden();
                 $payload['columns'][$key]['order'] = $column->order;
             }

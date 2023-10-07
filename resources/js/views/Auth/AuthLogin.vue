@@ -1,11 +1,11 @@
 <template>
-  <form @submit.prevent="submit" class="space-y-6" method="POST">
+  <form class="space-y-6" method="POST" @submit.prevent="submit">
     <IFormGroup :label="$t('auth.login')" label-for="email">
       <IFormInput
-        type="email"
         id="email"
-        name="email"
         v-model="form.email"
+        type="email"
+        name="email"
         autocomplete="email"
         autofocus
         required
@@ -15,10 +15,10 @@
 
     <IFormGroup :label="$t('auth.password')" label-for="password">
       <IFormInput
-        type="password"
-        v-model="form.password"
         id="password"
         ref="passwordRef"
+        v-model="form.password"
+        type="password"
         name="password"
         required
         autocomplete="current-password"
@@ -28,9 +28,9 @@
 
     <IFormGroup v-if="reCaptcha.validate">
       <VueRecaptcha
+        ref="reCaptchaRef"
         :sitekey="reCaptcha.siteKey"
         @verify="handleReCaptchaVerified"
-        ref="reCaptchaRef"
       />
       <IFormError v-text="form.getError('g-recaptcha-response')" />
     </IFormGroup>
@@ -39,38 +39,37 @@
       <div class="flex items-center">
         <IFormCheckbox
           id="remember"
-          name="remember"
           v-model="form.remember"
+          name="remember"
           :label="$t('auth.remember_me')"
         />
       </div>
 
-      <div class="text-sm" v-if="!setting('disable_password_forgot')">
-        <a
-          :href="installationUrl + '/password/reset'"
-          class="link"
-          v-t="'auth.forgot_password'"
-        />
-      </div>
-    </div>
-
-    <div>
-      <IButton
-        type="submit"
-        block
-        @click="login"
-        :disabled="submitButtonIsDisabled"
-        :loading="requestInProgress"
-        :text="$t('auth.login')"
+      <a
+        v-if="!setting('disable_password_forgot')"
+        v-t="'auth.forgot_password'"
+        :href="installationUrl + '/password/reset'"
+        class="link text-sm"
       />
     </div>
+
+    <IButton
+      type="submit"
+      block
+      :disabled="submitButtonIsDisabled"
+      :loading="requestInProgress"
+      :text="$t('auth.login')"
+      @click="login"
+    />
   </form>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import { VueRecaptcha } from 'vue-recaptcha'
-import { useForm } from '~/Core/resources/js/composables/useForm'
-import { useApp } from '~/Core/resources/js/composables/useApp'
+
+import { useApp } from '~/Core/composables/useApp'
+import { useForm } from '~/Core/composables/useForm'
 
 const { setting } = useApp()
 

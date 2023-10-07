@@ -1,42 +1,43 @@
 <template>
   <div>
     <IModal
+      id="createRecord"
       size="sm"
       static-backdrop
       :ok-title="$t('core::app.create')"
       :ok-disabled="form.busy"
-      id="createRecord"
       form
+      :title="$t('core::resource.create', { resource: singularLabel })"
       @submit="create"
       @keydown="form.onKeydown($event)"
       @hidden="handleModalHiddenEvent"
-      :title="$t('core::resource.create', { resource: singularLabel })"
     >
-      <FieldsGenerator
-        focus-first
+      <FormFields
         :fields="fields"
         :form-id="form.formId"
-        view="create"
-        :is-floating="true"
+        :resource-name="resourceName"
+        is-floating
+        focus-first
       />
     </IModal>
     <IModal
+      id="updateRecord"
       size="sm"
       static-backdrop
-      id="updateRecord"
       :ok-title="$t('core::app.save')"
-      @hidden="handleModalHiddenEvent"
       :ok-disabled="form.busy"
       form
+      :title="$t('core::resource.edit', { resource: singularLabel })"
+      @hidden="handleModalHiddenEvent"
       @submit="update"
       @keydown="form.onKeydown($event)"
-      :title="$t('core::resource.edit', { resource: singularLabel })"
     >
-      <FieldsGenerator
+      <FormFields
         :fields="fields"
         :form-id="form.formId"
-        view="update"
-        :is-floating="true"
+        :resource-name="resourceName"
+        :resource-id="form.id"
+        is-floating
       />
     </IModal>
     <ICard no-body>
@@ -52,17 +53,17 @@
       </template>
       <template #actions>
         <IButton
-          @click="prepareCreate"
           icon="plus"
           size="sm"
           :text="$t('core::resource.create', { resource: singularLabel })"
+          @click="prepareCreate"
         />
       </template>
       <TableSimple
+        ref="tableRef"
         :table-props="{ shadow: false, ...tableProps }"
         :table-id="resourceName"
         :request-uri="resourceName"
-        ref="tableRef"
         sort-by="name"
         :fields="columns"
       >
@@ -76,9 +77,9 @@
             />
             <IMinimalDropdown>
               <IDropdownItem
-                @click="prepareEdit(row.id)"
                 :text="$t('core::app.edit')"
                 icon="PencilAlt"
+                @click="prepareEdit(row.id)"
               />
 
               <span
@@ -92,9 +93,9 @@
               >
                 <IDropdownItem
                   :disabled="row.is_primary"
-                  @click="destroy(row.id)"
                   icon="Trash"
                   :text="$t('core::app.delete')"
+                  @click="destroy(row.id)"
                 />
               </span>
             </IMinimalDropdown>
@@ -104,13 +105,17 @@
     </ICard>
   </div>
 </template>
+
 <script setup>
 import { ref } from 'vue'
-import TableSimple from '~/Core/resources/js/components/Table/Simple/TableSimple.vue'
-import { useFieldsForm } from '~/Core/resources/js/components/Fields/useFieldsForm'
-import { useApp } from '~/Core/resources/js/composables/useApp'
-import { useResourceFields } from '~/Core/resources/js/composables/useResourceFields'
 import { useI18n } from 'vue-i18n'
+
+import TableSimple from '~/Core/components/Table/Simple/TableSimple.vue'
+import { useApp } from '~/Core/composables/useApp'
+import { useFieldsForm } from '~/Core/composables/useFieldsForm'
+import { useResourceFields } from '~/Core/composables/useResourceFields'
+
+import { useResourceable } from '../composables/useResourceable'
 
 const emit = defineEmits(['cancel', 'updated', 'created', 'deleted'])
 
@@ -129,8 +134,10 @@ const { t } = useI18n()
 const { resetStoreState } = useApp()
 
 const { fields, getCreateFields, getUpdateFields } = useResourceFields()
-
 const { form } = useFieldsForm(fields)
+
+const { updateResource, createResource, retrieveResource, deleteResource } =
+  useResourceable(props.resourceName)
 
 const columns = ref([
   {
@@ -180,12 +187,12 @@ async function prepareCreate() {
  */
 async function prepareEdit(id) {
   let updateFields = await getUpdateFields(props.resourceName, id)
-  let { data } = await Innoclapps.request().get(`${props.resourceName}/${id}`)
+  let resource = await retrieveResource(id)
 
   columns.value[1].key = updateFields[0].attribute
   form.fill('id', id)
 
-  fields.value.set(updateFields).populate(data)
+  fields.value.set(updateFields).populate(resource)
 
   Innoclapps.modal().show('updateRecord')
 }
@@ -193,27 +200,21 @@ async function prepareEdit(id) {
 /**
  * Store resource record in storage
  */
-function create() {
-  form
-    .hydrate()
-    .post(props.resourceName)
-    .then(record => {
-      actionExecuted('created')
-      Innoclapps.modal().hide('createRecord')
-    })
+async function create() {
+  await createResource(form)
+
+  actionExecuted('created')
+  Innoclapps.modal().hide('createRecord')
 }
 
 /**
  * Update resource record in storage
  */
-function update() {
-  form
-    .hydrate()
-    .put(`${props.resourceName}/${form.id}`)
-    .then(record => {
-      actionExecuted('updated')
-      Innoclapps.modal().hide('updateRecord')
-    })
+async function update() {
+  await updateResource(form, form.id)
+
+  actionExecuted('updated')
+  Innoclapps.modal().hide('updateRecord')
 }
 
 /**
@@ -221,7 +222,7 @@ function update() {
  */
 async function destroy(id) {
   await Innoclapps.dialog().confirm()
-  await Innoclapps.request().delete(`${props.resourceName}/${id}`)
+  await deleteResource(id)
 
   actionExecuted('deleted')
 }
@@ -236,6 +237,7 @@ function actionExecuted(action) {
   emit(action)
 }
 </script>
+
 <style scoped>
 ::v-deep(table thead th:first-child) {
   width: 7%;

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,9 +13,7 @@
 namespace Modules\Core;
 
 use Illuminate\Database\Eloquent\Collection;
-use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Models\Country;
-use Modules\Core\Resource\Import\Import;
 
 class CountryCallingCode
 {
@@ -26,10 +24,6 @@ class CountryCallingCode
      */
     public static function guess(): ?string
     {
-        if (Innoclapps::isImportInProgress() && $countryId = Import::$currentRequest->country_id) {
-            $country = static::findCountry((int) $countryId);
-        }
-
         return ($country ?? static::getCompanyCountry())?->calling_code;
     }
 

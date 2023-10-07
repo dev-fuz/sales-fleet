@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,6 +14,7 @@ namespace Modules\Billable\Cards;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Expression;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Modules\Billable\Models\Product;
@@ -40,18 +41,19 @@ class ProductPerformance extends TableAsyncCard
     /**
      * Provide the query that will be used to retrieve the items.
      */
-    public function query(): Builder
+    public function query(Request $request): Builder
     {
         /** @var \Modules\Users\Models\User */
         $user = Auth::user();
 
-        $query = (new Product)->newQuery()->when($user->cant('view all products'), function ($query) use ($user) {
-            if ($user->can('view team products')) {
-                $query->criteria(new ManagesOwnerTeamCriteria($user, 'creator'));
-            } else {
-                $query->criteria(new QueriesByUserCriteria($user, 'created_by'));
-            }
-        });
+        $query = (new Product)->newQuery()
+            ->when($user->cant('view all products'), function ($query) use ($user) {
+                if ($user->can('view team products')) {
+                    $query->criteria(new ManagesOwnerTeamCriteria($user, 'creator'));
+                } else {
+                    $query->criteria(new QueriesByUserCriteria($user, 'created_by'));
+                }
+            });
 
         return $query->withCount([
             'billables as sold_count' => $this->soldQueryCallback(),
@@ -59,7 +61,7 @@ class ProductPerformance extends TableAsyncCard
         ])
             ->withSum([
                 'billables as sold_sum_amount' => $this->soldQueryCallback(),
-            ], 'amount');
+            ], 'amount_tax_exl');
     }
 
     /**
@@ -139,7 +141,7 @@ class ProductPerformance extends TableAsyncCard
     public function jsonSerialize(): array
     {
         return array_merge(parent::jsonSerialize(), [
-            'help' => __('billable::product.cards.performance_info'),
+            'helpText' => __('billable::product.cards.performance_info'),
         ]);
     }
 }

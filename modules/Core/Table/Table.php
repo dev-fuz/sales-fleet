@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,120 +16,140 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use Modules\Core\Contracts\Countable;
+use Modules\Core\Actions\ForceDeleteAction;
+use Modules\Core\Actions\RestoreAction;
 use Modules\Core\Criteria\FilterRulesCriteria;
 use Modules\Core\Criteria\TableRequestCriteria;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\ProvidesModelAuthorizations;
 use Modules\Core\ResolvesActions;
 use Modules\Core\ResolvesFilters;
-use Modules\Core\Resource\Http\ResourceRequest;
 
 class Table
 {
-    use ParsesResponse,
-        ResolvesFilters,
+    use HandlesRelations,
+        ParsesResponse,
+        ProvidesModelAuthorizations,
         ResolvesActions,
-        HandlesRelations,
-        ProvidesModelAuthorizations;
+        ResolvesFilters;
 
     /**
-     * Additional relations to eager load on every query.
+     * Additional database columns to select for the query.
+     */
+    protected array $select = [];
+
+    /**
+     * Additional attributes to be appended with the response.
+     */
+    protected array $appends = [];
+
+    /**
+     * Additional relations to eager load for the query.
      */
     protected array $with = [];
 
     /**
-     * Additional countable relations to eager load on every query.
-     */
-    protected array $withCount = [];
-
-    /**
-     * Custom table filters
-     */
-    protected Collection|array $filters = [];
-
-    /**
-     * Custom table actions
-     */
-    protected Collection|array $actions = [];
-
-    /**
-     * Table identifier
-     */
-    protected string $identifier;
-
-    /**
-     * Additional request query string for the table request
-     */
-    public array $requestQueryString = [];
-
-    /**
-     * Table order
+     * Table order.
      */
     public array $order = [];
 
     /**
-     * Table default per page value
+     * Additional countable relations to eager load for the query.
+     */
+    protected array $withCount = [];
+
+    /**
+     * Custom table filters.
+     */
+    protected Collection|array $filters = [];
+
+    /**
+     * Custom table actions.
+     */
+    protected Collection|array $actions = [];
+
+    /**
+     * Table identifier.
+     */
+    protected string $identifier;
+
+    /**
+     * Additional request query string for the table request.
+     */
+    public array $requestQueryString = [];
+
+    /**
+     * Table default per page value.
      */
     public int $perPage = 25;
 
     /**
+     * All time total count.
+     */
+    public ?int $preTotal = null;
+
+    /**
      * Whether the table columns can be customized.
-     * You must ensure all columns has unique ID's before setting this properoty to true
+     *
+     * You must ensure all columns has unique ID's before setting this properoty to true.
      */
     public bool $customizeable = false;
 
     /**
      * Whether the table sorting options can be changed.
-     * Only works if $customizeable is set to true
+     * Only works if $customizeable is set to true.
      */
     public bool $allowDefaultSortChange = true;
 
     /**
-     * Whether the table has actions column
+     * Whether the table has actions column.
      */
     public bool $withActionsColumn = false;
 
     /**
-     * Table max height
+     * Table max height.
      *
      * @var int|null
      */
     public $maxHeight = null;
 
     /**
-     * The original model
+     * Additional meta to include in the response.
+     */
+    public array $meta = [];
+
+    /**
+     * The query model instance.
      *
      * @var \Modules\Core\Models\Model
      */
     protected $model = null;
 
     /**
-     * Table settings
+     * Table settings.
      */
     protected TableSettings $settings;
 
     /**
-     * Columns collection
+     * Columns collection.
      */
     protected Collection $columns;
 
     /**
      * Initialize new Table instance.
      */
-    public function __construct(protected Builder $query, protected ResourceRequest $request)
+    public function __construct(protected Builder $query, protected ResourceRequest $request, string $identifier = null)
     {
         $this->model = $query->getModel();
-        $this->setIdentifier(Str::kebab(class_basename(static::class)));
-        $this->setColumns($this->columns());
-        $this->settings = new TableSettings(
-            $this,
-            $this->request->user(),
-        );
-        $this->boot();
+
+        $this->setIdentifier($identifier ?: Str::kebab(class_basename(static::class)))
+            ->setColumns($this->columns())
+            ->setSettings(new TableSettings($this, $this->request->user()))
+            ->boot();
     }
 
     /**
-     * Custom boot method
+     * Custom boot method.
      */
     public function boot(): void
     {
@@ -137,7 +157,7 @@ class Table
     }
 
     /**
-     * Provides table columns
+     * Provide the table columns.
      */
     public function columns(): array
     {
@@ -145,11 +165,11 @@ class Table
     }
 
     /**
-     * Set the table column
+     * Set the table available columns.
      */
-    public function setColumns(array $columns): static
+    public function setColumns(array|Collection $columns): static
     {
-        $this->columns = new Collection($columns);
+        $this->columns = is_array($columns) ? new Collection($columns) : $columns;
 
         if ($this->withActionsColumn === true) {
             // Check if we need to add the action
@@ -162,7 +182,7 @@ class Table
     }
 
     /**
-     * Add new column to the table
+     * Add new column to the table.
      */
     public function addColumn(Column $column): static
     {
@@ -176,35 +196,33 @@ class Table
      */
     public function make(): LengthAwarePaginator
     {
-        $allTimeTotal = $this->getAllTimeTotal();
-
-        $this->setSearchableFields();
-
-        $this->query->criteria([
-            $this->createTableRequestCriteria(),
-            $this->createFilterRulesCriteria(),
-        ]);
+        $this->query->getModel()->setSearchableColumns(
+            $this->prepareSearchableColumns()
+        );
 
         // If you're combining withCount with a select statement,
         // ensure that you call withCount after the select method
-        $response = $this->query->select($this->getSelectColumns())
-            ->with(array_merge($this->withRelationships(), $this->with))
-            ->withCount(array_merge($this->countedRelationships(), $this->withCount))
+        $response = $this->query->select($this->getColumnsToSelect())
+            ->with($this->getWithRelationships())
+            ->withCount($this->getCountedRelationships())
+            ->criteria([$this->createTableRequestCriteria(), $this->createFilterRulesCriteria()])
             ->paginate($this->request->integer('per_page', $this->perPage));
 
-        return $this->parseResponse($response, $allTimeTotal);
+        return $this->parseResponse($response);
     }
 
     /**
-     * Get the all time total count
+     * Set the total before any where (except authorizations related) queries are performed.
      */
-    public function getAllTimeTotal(): int
+    public function setPreTotal(int $total): static
     {
-        return $this->model->count();
+        $this->preTotal = $total;
+
+        return $this;
     }
 
     /**
-     * Get the table request
+     * Get the table request instance.
      */
     public function getRequest(): ResourceRequest
     {
@@ -212,7 +230,7 @@ class Table
     }
 
     /**
-     * Get the server for the table AJAX request params
+     * Get the server for the table AJAX request params.
      */
     public function getRequestQueryString(): array
     {
@@ -220,7 +238,7 @@ class Table
     }
 
     /**
-     * Set table default order by
+     * Set table default order by.
      */
     public function orderBy(string $attribute, string $dir = 'asc'): static
     {
@@ -230,7 +248,7 @@ class Table
     }
 
     /**
-     * Clear the order by attributes
+     * Clear the order by attributes.
      */
     public function clearOrderBy(): static
     {
@@ -240,7 +258,7 @@ class Table
     }
 
     /**
-     * Add additional relations to eager load
+     * Add additional relations to eager load.
      */
     public function with(string|array $relations): static
     {
@@ -261,6 +279,7 @@ class Table
 
     /**
      * Get the table available table filters
+     *
      * Checks for custom configured filters
      */
     public function filters(ResourceRequest $request): array|Collection
@@ -279,6 +298,14 @@ class Table
     }
 
     /**
+     * Available table actions
+     */
+    public function actions(ResourceRequest $request): array|Collection
+    {
+        return $this->actions;
+    }
+
+    /**
      * Set the table available actions
      */
     public function setActions(array|Collection $actions): static
@@ -289,15 +316,30 @@ class Table
     }
 
     /**
-     * Available table actions
+     * Indicates whether the table is with actions column.
      */
-    public function actions(ResourceRequest $request): array|Collection
+    public function withActionsColumn(): static
     {
-        return $this->actions;
+        $this->withActionsColumn = true;
+        $this->addColumn(new ActionColumn);
+
+        return $this;
     }
 
     /**
-     * Get defined column by given attribute
+     * Remove the action column from the table.
+     */
+    public function withoutActionsColumn(): static
+    {
+        $this->withActionsColumn = false;
+
+        $this->setColumns($this->columns->reject(fn (Column $column) => $column instanceof ActionColumn)->values());
+
+        return $this;
+    }
+
+    /**
+     * Get defined column by given attribute.
      */
     public function getColumn(string $attribute): ?Column
     {
@@ -305,7 +347,7 @@ class Table
     }
 
     /**
-     * Get table available columns
+     * Get all of the table available columns.
      */
     public function getColumns(): Collection
     {
@@ -324,7 +366,7 @@ class Table
     }
 
     /**
-     * Get the table settings for the given request
+     * Get the table settings for the current request.
      */
     public function settings(): TableSettings
     {
@@ -332,7 +374,17 @@ class Table
     }
 
     /**
-     * Get the table identifier
+     * Set the table settings.
+     */
+    public function setSettings(TableSettings $settings): static
+    {
+        $this->settings = $settings;
+
+        return $this;
+    }
+
+    /**
+     * Get the table identifier.
      */
     public function identifier(): string
     {
@@ -340,7 +392,7 @@ class Table
     }
 
     /**
-     * Set table identifier
+     * Set table identifier.
      */
     public function setIdentifier(string $key): static
     {
@@ -350,41 +402,65 @@ class Table
     }
 
     /**
-     * Get additional select columns for the query
+     * Mark the table as customizeable.
      */
-    protected function addSelect(): array
+    public function customizeable(bool $value = true): static
     {
-        return [];
+        $this->customizeable = $value;
+
+        return $this;
     }
 
     /**
-     * Provide the attributes that should be appended within the response
+     * Add additional database columns to select.
      */
-    protected function appends(): array
+    public function select(string|array $columns): static
     {
-        return [];
+        $this->select = array_merge($this->select, (array) $columns);
+
+        return $this;
     }
 
     /**
-     * Get select columns
+     * Get the actions when the table is intended to be displayed on the trashed view.
      *
-     * Will return that columns only that are needed for the table
-     * For example of the user made some columns not visible they won't be queried
+     * NOTE: No authorization is performed on these action, all actions will be visible to the user
      */
-    protected function getSelectColumns(): array
+    public function trashedViewActions(): array
     {
-        $columns = $this->getUserColumns();
+        return [new RestoreAction, new ForceDeleteAction];
+    }
+
+    /**
+     * Add attributes that should be appended in the response.
+     */
+    public function appends(string|array $attributes): static
+    {
+        $this->appends = array_merge($this->appends, (array) $attributes);
+
+        return $this;
+    }
+
+    /**
+     * Get column to select for the table query.
+     *
+     * Will return that columns only that are needed for the table,
+     * For example of the user made some columns not visible they won't be queried.
+     */
+    protected function getColumnsToSelect(): array
+    {
+        $columns = $this->getUserColumns()->filter->shouldQuery();
+
         $select = [];
 
         foreach ($columns as $column) {
-            if ($column->isHidden() && ! $column->queryWhenHidden) {
-                continue;
-            }
-
             if (! $column->isRelation()) {
                 if ($field = $this->getSelectableField($column)) {
                     $select[] = $field;
                 }
+
+                $select = array_merge($select, $this->qualifyColumn($column->select));
+
             } elseif ($column instanceof BelongsToColumn) {
                 // Select the foreign key name for the BelongsToColumn
                 // If not selected, the relation won't be queried properly
@@ -393,18 +469,18 @@ class Table
         }
 
         return array_unique(array_merge(
-            $this->qualifyColumn($this->addSelect()),
+            $this->qualifyColumn($this->select),
             [$this->model->getQualifiedKeyName().' as '.$this->model->getKeyName()],
             $select
         ), SORT_REGULAR);
     }
 
     /**
-     * Set the model searchable fields based on the visible columns
+     * Prepare the searchable columns for the model from the table defined columns.
      */
-    protected function setSearchableFields(): void
+    protected function prepareSearchableColumns(): array
     {
-        $this->query->getModel()->setSearchableFields($this->getSearchableColumns()->mapWithKeys(function ($column) {
+        return $this->getSearchableColumns()->mapWithKeys(function (Column|RelationshipColumn $column) {
             if ($column->isRelation()) {
                 $searchableField = $column->relationName.'.'.$column->relationField;
             } else {
@@ -412,22 +488,23 @@ class Table
             }
 
             return [$searchableField => 'like'];
-        })->all());
+        })->all();
     }
 
     /**
-     * Filter the searchable columns
+     * Filter the searchable columns.
      */
     protected function getSearchableColumns(): Collection
     {
-        return $this->getUserColumns()->filter(function ($column) {
+        return $this->getUserColumns()->filter(function (Column $column) {
             // We will check if the column is date column, as date columns are not searchable
             // as there won't be accurate results because the database dates are stored in UTC timezone
             // In this case, the filters must be used
             // Additionally we will check if is countable column and the column counts
             if ($column instanceof DateTimeColumn ||
                 $column instanceof DateColumn ||
-                $column instanceof Countable && $column->counts()) {
+                $column instanceof ActionColumn ||
+                $column instanceof RelationshipCountColumn) {
                 return false;
             }
 
@@ -444,7 +521,7 @@ class Table
     }
 
     /**
-     * Create new TableRequestCriteria criteria instance
+     * Create new TableRequestCriteria criteria instance.
      */
     protected function createTableRequestCriteria(): TableRequestCriteria
     {
@@ -455,7 +532,7 @@ class Table
     }
 
     /**
-     * Create new FilterRulesCriteria criteria instance
+     * Create new FilterRulesCriteria criteria instance.
      */
     protected function createFilterRulesCriteria(): FilterRulesCriteria
     {
@@ -467,21 +544,17 @@ class Table
     }
 
     /**
-     * Get field by column that should be included in the table select query
-     *
-     * @see for $isRelationWith take a look in \Modules\Core\Table\HandlesRelations
-     *
-     * @param  bool  $isRelationWith Whether this field will be used for eager loading
+     * Get field by column that should be included in the table select query.
      */
-    protected function getSelectableField(Column $column, bool $isRelationWith = false): mixed
+    protected function getSelectableField(Column|RelationshipColumn $column): mixed
     {
-        if ($column instanceof ActionColumn) {
+        if ($column instanceof ActionColumn || $column instanceof RelationshipCountColumn) {
             return null;
         }
 
         if (! empty($column->queryAs)) {
             return $column->queryAs;
-        } elseif ($isRelationWith) {
+        } elseif ($column instanceof RelationshipColumn) {
             return $this->qualifyColumn($column->relationField, $column->relationName);
         }
 
@@ -489,23 +562,23 @@ class Table
     }
 
     /**
-     * Qualify the given column
+     * Qualify the given column.
      */
-    protected function qualifyColumn(string|array $column, ?string $relationName = null): array|string
+    protected function qualifyColumn(string|array $column, string $forRelationship = null): array|string
     {
         if (is_array($column)) {
-            return array_map(fn ($column) => $this->qualifyColumn($column, $relationName), $column);
+            return array_map(fn ($column) => $this->qualifyColumn($column, $forRelationship), $column);
         }
 
-        if ($relationName) {
-            return $this->model->{$relationName}()->qualifyColumn($column);
+        if ($forRelationship) {
+            return $this->model->{$forRelationship}()->qualifyColumn($column);
         }
 
         return $this->model->qualifyColumn($column);
     }
 
     /**
-     * Get the columns for the table intended to be shown to the logged in user
+     * Get the columns for the table intended to be shown to the logged in user.
      */
     protected function getUserColumns(): Collection
     {

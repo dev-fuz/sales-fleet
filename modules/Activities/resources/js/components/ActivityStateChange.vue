@@ -1,8 +1,12 @@
 <template>
-  <span class="inline-block" v-i-tooltip="tooltipContent">
+  <span
+    v-i-tooltip="tooltipContent"
+    class="inline-block"
+    :v-tooltip-placement="tooltipPlacement"
+  >
     <a href="#" :class="linkClasses" @click.prevent="changeState">
       <ISpinner
-        v-if="requestInProgress"
+        v-if="resourceBeingUpdated"
         class="h-4 w-4"
         :class="{
           'text-success-500 dark:text-success-400': !isCompleted,
@@ -18,19 +22,27 @@
     </a>
   </span>
 </template>
+
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import { useResourceable } from '~/Core/composables/useResourceable'
+
 const emit = defineEmits(['state-changed'])
 
 const props = defineProps({
   activityId: { required: true, type: Number },
   isCompleted: { required: true, type: Boolean },
+  tooltipPlacement: { type: String, default: 'top' },
   disabled: Boolean,
 })
 
 const { t } = useI18n()
-const requestInProgress = ref(false)
+
+const { updateResource, resourceBeingUpdated } = useResourceable(
+  Innoclapps.resourceName('activities')
+)
 
 const linkClasses = computed(() => {
   let classes = ['inline-block mr-0.5 focus:outline-none']
@@ -45,7 +57,7 @@ const linkClasses = computed(() => {
     )
   }
 
-  if (props.disabled || requestInProgress.value) {
+  if (props.disabled || resourceBeingUpdated.value) {
     classes.push('pointer-events-none opacity-60')
   }
 
@@ -65,26 +77,11 @@ const tooltipContent = computed(() => {
 })
 
 /**
- * Mark the activity as complete
- */
-function complete() {
-  return Innoclapps.request().post(`activities/${props.activityId}/complete`)
-}
-
-/**
- * Mark the activity as incomplete
- */
-function incomplete() {
-  return Innoclapps.request().post(`activities/${props.activityId}/incomplete`)
-}
-
-/**
  * Change state
  */
 function changeState() {
-  requestInProgress.value = true
-  ;(props.isCompleted ? incomplete() : complete())
-    .then(({ data: activity }) => emit('state-changed', activity))
-    .finally(() => (requestInProgress.value = false))
+  updateResource({ is_completed: !props.isCompleted }, props.activityId).then(
+    activity => emit('state-changed', activity)
+  )
 }
 </script>

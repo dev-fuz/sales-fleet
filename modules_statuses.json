@@ -13,7 +13,5 @@
     "Users": true,
     "Brands": true,
     "Comments": true,
-    "ThemeStyle": true,
-    "Lists": true,
-    "Templates": true
+    "ThemeStyle": true
 }

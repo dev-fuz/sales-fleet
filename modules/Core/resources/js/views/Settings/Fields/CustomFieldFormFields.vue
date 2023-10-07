@@ -5,17 +5,17 @@
     required
   >
     <ICustomSelect
+      v-model="form.field_type"
       :options="fieldsTypes"
       :clearable="false"
       :disabled="edit"
-      v-model="form.field_type"
       @option:selected="!form.label ? $refs.labelRef.focus() : ''"
     />
     <IFormError v-text="form.getError('field_type')" />
   </IFormGroup>
 
   <IFormGroup label-for="label" :label="$t('core::fields.label')" required>
-    <IFormInput v-model="form.label" id="label" ref="labelRef" />
+    <IFormInput id="label" ref="labelRef" v-model="form.label" />
     <IFormError v-text="form.getError('label')" />
   </IFormGroup>
 
@@ -32,7 +32,7 @@
         />
 
         <IButtonCopy
-          v-if="edit"
+          v-show="form.field_id"
           :text="form.field_id"
           :success-message="$t('core::app.copied')"
           tabindex="-1"
@@ -53,9 +53,9 @@
       </div>
 
       <IFormInput
+        id="field_id"
         v-model="fieldId"
         :disabled="edit"
-        id="field_id"
         :class="{ 'pl-8': !edit }"
       />
     </div>
@@ -65,32 +65,45 @@
 
   <IFormGroup v-if="isUniqueable">
     <IFormCheckbox
-      :disabled="edit"
       v-model:checked="form.is_unique"
-      :label="$t('core::fields.is_unique')"
+      :disabled="edit && !form.is_unique && !isOriginallyUnique"
+      :label="$t('core::fields.mark_as_unique')"
     />
 
-    <IFormText v-t="'core::fields.is_unique_change_info'" class="mt-2" />
+    <p
+      v-if="edit && form.is_unique === false && isOriginallyUnique"
+      v-t="'core::fields.unmark_as_unique_change_info'"
+      class="mt-4 text-sm text-danger-600 dark:text-danger-500"
+    />
+
+    <IFormText
+      v-else-if="!edit || (edit && !form.is_unique)"
+      v-t="'core::fields.mark_as_unique_change_info'"
+      class="mt-1"
+    />
 
     <IFormError v-text="form.getError('is_unique')" />
   </IFormGroup>
 </template>
+
 <script setup>
-import { ref, computed, watch } from 'vue'
-import FieldOptions from './CustomFieldFormOptions.vue'
+import { computed, ref, watch } from 'vue'
+import { watchDebounced } from '@vueuse/core'
 import find from 'lodash/find'
 import map from 'lodash/map'
-import { watchDebounced } from '@vueuse/core'
+
+import FieldOptions from './CustomFieldFormOptions.vue'
 
 const props = defineProps({
   form: { required: true, type: Object },
-  edit: { default: false, type: Boolean },
+  edit: Boolean,
 })
 
 const customFields = Innoclapps.config('fields.custom_fields')
 const idPrefix = Innoclapps.config('fields.custom_field_prefix')
-const resources = Innoclapps.config('resources')
+const resources = Innoclapps.resources()
 const fieldId = ref(props.form.field_id || null)
+const isOriginallyUnique = props.form.is_unique
 
 const fieldsTypes = computed(() => map(customFields, (field, type) => type))
 
@@ -120,17 +133,13 @@ const isUniqueable = computed(() => {
   )
 })
 
-watch(
-  isUniqueable,
-  newVal => {
-    props.form.is_unique = newVal
-      ? props.form.is_unique !== null
-        ? props.form.is_unique
-        : false
-      : null
-  },
-  { immediate: true }
-)
+watch(isUniqueable, newVal => {
+  props.form.is_unique = newVal
+    ? props.form.is_unique !== null
+      ? props.form.is_unique
+      : false
+    : null
+})
 
 watchDebounced(
   fieldId,

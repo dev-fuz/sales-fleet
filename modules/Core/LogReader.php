@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,9 +12,14 @@
 
 namespace Modules\Core;
 
-class LogReader
+use Illuminate\Contracts\Support\Arrayable;
+use JsonSerializable;
+
+class LogReader implements Arrayable, JsonSerializable
 {
     protected static ?string $glob = null;
+
+    protected LogParser $parser;
 
     /**
      * Initialize new LogReader instance.
@@ -22,6 +27,7 @@ class LogReader
     public function __construct(protected array $config = [])
     {
         $this->config['date'] = array_key_exists('date', $config) ? $config['date'] : null;
+        $this->parser = new LogParser;
     }
 
     /**
@@ -33,13 +39,16 @@ class LogReader
     }
 
     /**
-     * Get the available log file dates
+     * Get the available log dates
      */
-    public function getLogFileDates(): array
+    public function getLogDates(): array
     {
         $dates = [];
+
         $files = glob(static::$glob ?: storage_path('logs/laravel-*.log'));
+
         $files = array_reverse($files);
+
         foreach ($files as $path) {
             $fileName = basename($path);
             preg_match('/(?<=laravel-)(.*)(?=.log)/', $fileName, $dtMatch);
@@ -51,60 +60,89 @@ class LogReader
     }
 
     /**
+     * Parse a log for the given date.
+     */
+    public function parse(string $date): array
+    {
+        $logFileName = 'laravel-'.$date.'.log';
+        $logFilePath = storage_path('logs/'.$logFileName);
+
+        $content = file_get_contents($logFilePath);
+
+        $logs = [];
+
+        $parsed = $this->parser->parseLogContent($content);
+
+        extract($parsed, EXTR_PREFIX_ALL, 'parsed');
+
+        $needReFormat = in_array('Next', $parsed_headerSet);
+        $newContent = null;
+
+        foreach ($parsed_headerSet as $key => $header) {
+            if (empty($parsed_dateSet[$key])) {
+                $parsed_dateSet[$key] = $parsed_dateSet[$key - 1];
+                $parsed_envSet[$key] = $parsed_envSet[$key - 1];
+                $parsed_levelSet[$key] = $parsed_levelSet[$key - 1];
+                $header = str_replace('Next', $parsed_headerSet[$key - 1], $header);
+            }
+
+            $newContent .= $header.' '.$parsed_bodySet[$key];
+
+            $logs[] = [
+                'env' => $parsed_envSet[$key],
+                'type' => $parsed_levelSet[$key],
+                'timestamp' => $parsed_dateSet[$key],
+                'header' => $header,
+                'message' => mb_convert_encoding(trim($parsed_bodySet[$key]), 'UTF-8', 'UTF-8'),
+            ];
+        }
+
+        if ($needReFormat) {
+            file_put_contents($logFilePath, $newContent);
+        }
+
+        return $logs;
+    }
+
+    /**
      * Get the log data
      */
     public function get(): array
     {
-        $availableDates = $this->getLogFileDates();
+        $dates = $this->getLogDates();
 
-        if (count($availableDates) == 0) {
+        if (count($dates) == 0) {
             return [
                 'success' => false,
                 'message' => 'No logs available',
-                'log_dates' => $availableDates,
+                'log_dates' => $dates,
             ];
         }
 
-        $configDate = $this->config['date'];
+        $date = $this->config['date'] ?: $dates[0];
 
-        if ($configDate == null) {
-            $configDate = $availableDates[0];
-        }
-
-        if (! in_array($configDate, $availableDates)) {
+        if (! in_array($date, $dates)) {
             return [
                 'success' => false,
-                'message' => 'No log file found with selected date '.$configDate,
-                'log_dates' => $availableDates,
+                'message' => 'No log file found for the selected date',
+                'log_dates' => $dates,
             ];
         }
-
-        $pattern = "/^\[(?<date>.*)\]\s(?<env>\w+)\.(?<type>\w+):(?<message>.*)/m";
-
-        $fileName = 'laravel-'.$configDate.'.log';
-        $content = file_get_contents(storage_path('logs/'.$fileName));
-        preg_match_all($pattern, $content, $matches, PREG_SET_ORDER, 0);
-
-        $logs = [];
-
-        foreach ($matches as $match) {
-            $logs[] = [
-                'timestamp' => $match['date'],
-                'env' => $match['env'],
-                'type' => $match['type'],
-                'message' => mb_convert_encoding(trim($match['message']), 'UTF-8', 'UTF-8'),
-            ];
-        }
-
-        preg_match('/(?<=laravel-)(.*)(?=.log)/', $fileName, $dtMatch);
-
-        $date = $dtMatch[0];
 
         return [
-            'log_dates' => $availableDates,
+            'log_dates' => $dates,
             'date' => $date,
-            'filename' => $fileName,
-            'logs' => $logs,
+            'logs' => $this->parse($date),
         ];
+    }
+
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
+    }
+
+    public function toArray()
+    {
+        return $this->get();
     }
 }

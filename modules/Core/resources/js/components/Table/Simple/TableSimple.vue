@@ -6,14 +6,11 @@
       <TablePerPageOptions
         :collection="collection"
         class="mb-2 md:mb-0"
-        @change="loadItems"
         :disabled="isLoading"
+        @change="loadItems"
       />
-      <div class="w-full md:w-auto">
-        <FormInputSearch
-          v-model="search"
-          @input="performSearch"
-        />
+      <div v-if="searchable" class="w-full md:w-auto">
+        <SearchInput v-model="search" @input="performSearch" />
       </div>
     </div>
     <IOverlay :show="isLoading">
@@ -24,13 +21,13 @@
               v-for="field in fields"
               :key="'th-' + field.key"
               ref="tableHeadingsRef"
+              v-model:ctx="ctx"
               :class="{
                 hidden: stacked[field.key],
               }"
               :is-sortable="field.sortable"
               :heading="field.label"
               :heading-key="field.key"
-              v-model:ctx="ctx"
               @update:ctx="loadItems"
             />
           </tr>
@@ -51,7 +48,7 @@
                 hidden: stacked[field.key],
               }"
             >
-              <template v-slot="slotProps">
+              <template #default="slotProps">
                 <slot v-bind="slotProps" :name="field.key">
                   <span v-if="field.key === fields[0].key && item.path">
                     <router-link class="link" :to="item.path">
@@ -69,7 +66,7 @@
                     :item="item"
                     :formatter="dataCellFormatter"
                   >
-                    <template v-slot="stackedSlotProps">
+                    <template #default="stackedSlotProps">
                       <slot v-bind="stackedSlotProps" :name="stackedField.key">
                         <span class="text-neutral-700 dark:text-neutral-300">
                           {{ stackedSlotProps.formatted }}
@@ -82,7 +79,7 @@
             </DataCell>
           </tr>
           <tr v-if="!collection.hasItems">
-            <td :colspan="totalFields" class="!text-sm !font-normal">
+            <td :colspan="totalFields" class="is-empty">
               <slot
                 name="empty"
                 :text="emptyText"
@@ -99,9 +96,6 @@
     <TablePagination
       v-if="collection.hasPagination"
       class="px-7 py-3"
-      @go-to-next="collection.nextPage()"
-      @go-to-previous="collection.previousPage()"
-      @go-to-page="collection.page($event)"
       :is-current-page-check="page => collection.isCurrentPage(page)"
       :has-next-page="collection.hasNextPage"
       :has-previous-page="collection.hasPreviousPage"
@@ -112,23 +106,30 @@
       :total="collection.total"
       :loading="isLoading"
       size="sm"
+      @go-to-next="collection.nextPage()"
+      @go-to-previous="collection.previousPage()"
+      @go-to-page="collection.page($event)"
     />
   </div>
 </template>
+
 <script setup>
-import { ref, reactive, computed, watch, onUnmounted, nextTick } from 'vue'
-import Paginator from '~/Core/resources/js/services/ResourcePaginator'
+import { computed, nextTick, onUnmounted, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useEventListener } from '@vueuse/core'
+import debounce from 'lodash/debounce'
+
+import { useLoader } from '~/Core/composables/useLoader'
+import { CancelToken } from '~/Core/services/HTTP'
+import Paginator from '~/Core/services/ResourcePaginator'
+
+import { useResponsiveTable } from '../../../composables/useResponsiveTable'
+
 import TablePagination from './../TablePagination.vue'
 import TablePerPageOptions from './../TablePerPageOptions.vue'
-import { CancelToken } from '~/Core/resources/js/services/HTTP'
-import debounce from 'lodash/debounce'
-import HeaderCell from './TableSimpleHeaderCell.vue'
 import DataCell from './TableSimpleDataCell.vue'
+import HeaderCell from './TableSimpleHeaderCell.vue'
 import StackedDataCell from './TableSimpleStackedDataCell.vue'
-import { useI18n } from 'vue-i18n'
-import { useLoader } from '~/Core/resources/js/composables/useLoader'
-import { useEventListener } from '@vueuse/core'
-import { useResponsiveTable } from '../useResponsiveTable'
 
 const emit = defineEmits(['data-loaded'])
 
@@ -140,6 +141,7 @@ const props = defineProps({
   actionColumn: Boolean,
   initialData: Object,
   fields: Array,
+  searchable: { type: Boolean, default: true },
   // Initial sort by field key/name
   sortBy: String,
   tableProps: {
@@ -225,28 +227,27 @@ function reload() {
   loadItems()
 }
 
-function request() {
+async function request() {
   cancelPreviousRequest()
 
   setLoading(true)
 
-  Innoclapps.request()
-    .get(`/${props.requestUri}`, {
-      params: queryString.value,
-      cancelToken: new CancelToken(token => (requestCancelToken = token)),
-    })
-    .then(({ data }) => {
-      // cards support data.items
-      collection.value.setState(data.items ? data.items : data)
+  let { data } = await Innoclapps.request().get(`/${props.requestUri}`, {
+    params: queryString.value,
+    cancelToken: new CancelToken(token => (requestCancelToken = token)),
+  })
 
-      emit('data-loaded', {
-        items: collection.value.items,
-        requestQueryString: queryString.value,
-      })
+  // cards support data.value
+  collection.value.setState(data.value ? data.value : data)
 
-      props.stackable && nextTick(stackColumns)
-    })
-    .finally(() => setLoading(false))
+  emit('data-loaded', {
+    items: collection.value.items,
+    requestQueryString: queryString.value,
+  })
+
+  props.stackable && nextTick(stackColumns)
+
+  setLoading(false)
 }
 
 function loadItems() {

@@ -22,13 +22,14 @@
       <slot name="drop-placeholder" :upload="$refs.uploadRef">
         <div
           v-show="$refs.uploadRef && $refs.uploadRef.dropActive"
-          class="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-neutral-200"
           v-t="'core::app.drop_files'"
+          class="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-neutral-200"
         />
       </slot>
 
       <FileUpload
         ref="uploadRef"
+        v-model="files"
         :headers="{
           'X-Requested-With': 'XMLHttpRequest',
           'X-CSRF-TOKEN': CSRFToken,
@@ -40,11 +41,10 @@
         :extensions="extensions"
         :accept="accept"
         :data="requestData"
-        v-model="files"
         :drop="drop"
         :post-action="actionUrl"
         :input-id="inputId"
-        @update:modelValue="$emit('update:modelValue', $event)"
+        @update:model-value="$emit('update:modelValue', $event)"
         @input-file="inputFile"
         @input-filter="inputFilter"
       >
@@ -58,18 +58,20 @@
           v-if="$refs.uploadRef && $refs.uploadRef.active"
           class="-mt-1 mr-2 inline-flex h-4 w-4 text-current"
         />
+
         <slot name="upload-text">
           {{ selectButtonUploadText }}
         </slot>
       </FileUpload>
+
       <div class="ml-2 flex items-center space-x-2">
         <slot name="upload-button" :upload="$refs.uploadRef">
           <button
             v-if="showUploadButton && !automaticUpload"
             type="button"
-            @click="$refs.uploadRef.active = true"
             :disabled="files.length === 0"
-            class="inline-flex cursor-pointer items-center rounded-full bg-primary-50 px-5 py-2 text-sm font-medium text-primary-800 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 focus:ring-offset-primary-50 disabled:pointer-events-none disabled:opacity-60 hover:bg-primary-100"
+            class="inline-flex cursor-pointer items-center rounded-full bg-primary-50 px-5 py-2 text-sm font-medium text-primary-800 hover:bg-primary-100 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 focus:ring-offset-primary-50 disabled:pointer-events-none disabled:opacity-60"
+            @click="$refs.uploadRef.active = true"
           >
             <Icon icon="CloudArrowUp" class="mr-2 h-4 w-4 text-current" />
             {{ uploadButtonText }}
@@ -77,30 +79,31 @@
         </slot>
         <button
           v-show="allowCancel && $refs.uploadRef && $refs.uploadRef.active"
-          type="button"
-          @click="$refs.uploadRef.active = false"
-          class="inline-flex items-center rounded-full bg-danger-50 px-5 py-2 text-sm font-medium text-danger-800 focus:outline-none focus:ring-2 focus:ring-danger-600 focus:ring-offset-2 focus:ring-offset-danger-50 hover:bg-danger-100"
           v-t="'core::app.cancel'"
+          type="button"
+          class="inline-flex items-center rounded-full bg-danger-50 px-5 py-2 text-sm font-medium text-danger-800 hover:bg-danger-100 focus:outline-none focus:ring-2 focus:ring-danger-600 focus:ring-offset-2 focus:ring-offset-danger-50"
+          @click="$refs.uploadRef.active = false"
         />
         <button
           v-show="
             files.length > 0 && (!$refs.uploadRef || !$refs.uploadRef.active)
           "
-          type="button"
-          @click="clear"
-          class="inline-flex items-center rounded-full bg-neutral-50 px-5 py-2 text-sm font-medium text-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-600 focus:ring-offset-2 focus:ring-offset-neutral-50 hover:bg-neutral-100"
           v-t="'core::app.clear'"
+          type="button"
+          class="inline-flex items-center rounded-full bg-neutral-50 px-5 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-neutral-600 focus:ring-offset-2 focus:ring-offset-neutral-50"
+          @click="clear"
         />
       </div>
     </div>
   </div>
 </template>
+
 <script setup>
-import { ref, computed, nextTick, defineAsyncComponent } from 'vue'
-const FileUpload = defineAsyncComponent(() => import('vue-upload-component'))
-import findIndex from 'lodash/findIndex'
-import MediaUploadOutputList from './MediaUploadOutputList.vue'
+import { computed, defineAsyncComponent, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import findIndex from 'lodash/findIndex'
+
+import MediaUploadOutputList from './MediaUploadOutputList.vue'
 
 const emit = defineEmits([
   'update:modelValue',
@@ -116,7 +119,7 @@ const props = defineProps({
   actionUrl: String,
   // NOTE, drop is set to false as it's causing memory leaks
   // https://github.com/lian-yue/vue-upload-component/issues/294
-  drop: { type: Boolean, default: false },
+  drop: Boolean,
   wrapperClasses: {
     type: [Object, Array, String],
     default: 'flex items-center',
@@ -138,6 +141,8 @@ const props = defineProps({
       '!flex items-center rounded-full px-5 py-2 text-sm font-medium bg-primary-50 text-primary-800 hover:bg-primary-100 focus:ring-offset-primary-50 focus:ring-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 cursor-pointer',
   },
 })
+
+const FileUpload = defineAsyncComponent(() => import('vue-upload-component'))
 
 const { t } = useI18n()
 const uploadRef = ref(null)
@@ -200,7 +205,7 @@ function validateExtensions(file) {
 
   let validateExtensions = props.extensions
 
-  if (typeof validateExtensions == 'array') {
+  if (Array.isArray(validateExtensions)) {
     validateExtensions = validateExtensions.join('|')
   } else if (typeof validateExtensions == 'string') {
     validateExtensions = validateExtensions.replace(',', '|')
@@ -299,11 +304,13 @@ const inputFilter = function (newFile, oldFile, prevent) {
       newFile.size > Innoclapps.config('max_upload_size')
     ) {
       Innoclapps.error('File too big')
+
       return prevent()
     }
 
     newFile.blob = ''
     let URL = window.URL || window.webkitURL
+
     if (URL && URL.createObjectURL) {
       newFile.blob = URL.createObjectURL(newFile.file)
     }

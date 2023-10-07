@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,17 +13,18 @@
 namespace Modules\Contacts\Fields;
 
 use Closure;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Modules\Contacts\Enums\PhoneType;
 use Modules\Contacts\Http\Resources\PhoneResource;
-use Modules\Contacts\Models\Phone as Model;
 use Modules\Contacts\Models\Phone as PhoneModel;
 use Modules\Core\CountryCallingCode;
-use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Fields\ChecksForDuplicates;
 use Modules\Core\Fields\MorphMany;
+use Modules\Core\Http\Requests\ResourceRequest;
+use Modules\Core\Models\Model;
+use Modules\Core\Support\Placeholders\GenericPlaceholder;
 use Modules\Core\Table\MorphManyColumn;
-use PhpOffice\PhpSpreadsheet\Cell\DataType;
 
 class Phone extends MorphMany
 {
@@ -40,14 +41,9 @@ class Phone extends MorphMany
     public ?PhoneType $type = null;
 
     /**
-     * Field component
+     * Field component.
      */
-    public ?string $component = 'phone-field';
-
-    /**
-     * Display key
-     */
-    public string $displayKey = 'number';
+    public static $component = 'phone-field';
 
     /**
      * Calling prefix
@@ -65,10 +61,8 @@ class Phone extends MorphMany
 
     /**
      * Indicates whether to skip the unique rule validation in import
-     *
-     * @var bool
      */
-    public $uniqueRuleSkipOnImport = true;
+    public bool $uniqueRuleSkipOnImport = true;
 
     /**
      * Unique rule custom validation message
@@ -77,7 +71,137 @@ class Phone extends MorphMany
      */
     public $uniqueRuleMessage;
 
+    /**
+     * The inline edit popover width (medium|large).
+     */
+    public string $inlineEditPanelWidth = 'large';
+
     protected static string $typeInNumberValueSeparator = '|';
+
+    /**
+     * Initialize new Phone instance class
+     *
+     * @param  string  $attribute field attribute
+     * @param  string|null  $label field label
+     */
+    public function __construct($attribute, $label = null)
+    {
+        parent::__construct($attribute, $label);
+
+        $this->types = collect(PhoneType::names())->mapWithKeys(function (string $name) {
+            return [$name => __('contacts::fields.phone.types.'.$name)];
+        })->all();
+
+        $this->defaultType(PhoneType::mobile)
+            ->rules([
+                '*.number' => [function (string $attribute, mixed $number, Closure $fail, ResourceRequest $request) {
+                    if (! $number) {
+                        return;
+                    }
+
+                    if ($this->shouldPerformUniqueValidation($request) && ! $this->isNumberUnique($number, $request)) {
+                        $fail($this->uniqueRuleMessage);
+                    }
+
+                    if ($this->requiresCallingPrefix() && ! CountryCallingCode::startsWithAny($number)) {
+                        $fail('validation.calling_prefix')->translate(['attribute' => $this->label]);
+                    }
+                }],
+            ])
+            ->prepareForValidation(function (mixed $value) {
+                return $this->parsePreValidationValue($value);
+            })->provideSampleValueUsing(function () {
+                return [
+                    [
+                        'number' => PhoneModel::generateRandomNumber(),
+                        'type' => array_rand($this->types),
+                    ],
+                ];
+            })->provideImportValueSampleUsing(function () {
+                return PhoneModel::generateRandomNumber().'|mobile'.','.PhoneModel::generateRandomNumber();
+            })->fillUsing(function (Model $model, string $attribute, ResourceRequest $request, mixed $value) {
+                return ! is_null($value) ? $this->fillCallback($value, $model) : null;
+            });
+    }
+
+    /**
+     * Get the fill callback for the field.
+     */
+    protected function fillCallback(array $value, Model $model): Closure
+    {
+        return function () use ($value, $model) {
+            $value = collect($value)->reject(fn ($attributes) => empty($attributes['number']))->values();
+
+            if ($model->wasRecentlyCreated) {
+                $model->phones()->createMany($value);
+            } else {
+                $this->performUpdateWithChangelog($model, $value);
+            }
+        };
+    }
+
+    /**
+     * Perform update for the given phones.
+     */
+    protected function performUpdate(Collection $phones, Model $model): void
+    {
+        $original = clone $model->phones;
+
+        $phones
+            ->each(function ($attributes) use ($model) {
+                $phone = $model->phones->where('number', $attributes['number'])->first();
+
+                if ($phone) {
+                    $phone->fill($attributes)->save();
+                } else {
+                    $phone = $model->phones()->create($attributes);
+                    $model->setRelation('phones', $model->phones->push($phone));
+                }
+            })
+            ->whenEmpty(
+                function () use ($model) {
+                    $model->phones->each(fn ($phone) => $this->performDelete($phone, $model));
+                },
+                function ($phones) use ($original, $model) {
+                    // Filter the phone numbers that are not in the provided value to delete them
+                    $original
+                        ->filter(fn ($phone) => is_null($phones->where('number', $phone->number)->first()))
+                        ->each(fn ($phone) => $this->performDelete($phone, $model));
+                }
+            );
+    }
+
+    /**
+     * Delete the given phone for the given model.
+     */
+    protected function performDelete(PhoneModel $phone, Model $model): void
+    {
+        $phone->delete();
+        $model->setRelation('phones', $model->phones->except($phone->id));
+    }
+
+    /**
+     * Perform update with changelog.
+     */
+    protected function performUpdateWithChangelog(Model $model, Collection $values): void
+    {
+        if (! $model->relationLoaded('phones')) {
+            $model->load(['phones', 'phones.phoneable']);
+        }
+
+        $before = $model->phones->pluck('number');
+
+        $this->performUpdate($values, $model);
+
+        $after = $model->phones->pluck('number');
+
+        if ($before != $after) {
+            $model->logDirtyAttributesOnLatestLog([
+                'attributes' => ['phone' => $after->implode(', ')],
+                'old' => ['phone' => $before->implode(', ')],
+            ], $model);
+        }
+    }
 
     /**
      * Provide the column used for index
@@ -86,10 +210,10 @@ class Phone extends MorphMany
     {
         return tap(new MorphManyColumn(
             $this->morphManyRelationship,
-            $this->displayKey,
+            'number',
             $this->label
         ), function ($column) {
-            $column->select('type')->useComponent('table-data-phones-column');
+            $column->select('type');
         });
     }
 
@@ -109,16 +233,6 @@ class Phone extends MorphMany
     }
 
     /**
-     * Set the phone types
-     */
-    public function types(array $types): static
-    {
-        $this->types = $types;
-
-        return $this;
-    }
-
-    /**
      * Set the default phone type
      */
     public function defaultType(PhoneType $type): static
@@ -129,18 +243,34 @@ class Phone extends MorphMany
     }
 
     /**
+     * Determine if the field is using a prefix from a country directly.
+     * In this case, the prefix is provided as INT from a country.
+     */
+    protected function isUsingPrefixFromCountry(): bool
+    {
+        $prefix = $this->callingPrefix;
+
+        // Default value via closure?
+        if ($prefix instanceof Closure) {
+            $prefix = $prefix($this->resolveRequest());
+        }
+
+        return is_int($prefix);
+    }
+
+    /**
      * Get the phone field calling prefix
      */
     public function callingPrefix(): string|bool|null
     {
         $prefix = $this->callingPrefix;
 
-        // Default value via callable?
-        if (is_callable($prefix)) {
-            $prefix = call_user_func($prefix);
+        // Default value via closure?
+        if ($prefix instanceof Closure) {
+            $prefix = $prefix($this->resolveRequest());
         }
 
-        // Provided default value via country ID to take the calling prefix from?
+        // Provided prefix via country ID to take the calling prefix from?
         if (is_int($prefix)) {
             $prefix = CountryCallingCode::fromCountry($prefix);
         }
@@ -156,7 +286,7 @@ class Phone extends MorphMany
     /**
      * Add calling prefix
      */
-    public function requireCallingPrefix(bool|int|callable|string|null $default = true): static
+    public function requireCallingPrefix(bool|int|Closure|string|null $default = true): static
     {
         $this->callingPrefix = $default;
 
@@ -172,92 +302,54 @@ class Phone extends MorphMany
     }
 
     /**
-     * Check whether the given number is unique
+     * Check whether the given number is unique.
      */
-    protected function isNumberUnique(array $number): bool
+    protected function isNumberUnique(string $number, ResourceRequest $request): bool
     {
-        $where = [
-            $this->displayKey => $number[$this->displayKey],
-            'phoneable_type' => $this->unique,
-        ];
+        $query = PhoneModel::query();
 
-        if (isset($number['id'])) {
-            $where[] = ['id', '!=', $number['id']];
+        if ($request->isUpdateRequest()) {
+            $query->whereNot('phoneable_id', $request->record()->getKey());
         }
 
-        return PhoneModel::where($where)->count() === 0;
+        return $query->where('number', $number)
+            ->where('phoneable_type', $this->unique)
+            ->count() === 0;
     }
 
     /**
      * If needed, add calling prefix to the given phone
      */
-    protected function addCallingPrefixIfNeeded(array &$phone): void
+    protected function addCallingPrefixIfNeeded(array $phone): array
     {
         $prefix = $this->callingPrefix();
 
-        if (! $prefix) {
-            return;
+        if (
+            ! $prefix ||
+            (empty($phone['number']) || CountryCallingCode::startsWithAny($phone['number']))
+        ) {
+            return $phone;
         }
 
-        if (empty($phone[$this->displayKey]) || CountryCallingCode::startsWithAny($phone[$this->displayKey])) {
-            return;
+        // When the field is using a prefix from country, it's safe
+        // to check if the number starts with the actual prefix (without the +)
+        // if yes, we will only add the + sign
+        // for example phone provided during import 1235323456 and country US
+        // in this case, if we add the prefix in full, the phone will be +1 1235323456
+        // but now will be +1235323456
+        if ($this->isUsingPrefixFromCountry()) {
+            $plainPrefix = ltrim($prefix, '+');
+
+            if (str_starts_with($phone['number'], $plainPrefix)) {
+                $phone['number'] = '+'.$phone['number'];
+            }
         }
 
-        if (! Str::startsWith($prefix, $phone[$this->displayKey])) {
-            $phone[$this->displayKey] = $prefix.$phone[$this->displayKey];
+        if (! str_starts_with($phone['number'], $prefix)) {
+            $phone['number'] = $prefix.$phone['number'];
         }
-    }
 
-    /**
-     * Boot the field
-     *
-     * @return void
-     */
-    public function boot()
-    {
-        $this->types(collect(PhoneType::names())->mapWithKeys(function ($name) {
-            return [$name => __('contacts::fields.phone.types.'.$name)];
-        })->all())
-            ->defaultType(PhoneType::mobile)
-            ->setJsonResource(PhoneResource::class)
-            ->rules([
-                '*.'.$this->displayKey => [function ($attribute, $value, $fail) {
-                    $number = $this->resolveRequest()->input(
-                        Str::before($attribute, '.'.$this->displayKey)
-                    );
-
-                    if ($number['_delete'] ?? null) {
-                        return;
-                    }
-
-                    if (! empty($value)) {
-                        $this->startsWithPrefixValidationHandler($value, $fail);
-
-                        $this->uniqueValidationHandler($number, $fail);
-                    }
-                }],
-            ])
-            ->prepareForValidation(function ($value, $request, $validator, $data) {
-                return $this->ensureProperValueFormat($value);
-            })->provideSampleValueUsing(function () {
-                return [[$this->displayKey => Model::generateRandomPhoneNumber(), 'type' => array_rand($this->types)]];
-            })->provideImportValueSampleUsing(function () {
-                return implode(',', [Model::generateRandomPhoneNumber(), Model::generateRandomPhoneNumber()]);
-            })->saveUsing(function ($request, $requestAttribute, $value, $field) {
-                foreach ($value ?? [] as $key => $phone) {
-                    if (isset($phone['type']) && ! $phone['type'] instanceof PhoneType) {
-                        $value[$key]['type'] = PhoneType::find($phone['type']) ?? $this->type;
-                    }
-
-                    // Empty number provided for new phone? Skip in this case, nothing to do
-                    // ResourceFulHandlerWithFields will delete the phone when _delete exists
-                    if (empty($phone[$this->displayKey]) && ! isset($phone['_delete'])) {
-                        unset($value[$key]);
-                    }
-                }
-
-                return [$field->attribute => $value];
-            });
+        return $phone;
     }
 
     /**
@@ -278,76 +370,67 @@ class Phone extends MorphMany
      */
     public function isUnique(): bool
     {
-        return $this->unique;
+        return (bool) $this->unique;
     }
 
     /**
-     * Unique validation handler
+     * Check whether the unique validation should be performed.
      */
-    protected function uniqueValidationHandler(array $number, Closure $fail): void
+    protected function shouldPerformUniqueValidation(ResourceRequest $request): bool
     {
-        if ($this->shouldSkipUniqueValidation()) {
-            return;
+        if ($request->isImportRequest() && $this->uniqueRuleSkipOnImport) {
+            return false;
         }
 
-        if (! $this->isNumberUnique($number)) {
-            $fail($this->uniqueRuleMessage);
+        return (bool) $this->unique;
+    }
+
+    /**
+     * Ensure that the provided phone value is in proper format.
+     */
+    protected function parsePreValidationValue(string|array|null $value): array
+    {
+        // Early fail
+        if (is_null($value)) {
+            return [];
         }
-    }
 
-    /**
-     * Validation if the number starts with the specified field prefix
-     */
-    protected function startsWithPrefixValidationHandler(string $number, Closure $fail): void
-    {
-        if ($this->requiresCallingPrefix() && ! CountryCallingCode::startsWithAny($number)) {
-            $fail('validation.calling_prefix')->translate(['attribute' => $this->label]);
-        }
-    }
-
-    /**
-     * Check whether the unique validation should be skipped
-     */
-    protected function shouldSkipUniqueValidation(): bool
-    {
-        return ! $this->unique || (Innoclapps::isImportInProgress() && $this->uniqueRuleSkipOnImport);
-    }
-
-    /**
-     * Ensure that the provided phone value is in proper format
-     */
-    protected function ensureProperValueFormat(string|array|null $value): ?array
-    {
         // Allow providing the phone number as string, used on import, API, Zapier etc...
         // Possible values: "+55282855292929" "+55282855292929|work" "+55282855292929,+123123558922|other"
         // Note that when the phone type is not provided, will use the default type
-        if (! is_array($value) && ! empty($value)) {
-            $value = array_map(fn ($number) => [$this->displayKey => trim($number)], explode(',', $value));
+        if (is_string($value)) {
+            $value = explode(',', $value);
         }
 
-        if (! is_array($value)) {
-            return $value;
-        }
+        return collect($value)
+            ->map(function ($phone) {
+                // Allow providing the phone only e.q. ['+55282855292929', '+123123558922', '+123123558922|work']
+                return ! is_array($phone) ? ['number' => trim($phone)] : $phone;
+            })->map(function ($phone) {
+                // Allow providing the type via the phone, separated by pipe e.q. +55282855292929|work
+                $this->extractTypeFromNumber(static::$typeInNumberValueSeparator, $phone);
 
-        foreach ($value as $key => $phone) {
-            // Allow providing the phone only e.q. ['+55282855292929', '+123123558922', '+123123558922|work']
-            $value[$key] = ! is_array($phone) ? [$this->displayKey => $phone] : $value[$key];
+                // Add the phone type when type is provided as string
+                if (isset($phone['type']) && ! $phone['type'] instanceof PhoneType) {
+                    $phone['type'] = PhoneType::find($phone['type']) ?? $this->type;
+                }
 
-            // Next, we will check if the calling prefix should be added automatically
-            $this->addCallingPrefixIfNeeded($value[$key]);
+                return $phone;
+            })->all();
+    }
 
-            // Allow providing the type via the phone, separated by pipe e.q. +55282855292929|work
-            $this->extractTypeFromNumber(static::$typeInNumberValueSeparator, $value[$key]);
-
-            $value[$key]['_track_by'] = [$this->displayKey => $value[$key][$this->displayKey]];
-
-            // Handle deletition when phone exists but value is provided empty
-            if (empty($value[$key][$this->displayKey]) && isset($value[$key]['id'])) {
-                $value[$key]['_delete'] = true;
-            }
-        }
-
-        return $value;
+    /**
+     * After validation callback has passed for all fields.
+     *
+     * The phone field may depends on country ID which may not be in a properly parsed
+     * ID before the phone field validation callbacks run, in this case, we will
+     * set the calling prefix after all fields validation callbacks are finished.
+     */
+    public function afterValidationCallback($value, ResourceRequest $request): void
+    {
+        $request[$this->requestAttribute()] = collect($value)->map(
+            fn (array $phone) => $this->addCallingPrefixIfNeeded($phone)
+        )->all();
     }
 
     /**
@@ -355,40 +438,78 @@ class Phone extends MorphMany
      */
     protected function extractTypeFromNumber(string $separator, array &$phone): void
     {
-        $number = $phone[$this->displayKey];
+        $number = $phone['number'];
 
         if ($number && str_contains($number, $separator)) {
             if ($type = PhoneType::find(strtolower(Str::afterLast($number, $separator)))) {
                 $phone['type'] = $type;
-                $phone[$this->displayKey] = Str::beforeLast($number, $separator);
+                $phone['number'] = Str::beforeLast($number, $separator);
             }
         }
     }
 
     /**
-     * Generate random phone digits
+     * Resolve the displayable field value
+     *
+     * @param  \Illuminate\Database\Eloquent\Model  $model
+     * @return string|null
      */
-    protected function randomPhoneDigits(int $digits = 3): int
+    public function resolveForDisplay($model)
     {
-        return rand(pow(10, $digits - 1), pow(10, $digits) - 1);
+        $value = $this->resolve($model);
+
+        if ($value->isNotEmpty()) {
+            return $value->pluck('number')->implode(', ');
+        }
     }
 
     /**
-     * Indicates that the relation will be counted
+     * Get the mailable template placeholder
+     *
+     * @param  \Modules\Core\Models\Model|null  $model
+     * @return \Modules\Core\Support\Placeholders\GenericPlaceholder|string
      */
-    public function count(): static
+    public function mailableTemplatePlaceholder($model)
     {
-        throw new \Exception('The '.class_basename(__CLASS__).' field does not support counting.');
+        return GenericPlaceholder::make($this->attribute)
+            ->description($this->label)
+            ->value(function () use ($model) {
+                return $this->resolveForDisplay($model);
+            });
     }
 
     /**
-     * Laravel Excel changes the data type of the phone value to integer even when the + sign is included
-     * We need string, so the + sign remains in the value and we can properly check whether the phone
-     * starts with a valid country calling prefix
+     * Resolve the field value for export
+     *
+     * @param  \Modules\Core\Models\Model  $model
+     * @return string|null
      */
-    public function importValueDataType(): string
+    public function resolveForExport($model)
     {
-        return DataType::TYPE_STRING;
+        return (string) $this->resolveForDisplay($model);
+    }
+
+    /**
+     * Resolve the value for JSON Resource
+     *
+     * @param  \Illuminate\Database\Eloquent\Model  $model
+     * @return array|null
+     */
+    public function resolveForJsonResource($model)
+    {
+        if ($model->relationLoaded($this->morphManyRelationship)) {
+            return [
+                $this->attribute => PhoneResource::collection($this->resolve($model)),
+            ];
+        }
+    }
+
+    /**
+     * Check whether the field is excluded from index query.
+     */
+    public function isExcludedFromIndexQuery(): bool
+    {
+        return false;
     }
 
     /**

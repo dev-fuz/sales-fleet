@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,6 @@ import findIndex from 'lodash/findIndex'
 
 export default createStore({
   state: {
-    pageTitle: '',
     apiURL: null,
     url: null,
     menu: [],
@@ -29,7 +28,7 @@ export default createStore({
      * @param {Object} settings
      */
     SET_SETTINGS(state, settings) {
-      Object.keys(settings).forEach((settingKey, index) => {
+      Object.keys(settings).forEach(settingKey => {
         state.settings[settingKey] = settings[settingKey]
       })
     },
@@ -39,15 +38,6 @@ export default createStore({
      */
     SET_TIMEZONES(state, timezones) {
       state.timezones = timezones
-    },
-
-    /**
-     * Set page title
-     * Somehow Vue-Router does not make the meta reactive, we need to use the store
-     */
-    SET_PAGE_TITLE(state, title) {
-      state.pageTitle = title
-      document.title = title
     },
 
     /**
@@ -67,9 +57,9 @@ export default createStore({
     /**
      * Update menu item
      */
-    UPDATE_MENU_ITEM(state, payload) {
-      const index = findIndex(state.menu, ['id', payload.id])
-      state.menu[index] = Object.assign({}, state.menu[index], payload.data)
+    UPDATE_MENU_ITEM(state, data) {
+      const index = findIndex(state.menu, ['id', data.id])
+      state.menu[index] = Object.assign({}, state.menu[index], data.data)
     },
 
     /**
@@ -87,17 +77,6 @@ export default createStore({
     },
   },
   getters: {
-    /**
-     * Get the application available locales
-     *
-     * @param  {Object} state
-     *
-     * @return {Array}
-     */
-    locales(state) {
-      return Innoclapps.config('locales')
-    },
-
     /**
      * Get single menu item by given id
      */

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -18,7 +18,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
 use Modules\Core\Facades\OAuthState;
-use Modules\Core\OAuth\OAuthManager;
+use Modules\Core\Support\OAuth\OAuthManager;
 
 class OAuthController extends Controller
 {
@@ -43,8 +43,7 @@ class OAuthController extends Controller
 
         OAuthState::put($state);
 
-        return redirect($this->manager->createProvider($provider)
-            ->getAuthorizationUrl(['state' => $state]));
+        return redirect($this->manager->createProvider($provider)->getAuthorizationUrl(['state' => $state]));
     }
 
     /**
@@ -54,6 +53,7 @@ class OAuthController extends Controller
     {
         if ($request->error) {
             set_alert($request->error_description ?: $request->error, 'danger');
+
             // Got an error, probably user denied access
             return redirect($this->onErrorRedirectTo);
         } elseif (! OAuthState::validate($request->state)) {

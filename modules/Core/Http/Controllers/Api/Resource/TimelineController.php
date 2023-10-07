@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,10 +16,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Http\Controllers\ApiController;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Http\Resources\ChangelogResource;
 use Modules\Core\Models\PinnedTimelineSubject;
 use Modules\Core\Resource\Resource;
-use Modules\Core\Timeline\Timelineables;
+use Modules\Core\Support\Timeline\Timelineables;
 
 class TimelineController extends ApiController
 {
@@ -28,13 +29,11 @@ class TimelineController extends ApiController
      */
     public function index(Request $request, string $resourceName, string $recordId): JsonResponse
     {
-        $request->validate(['resources' => 'sometimes|array']);
-
         $resource = Innoclapps::resourceByName($resourceName);
         $record = $resource->newModel()->findOrFail($recordId);
         $hasChangelog = $record->isRelation('changelog');
 
-        $resources = $this->getResourcesForChangelog($request);
+        $resources = $this->getResourcesForChangelog();
 
         // When there is no resources included for the changelog and
         // the resource record does not have the changelog relation
@@ -45,9 +44,7 @@ class TimelineController extends ApiController
 
         $this->authorize('view', $record);
 
-        $includeChangelog = $hasChangelog && $resources->contains('changelog');
-
-        $changelog = collect([])->when($includeChangelog, function ($collection) use ($record, $request) {
+        $changelog = collect([])->when($hasChangelog, function ($collection) use ($record, $request) {
             ChangelogResource::topLevelResource($record);
 
             return $this->resolveChangelogJsonResource($record, $request);
@@ -58,9 +55,18 @@ class TimelineController extends ApiController
                 });
 
             return $collection;
-        })->sortBy([['is_pinned', 'desc'], ['pinned_date', 'desc'], ['created_at', 'desc']]);
+        })->sortBy([['is_pinned', 'desc'], ['pinned_date', 'desc'], [function ($record) {
+            return $record['timeline_sort_column'];
+        }, 'desc']]);
 
-        return $this->response(['data' => $changelog->values()->all()]);
+        return $this->response([
+            'data' => $changelog->values()->all(),
+            'resources' => $resources->map(fn ($resource) => [
+                'name' => $resource->name(),
+                'label' => $resource->label(),
+                'timeline_relation' => $resource->newModel()->getTimelineRelation(),
+            ]),
+        ]);
     }
 
     /**
@@ -72,14 +78,21 @@ class TimelineController extends ApiController
      */
     protected function resolveChangelogJsonResource($record, $request)
     {
+        $changelogModel = $record->changelog()->getModel();
+
+        $columns = $changelogModel->getConnection()
+            ->getSchemaBuilder()
+            ->getColumnListing($changelogModel->getTable());
+
         $query = $record->changelog()
-            ->select(Resource::prefixColumns($record->changelog()->getModel()))
+            ->select($changelogModel->qualifyColumns($columns))
             ->withPinnedTimelineSubjects($record)
+            ->with('pinnedTimelineSubjects')
             ->orderBy((new PinnedTimelineSubject)->getQualifiedCreatedAtColumn(), 'desc')
             ->orderBy($record->changelog()->getModel()->getQualifiedCreatedAtColumn(), 'desc');
 
         return collect(ChangelogResource::collection(
-            $query->paginate($request->integer('per_page', 15))
+            $query->paginate($request->integer('per_page') ?: null)
         )->resolve());
     }
 
@@ -92,11 +105,14 @@ class TimelineController extends ApiController
      */
     protected function resolveResourcesJsonResource($record, $request)
     {
-        return $this->getResourcesForChangelog($request)->map(function ($resource) use ($record, $request) {
+        return $this->getResourcesForChangelog($request)->map(function (Resource $resource) use ($record, $request) {
             $resource->jsonResource()::topLevelResource($record);
 
             return $resource->createJsonResource(
-                $resource->timelineQuery($record)->paginate($request->integer('per_page', null)),
+                $resource->timelineQuery(
+                    $record,
+                    app(ResourceRequest::class)->setResource($resource->name())
+                )->paginate($request->integer('per_page') ?: null),
                 true
             );
         });
@@ -105,15 +121,13 @@ class TimelineController extends ApiController
     /**
      * Get the resources that should be added in the changelog
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Support\Collection
      */
-    protected function getResourcesForChangelog($request)
+    protected function getResourcesForChangelog()
     {
-        return collect($request->input('resources', []))->map(function ($resourceName) {
-            return Innoclapps::resourceByName($resourceName);
-        })->reject(function ($resource) {
-            return ! Timelineables::isTimelineable($resource->newModel());
-        })->values();
+        return collect((new Timelineables)->getTimelineables())
+            ->map(fn (string $model) => Innoclapps::resourceByModel($model))
+            ->filter()
+            ->values();
     }
 }

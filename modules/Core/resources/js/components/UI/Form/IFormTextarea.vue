@@ -1,7 +1,8 @@
 <template>
   <textarea
-    ref="textareaRef"
     :id="id"
+    ref="textareaRef"
+    v-model="value"
     :name="name"
     :tabindex="tabindex"
     :autocomplete="autocomplete"
@@ -15,24 +16,25 @@
     :rows="rows"
     :cols="cols"
     :disabled="disabled"
-    v-model="value"
-    @blur="blurHandler"
-    @focus="focusHandler"
-    @keyup="keyupHandler"
-    @keydown="keydownHandler"
-    @input="inputHandler"
     :class="{
       'resize-none overflow-y-hidden': resizeable,
       'border-neutral-300 dark:border-neutral-500': bordered,
       'border-transparent': !bordered,
     }"
     class="form-textarea rounded-md dark:bg-neutral-700 dark:text-white dark:placeholder-neutral-400"
+    @blur="blurHandler"
+    @focus="focusHandler"
+    @keyup="keyupHandler"
+    @keydown="keydownHandler"
+    @input="inputHandler"
   ></textarea>
 </template>
+
 <script setup>
-import { onMounted, onBeforeUnmount, computed, nextTick, ref } from 'vue'
-import { useTextInput } from './useTextInput'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+
 import textInputProps from './textInputProps'
+import { useTextInput } from './useTextInput'
 
 const emit = defineEmits([
   'update:modelValue',

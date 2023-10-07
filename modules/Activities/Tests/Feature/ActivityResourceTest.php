@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,19 +12,25 @@
 
 namespace Modules\Activities\Tests\Feature;
 
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
+use Modules\Activities\Models\Activity;
 use Modules\Activities\Models\ActivityType;
 use Modules\Contacts\Models\Company;
 use Modules\Contacts\Models\Contact;
-use Modules\Core\Database\Seeders\PermissionsSeeder;
-use Modules\Core\Date\Carbon;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Http\Requests\ResourceRequest;
+use Modules\Core\Support\Date\Carbon;
 use Modules\Core\Tests\ResourceTestCase;
 use Modules\Deals\Models\Deal;
 use Modules\Users\Models\Team;
 use Modules\Users\Models\User;
+use Modules\Users\Notifications\UserMentioned;
+use Modules\Users\Tests\Concerns\TestsMentions;
 
 class ActivityResourceTest extends ResourceTestCase
 {
+    use TestsMentions;
+
     protected $samplePayload;
 
     protected function setUp(): void
@@ -48,7 +54,7 @@ class ActivityResourceTest extends ResourceTestCase
 
     protected $resourceName = 'activities';
 
-    public function test_user_can_create_resource_record()
+    public function test_user_can_create_activity()
     {
         $this->signIn();
         $user = $this->createUser();
@@ -315,7 +321,7 @@ class ActivityResourceTest extends ResourceTestCase
         $this->postJson($this->createEndpoint(), $payload)->assertJsonValidationErrorFor('activity_type_id');
     }
 
-    public function test_user_can_update_resource_record()
+    public function test_user_can_update_activity()
     {
         $user = $this->signIn();
         $type = ActivityType::factory()->create();
@@ -381,36 +387,7 @@ class ActivityResourceTest extends ResourceTestCase
             ]);
     }
 
-    public function test_unauthorized_user_cannot_update_resource_record()
-    {
-        $this->asRegularUser()->signIn();
-        $record = $this->factory()->create();
-
-        $this->putJson($this->updateEndpoint($record), $this->factory()->make()->toArray())
-            ->assertForbidden();
-    }
-
-    public function test_authorized_user_can_update_own_resource_record()
-    {
-        $this->seed(PermissionsSeeder::class);
-
-        $user = $this->asRegularUser()->withPermissionsTo('edit own activities')->signIn();
-        $record = $this->factory()->for($user)->create();
-
-        $this->putJson($this->updateEndpoint($record), $this->factory()->make()->toArray())->assertOk();
-    }
-
-    public function test_authorized_user_can_update_resource_record()
-    {
-        $this->seed(PermissionsSeeder::class);
-
-        $user = $this->asRegularUser()->withPermissionsTo('edit all activities')->signIn();
-        $record = $this->factory()->for($user)->create();
-
-        $this->putJson($this->updateEndpoint($record), $this->factory()->make()->toArray())->assertOk();
-    }
-
-    public function test_user_can_retrieve_resource_records()
+    public function test_user_can_retrieve_activities()
     {
         $this->signIn();
 
@@ -419,7 +396,7 @@ class ActivityResourceTest extends ResourceTestCase
         $this->getJson($this->indexEndpoint())->assertJsonCount(5, 'data');
     }
 
-    public function test_user_can_retrieve_resource_record()
+    public function test_user_can_retrieve_activity()
     {
         $this->signIn();
 
@@ -441,9 +418,8 @@ class ActivityResourceTest extends ResourceTestCase
             ->assertJsonPath('0.data.0.display_name', $record->display_name);
     }
 
-    public function test_an_unauthorized_user_can_global_search_only_own_records()
+    public function test_an_unauthorized_user_can_global_search_only_activities()
     {
-        $this->seed(PermissionsSeeder::class);
         $user = $this->asRegularUser()->withPermissionsTo('view own activities')->signIn();
         $user1 = $this->createUser();
 
@@ -455,35 +431,6 @@ class ActivityResourceTest extends ResourceTestCase
             ->assertJsonPath('0.data.0.id', $record->id)
             ->assertJsonPath('0.data.0.path', $record->path)
             ->assertJsonPath('0.data.0.display_name', $record->display_name);
-    }
-
-    public function test_user_can_force_delete_resource_record()
-    {
-        $user = $this->signIn();
-
-        $record = $this->factory()
-            ->has(Contact::factory())
-            ->has(Company::factory())
-            ->has(Deal::factory())
-            ->create();
-
-        $guest = $user->guests()->create([]);
-        $guest->activities()->attach($record);
-
-        $record->delete();
-
-        $this->deleteJson($this->forceDeleteEndpoint($record))->assertNoContent();
-        $this->assertDatabaseCount($this->tableName(), 0);
-    }
-
-    public function test_user_can_soft_delete_resource_record()
-    {
-        $this->signIn();
-
-        $record = $this->factory()->create();
-
-        $this->deleteJson($this->deleteEndpoint($record))->assertNoContent();
-        $this->assertDatabaseCount($this->tableName(), 1);
     }
 
     public function test_user_can_export_activities()
@@ -531,19 +478,9 @@ class ActivityResourceTest extends ResourceTestCase
         $this->assertCount(2, $settings->getCustomizedOrder());
     }
 
-    public function test_activities_table_has_trashed_actions()
-    {
-        $this->signIn();
-
-        $table = $this->resource()->resolveTrashedTable($this->createRequestForTable());
-
-        $this->assertCount(2, $table->actionsForTrashedTable());
-    }
-
     public function test_user_can_view_attends_and_owned_including_team_activities()
     {
         // Ticket #461
-        $this->seed(PermissionsSeeder::class);
         $user = $this->asRegularUser()
             ->withPermissionsTo(['view attends and owned activities', 'view team activities'])
             ->createUser();
@@ -564,13 +501,370 @@ class ActivityResourceTest extends ResourceTestCase
 
     public function test_user_can_retrieve_activities_related_to_associations_authorized_to_view()
     {
-        $this->seed(PermissionsSeeder::class);
-
         $user = $this->asRegularUser()->withPermissionsTo('view own contacts')->signIn();
         $activity = $this->factory()->has(Contact::factory()->for($user))->create();
         $contact = $activity->contacts[0];
 
         $this->getJson("/api/activities/$activity->id?via_resource=contacts&via_resource_id=$contact->id")->assertOk();
+    }
+
+    public function test_it_can_mark_the_activity_as_completed_on_creation()
+    {
+        $this->signIn();
+
+        $this->postJson($this->createEndpoint(), array_merge($this->samplePayload, [
+            'is_completed' => true,
+        ]))->assertJson([
+            'is_completed' => true,
+        ]);
+    }
+
+    public function test_it_can_mark_the_activity_as_completed_on_update()
+    {
+        $this->signIn();
+        $activity = $this->factory()->create();
+
+        $this->putJson($this->updateEndpoint($activity), array_merge($this->samplePayload, [
+            'is_completed' => true,
+        ]))->assertJson([
+            'is_completed' => true,
+        ]);
+    }
+
+    public function test_it_can_mark_the_activity_as_incompleted_on_update()
+    {
+        $this->signIn();
+
+        $activity = $this->factory()->completed()->create();
+
+        $this->putJson($this->updateEndpoint($activity), array_merge($this->samplePayload, [
+            'is_completed' => false,
+        ]))->assertJson([
+            'is_completed' => false,
+        ]);
+    }
+
+    public function test_activity_guests_can_be_saved_on_creation()
+    {
+        $user = $this->signIn();
+        $contact = Contact::factory()->create();
+        $attributes = $this->factory()->raw();
+
+        $attributes['guests'] = [
+            'users' => [$user->id],
+            'contacts' => [$contact->id],
+        ];
+
+        $this->postJson($this->createEndpoint(), $attributes)->assertCreated();
+
+        $this->assertCount(2, Activity::first()->guests);
+    }
+
+    public function test_it_send_notifications_to_guests()
+    {
+        $this->signIn();
+        $user = $this->createUser();
+        $contact = Contact::factory()->create();
+        $attributes = $this->factory()->raw();
+        settings()->set('send_contact_attends_to_activity_mail', true);
+
+        $attributes['guests'] = [
+            'users' => [$user->id],
+            'contacts' => [$contact->id],
+        ];
+
+        Mail::fake();
+        Notification::fake();
+
+        $this->postJson($this->createEndpoint(), $attributes)->assertCreated();
+
+        Notification::assertSentTo($user, $user->getAttendeeNotificationClass());
+        Mail::assertQueued($contact->getAttendeeNotificationClass(), function ($mail) use ($contact) {
+            return $mail->hasTo($contact->email);
+        });
+    }
+
+    public function test_it_does_not_send_notification_when_current_user_is_added_as_guest()
+    {
+        $currentUser = $this->signIn();
+        $user = $this->createUser();
+        $attributes = $this->factory()->raw();
+
+        $attributes['guests'] = [
+            'users' => [$user->id, $currentUser->id],
+        ];
+
+        Notification::fake();
+
+        $this->postJson($this->createEndpoint(), $attributes)->assertCreated();
+
+        Notification::assertSentTo($user, $user->getAttendeeNotificationClass());
+        Notification::assertNotSentTo($currentUser, $user->getAttendeeNotificationClass());
+    }
+
+    public function test_it_does_not_send_notification_when_contact_send_notification_is_false()
+    {
+        $this->signIn();
+
+        $contact = Contact::factory()->create();
+        $attributes = $this->factory()->raw();
+        settings()->set('send_contact_attends_to_activity_mail', false);
+
+        $attributes['guests'] = [
+            'contacts' => [$contact->id],
+        ];
+
+        Mail::fake();
+
+        $this->postJson($this->createEndpoint(), $attributes)->assertCreated();
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_activity_guests_can_be_saved_on_update()
+    {
+        $user = $this->signIn();
+        $contact = Contact::factory()->create();
+        $activity = $this->factory()->create();
+
+        $this->putJson($this->updateEndpoint($activity), [
+            'guests' => [
+                'users' => [$user->id],
+                'contacts' => [$contact->id],
+            ],
+        ]);
+
+        $this->assertSame(2, $activity->guests->count());
+
+        // detach
+        $this->putJson($this->updateEndpoint($activity), [
+            'guests' => [
+                'users' => [$user->id],
+            ],
+        ]);
+
+        $this->assertSame(1, $activity->guests()->count());
+    }
+
+    public function test_it_send_notifications_to_mentioned_users_when_activity_is_created()
+    {
+        Notification::fake();
+
+        $this->signIn();
+
+        $user = $this->createUser();
+
+        $response = $this->postJson($this->createEndpoint(), array_merge($this->samplePayload, [
+            'note' => 'Text - '.$this->mentionText($user->id, $user->name),
+        ]))->getData();
+
+        Notification::assertSentTo($user, UserMentioned::class, function ($notification) use ($response) {
+            return $notification->mentionUrl === "/activities/{$response->id}";
+        });
+    }
+
+    public function test_it_send_notifications_to_mentioned_users_when_activity_is_updated()
+    {
+        Notification::fake();
+
+        $this->signIn();
+
+        $user = $this->createUser();
+        $activity = Activity::factory()->create();
+
+        $this->putJson($this->updateEndpoint($activity), [
+            'note' => 'Text - '.$this->mentionText($user->id, $user->name),
+        ]);
+
+        Notification::assertSentTo($user, UserMentioned::class, function ($notification) use ($activity) {
+            return $notification->mentionUrl === "/activities/{$activity->id}";
+        });
+    }
+
+    public function test_it_send_notifications_to_mentioned_users_when_activity_is_created_via_resource()
+    {
+        Notification::fake();
+
+        $this->signIn();
+
+        $user = $this->createUser();
+        $contact = Contact::factory()->create();
+
+        $response = $this->postJson($this->createEndpoint(), array_merge($this->samplePayload, [
+            'note' => 'Text - '.$this->mentionText($user->id, $user->name),
+            'via_resource' => 'contacts',
+            'via_resource_id' => $contact->id,
+        ]))->getData();
+
+        Notification::assertSentTo($user, UserMentioned::class, function ($notification) use ($response, $contact) {
+            return $notification->mentionUrl === "/contacts/{$contact->id}?section=activities&resourceId={$response->id}";
+        });
+    }
+
+    public function test_it_send_notifications_to_mentioned_users_when_activity_is_updated_via_resource()
+    {
+        Notification::fake();
+
+        $this->signIn();
+
+        $user = $this->createUser();
+        $contact = Contact::factory()->create();
+        $activity = Activity::factory()->create();
+
+        $this->putJson($this->updateEndpoint($activity), [
+            'note' => 'Text - '.$this->mentionText($user->id, $user->name),
+            'via_resource' => 'contacts',
+            'via_resource_id' => $contact->id,
+        ]);
+
+        Notification::assertSentTo($user, UserMentioned::class, function ($notification) use ($activity, $contact) {
+            return $notification->mentionUrl === "/contacts/{$contact->id}?section=activities&resourceId={$activity->id}";
+        });
+    }
+
+    public function test_user_can_force_delete_activity()
+    {
+        $user = $this->signIn();
+
+        $record = $this->factory()
+            ->has(Contact::factory())
+            ->has(Company::factory())
+            ->has(Deal::factory())
+            ->create();
+
+        $guest = $user->guests()->create([]);
+        $guest->activities()->attach($record);
+
+        $record->delete();
+
+        $this->deleteJson($this->forceDeleteEndpoint($record))->assertNoContent();
+        $this->assertDatabaseCount($this->tableName(), 0);
+    }
+
+    public function test_user_can_soft_delete_activity()
+    {
+        $this->signIn();
+
+        $record = $this->factory()->create();
+
+        $this->deleteJson($this->deleteEndpoint($record))->assertNoContent();
+        $this->assertDatabaseCount($this->tableName(), 1);
+    }
+
+    public function test_edit_all_activities_permission()
+    {
+        $this->asRegularUser()->withPermissionsTo('edit all activities')->signIn();
+        $record = $this->factory()->create();
+
+        $this->putJson($this->updateEndpoint($record), $this->samplePayload())->assertOk();
+    }
+
+    public function test_edit_own_activities_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('edit own activities')->signIn();
+        $record1 = $this->factory()->for($user)->create();
+        $record2 = $this->factory()->create();
+
+        $payload = $this->samplePayload();
+        $this->putJson($this->updateEndpoint($record1), $payload)->assertOk();
+        $this->putJson($this->updateEndpoint($record2), $payload)->assertForbidden();
+    }
+
+    public function test_edit_team_activities_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('edit team activities')->signIn();
+        $teamUser = User::factory()->has(Team::factory()->for($user, 'manager'))->create();
+
+        $record = $this->factory()->for($teamUser)->create();
+
+        $this->putJson($this->updateEndpoint($record))->assertOk();
+    }
+
+    public function test_unauthorized_user_cannot_update_activity()
+    {
+        $this->asRegularUser()->signIn();
+        $record = $this->factory()->create();
+
+        $this->putJson($this->updateEndpoint($record), $this->samplePayload())->assertForbidden();
+    }
+
+    public function test_view_all_activities_permission()
+    {
+        $this->asRegularUser()->withPermissionsTo('view all activities')->signIn();
+        $record = $this->factory()->create();
+
+        $this->getJson($this->showEndpoint($record))->assertOk();
+    }
+
+    public function test_view_team_activities_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('view team activities')->signIn();
+        $teamUser = User::factory()->has(Team::factory()->for($user, 'manager'))->create();
+
+        $record = $this->factory()->for($teamUser)->create();
+
+        $this->getJson($this->showEndpoint($record))->assertOk();
+    }
+
+    public function test_user_can_view_own_activity()
+    {
+        $user = $this->asRegularUser()->signIn();
+        $record = $this->factory()->for($user)->create();
+
+        $this->getJson($this->showEndpoint($record))->assertOk();
+    }
+
+    public function test_unauthorized_user_cannot_view_activity()
+    {
+        $this->asRegularUser()->signIn();
+        $record = $this->factory()->create();
+
+        $this->getJson($this->showEndpoint($record))->assertForbidden();
+    }
+
+    public function test_delete_any_activity_permission()
+    {
+        $this->asRegularUser()->withPermissionsTo('delete any activity')->signIn();
+
+        $record = $this->factory()->create();
+
+        $this->deleteJson($this->deleteEndpoint($record))->assertNoContent();
+    }
+
+    public function test_delete_own_activities_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('delete own activities')->signIn();
+
+        $record1 = $this->factory()->for($user)->create();
+        $record2 = $this->factory()->create();
+
+        $this->deleteJson($this->deleteEndpoint($record1))->assertNoContent();
+        $this->deleteJson($this->deleteEndpoint($record2))->assertForbidden();
+    }
+
+    public function test_delete_team_activities_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('delete team activities')->signIn();
+        $teamUser = User::factory()->has(Team::factory()->for($user, 'manager'))->create();
+
+        $record1 = $this->factory()->for($teamUser)->create();
+        $record2 = $this->factory()->create();
+
+        $this->deleteJson($this->deleteEndpoint($record1))->assertNoContent();
+        $this->deleteJson($this->deleteEndpoint($record2))->assertForbidden();
+    }
+
+    public function test_unauthorized_user_cannot_delete_activity()
+    {
+        $this->asRegularUser()->signIn();
+        $record = $this->factory()->create();
+
+        $this->deleteJson($this->showEndpoint($record))->assertForbidden();
+    }
+
+    protected function samplePayload()
+    {
+        return $this->factory()->make()->toArray();
     }
 
     protected function assertResourceJsonStructure($response)

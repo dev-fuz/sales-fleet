@@ -7,29 +7,69 @@
         required
       />
       <IButtonIcon
+        v-show="!addingOptionsViaText"
         v-i-tooltip="$t('core::app.add_another')"
         icon="Plus"
-        @click="newOption"
+        @click="newOptionAndFocus"
       />
     </div>
-    <IAlert :show="form.options.length === 0" variant="info" class="mt-2">
-      <i18n-t
-        scope="global"
-        :keypath="'core::fields.custom.create_option_icon'"
-        tag="div"
-        class="flex"
+    <div v-if="form.options.length === 0 && !addingOptionsViaText" class="mt-2">
+      <IAlert variant="info">
+        <i18n-t
+          scope="global"
+          :keypath="'core::fields.custom.create_option_icon'"
+          tag="div"
+          class="flex"
+        >
+          <template #icon>
+            <Icon
+              icon="Plus"
+              class="mx-1 h-5 w-5 cursor-pointer"
+              @click="newOptionAndFocus"
+            />
+          </template>
+        </i18n-t>
+
+        <a
+          href="#"
+          class="mt-2 inline-flex items-center text-sm text-info-900 hover:text-info-700"
+          @click.prevent="addingOptionsViaText = true"
+        >
+          {{ $t('core::fields.custom.or_add_options_via_text') }}
+          <Icon icon="ArrowLeft" class="ml-1 mt-0.5 h-3 w-3" />
+        </a>
+      </IAlert>
+    </div>
+    <div v-if="addingOptionsViaText">
+      <IFormTextarea
+        v-model="textOptions"
+        :placeholder="$t('core::fields.custom.text_options_each_on_new_line')"
+      />
+
+      <div
+        class="mt-1 flex items-center justify-end divide-x divide-neutral-200 text-right text-sm"
       >
-        <template #icon>
-          <Icon icon="Plus" class="h-5 w-5 cursor-pointer" @click="newOption" />
-        </template>
-      </i18n-t>
-    </IAlert>
+        <a
+          v-t="'core::fields.custom.convert_text_to_options'"
+          href="#"
+          class="link"
+          @click.prevent="convertTextToOptions"
+        />
+
+        <a
+          v-t="'core::app.cancel'"
+          href="#"
+          class="link ml-2 pl-2"
+          @click.prevent="cancelAddOptionsViaText"
+        />
+      </div>
+    </div>
     <draggable
-      @sort="setDisplayOrder"
       v-bind="draggableOptions"
       :list="form.options"
       :item-key="(item, index) => index"
       handle=".option-draggable-handle"
+      @sort="setDisplayOrder"
     >
       <template #item="{ element, index }">
         <div class="relative mt-3">
@@ -50,23 +90,23 @@
                 v-text="$t('core::app.id') + ': ' + element.id"
               />
               <IFormInput
-                v-model="form.options[index].name"
-                @keydown.enter.prevent.stop="newOption"
                 ref="optionNameRef"
+                v-model="form.options[index].name"
                 :class="['pr-20', { 'pl-14': element.id }]"
+                @keydown.enter.prevent.stop="newOptionAndFocus"
                 @keydown="form.errors.clear('options')"
               />
               <IPopover auto-placement class="w-72">
                 <IButtonIcon
-                  icon="ColorSwatch"
                   v-i-tooltip="$t('core::app.colors.color')"
+                  icon="ColorSwatch"
                   :style="{ color: element.swatch_color }"
                   class="absolute right-11 top-2.5 -mt-px"
                 />
 
                 <template #popper>
-                  <div class="px-4 py-3">
-                    <IColorSwatches
+                  <div class="p-4">
+                    <IColorSwatch
                       v-model="form.options[index].swatch_color"
                       :swatches="swatches"
                     />
@@ -75,22 +115,23 @@
               </IPopover>
               <IButtonIcon
                 icon="X"
-                @click="removeOption(index)"
                 class="absolute right-3 top-2.5"
+                @click="removeOption(index)"
               />
             </div>
           </div>
         </div>
       </template>
     </draggable>
-
     <IFormError v-text="form.getError('options')" />
   </IFormGroup>
 </template>
+
 <script setup>
-import { ref, nextTick } from 'vue'
+import { nextTick, ref } from 'vue'
 import draggable from 'vuedraggable'
-import { useDraggable } from '~/Core/resources/js/composables/useDraggable'
+
+import { useDraggable } from '~/Core/composables/useDraggable'
 
 const props = defineProps({
   form: { required: true, type: Object },
@@ -98,6 +139,8 @@ const props = defineProps({
 
 const { draggableOptions } = useDraggable()
 const optionNameRef = ref(null)
+const addingOptionsViaText = ref(false)
+const textOptions = ref('')
 const swatches = Innoclapps.config('favourite_colors')
 
 /** Set the display order of the options based at the current sorting */
@@ -107,28 +150,43 @@ function setDisplayOrder() {
   })
 }
 
-function newOption() {
-  props.form.options.push({
-    name: null,
-    display_order: props.form.options.length + 1,
-    swatch_color: null,
-  })
-
+function newOptionAndFocus() {
+  newOption()
   // Focus the last option
   nextTick(() => {
     optionNameRef.value.focus()
   })
 }
 
-function removeOption(index) {
+function newOption(name = null) {
+  props.form.options.push({
+    name: name,
+    display_order: props.form.options.length + 1,
+    swatch_color: null,
+  })
+}
+
+function cancelAddOptionsViaText() {
+  addingOptionsViaText.value = false
+}
+
+function convertTextToOptions() {
+  if (!textOptions.value) {
+    return
+  }
+
+  textOptions.value.split('\n').forEach(option => option && newOption(option))
+
+  cancelAddOptionsViaText()
+}
+
+async function removeOption(index) {
   let option = props.form.options[index]
 
   if (option.id) {
-    Innoclapps.dialog()
-      .confirm()
-      .then(() => props.form.options.splice(index, 1))
-  } else {
-    props.form.options.splice(index, 1)
+    await Innoclapps.dialog().confirm()
   }
+
+  props.form.options.splice(index, 1)
 }
 </script>

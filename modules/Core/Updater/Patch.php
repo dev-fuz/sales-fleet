@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -91,11 +91,7 @@ final class Patch implements Arrayable, JsonSerializable
      */
     public function archive(): ZipArchive
     {
-        if ($this->archive) {
-            return $this->archive;
-        }
-
-        return $this->archive = new ZipArchive($this->getStoragePath());
+        return $this->archive ??= new ZipArchive($this->getStoragePath());
     }
 
     /**

@@ -1,7 +1,8 @@
 <template>
   <input
-    ref="inputRef"
     :id="id"
+    ref="inputRef"
+    v-model="value"
     :name="name"
     :disabled="disabled"
     :autocomplete="autocomplete"
@@ -15,12 +16,6 @@
     :maxlength="maxlength"
     :min="min"
     :max="max"
-    v-model="value"
-    @blur="blurHandler"
-    @focus="focusHandler"
-    @keyup="keyupHandler"
-    @keydown="keydownHandler"
-    @input="inputHandler"
     :class="[
       'form-input dark:bg-neutral-700 dark:text-white dark:placeholder-neutral-400',
       {
@@ -32,12 +27,19 @@
         'border-transparent': !bordered,
       },
     ]"
+    @blur="blurHandler"
+    @focus="focusHandler"
+    @keyup="keyupHandler"
+    @keydown="keydownHandler"
+    @input="inputHandler"
   />
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
-import { useTextInput } from './useTextInput'
+import { computed, ref } from 'vue'
+
 import textInputProps from './textInputProps'
+import { useTextInput } from './useTextInput'
 
 const emit = defineEmits([
   'update:modelValue',

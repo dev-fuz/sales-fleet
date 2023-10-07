@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,74 +14,59 @@ namespace Modules\Core\Table;
 
 use Illuminate\Support\Str;
 
-class RelationshipColumn extends Column
+abstract class RelationshipColumn extends Column
 {
     /**
-     * Attributes to append with the response
-     */
-    public array $appends = [];
-
-    /**
-     * The relation name
+     * The relationship name.
      */
     public string $relationName;
 
     /**
-     * The relation field
+     * The relation field.
      */
-    public ?string $relationField;
-
-    /**
-     * Additional fields to select
-     */
-    public array $relationSelectColumns = [];
+    public string $relationField;
 
     /**
      * Initialize new RelationshipColumn instance.
      */
-    public function __construct(string $name, ?string $attribute, ?string $label = null)
+    public function __construct(string $relationName, string $relationField, string $label = null, string $attribute = null)
     {
-        // The relation names for front-end are returned in snake case format.
-        parent::__construct(Str::snake($name), $label);
+        $attribute = $attribute ?: Str::snake($relationName);
 
-        $this->relationName = $name;
-        $this->relationField = $attribute;
+        parent::__construct($attribute, $label);
+
+        $this->relationName = $relationName;
+        $this->relationField = $relationField;
+
     }
 
     /**
-     * Additional select for a relation
-     *
-     * For relation e.q. MorphToManyColumn::make('contacts', 'first_name', 'Contacts')->select(['avatar', 'email'])
+     * Add relations to eager load for the column relation.
      */
-    public function select(array|string $fields): static
+    public function with(array|string $with): static
     {
-        $this->relationSelectColumns = array_merge(
-            $this->relationSelectColumns,
-            (array) $fields
+        $this->with = array_merge(
+            $this->with,
+            $this->prefixEagerLoadedWithRelationName((array) $with)
         );
 
         return $this;
     }
 
     /**
-     * Set attributes to appends in the model
+     * Prefix the column eager loaded relationship with the actual relation name.
      */
-    public function appends(array|string $attributes): static
+    protected function prefixEagerLoadedWithRelationName(array $with): array
     {
-        $this->appends = (array) $attributes;
+        foreach ($with as $key => $value) {
+            if (is_int($key) && ! str_starts_with($this->relationName, $value)) {
+                $with[$key] = $this->relationName.'.'.$value;
+            } elseif (! str_starts_with($this->relationName, $key)) {
+                unset($with[$key]);
+                $with[$this->relationName.'.'.$key] = $value;
+            }
+        }
 
-        return $this;
-    }
-
-    /**
-     * toArray
-     *
-     * @return array
-     */
-    public function toArray()
-    {
-        return array_merge(parent::toArray(), [
-            'relationField' => $this->relationField,
-        ]);
+        return $with;
     }
 }

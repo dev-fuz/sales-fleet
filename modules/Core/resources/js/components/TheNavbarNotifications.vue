@@ -1,9 +1,9 @@
 <template>
   <IDropdown
+    ref="dropdownRef"
     placement="bottom-end"
     items-class="max-w-xs sm:max-w-sm"
     :full="false"
-    ref="dropdownRef"
   >
     <template #toggle="{ toggle }">
       <IButton
@@ -14,13 +14,22 @@
         @click="toggle(), markAllRead()"
       >
         <Icon icon="Bell" class="h-6 w-6" />
-        <IBadge
-          v-if="hasUnread"
-          variant="primary"
-          size="circle"
-          wrapper-class="absolute -top-2 -right-2"
-          :text="totalUnread"
-        />
+
+        <div v-if="hasUnread" class="relative">
+          <div
+            v-i-tooltip.bottom="totalUnread"
+            class="absolute -right-2 -top-5"
+          >
+            <span class="relative flex h-3 w-3">
+              <span
+                class="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-400 opacity-75"
+              />
+              <span
+                class="relative inline-flex h-3 w-3 rounded-full bg-primary-500"
+              />
+            </span>
+          </div>
+        </div>
       </IButton>
     </template>
 
@@ -31,21 +40,21 @@
       ]"
     >
       <div
-        :class="[
-          'grow text-neutral-800 dark:text-white',
-          { 'font-medium': total > 0, 'sm:text-sm': total === 0 },
-        ]"
         v-t="
           total > 0
             ? 'core::notifications.notifications'
             : 'core::notifications.no_notifications'
         "
+        :class="[
+          'grow text-neutral-800 dark:text-white',
+          { 'font-medium': total > 0, 'sm:text-sm': total === 0 },
+        ]"
       />
       <router-link
-        :to="{ name: 'profile', hash: '#notifications' }"
-        @click="() => $refs.dropdownRef.hide()"
         v-i-tooltip="$t('core::settings.settings')"
+        :to="{ name: 'profile', hash: '#notifications' }"
         class="link ml-2"
+        @click="() => $refs.dropdownRef.hide()"
       >
         <Icon icon="Cog" class="h-5 w-5" />
       </router-link>
@@ -70,25 +79,27 @@
         />
       </IDropdownItem>
     </div>
+
     <div
       v-show="total > 0"
       class="flex items-center justify-end border-t border-neutral-200 bg-neutral-50 px-4 py-2 text-sm dark:border-neutral-600 dark:bg-neutral-700"
     >
       <router-link
-        :to="{ name: 'notifications' }"
-        @click="() => $refs.dropdownRef.hide()"
-        class="link"
         v-t="'core::app.see_all'"
+        :to="{ name: 'notifications' }"
+        class="link"
+        @click="() => $refs.dropdownRef.hide()"
       />
     </div>
   </IDropdown>
 </template>
+
 <script setup>
 import { computed } from 'vue'
 import { useStore } from 'vuex'
-import { useApp } from '~/Core/resources/js/composables/useApp'
-import { useDates } from '~/Core/resources/js/composables/useDates'
-import { useGlobalEventListener } from '~/Core/resources/js/composables/useGlobalEventListener'
+
+import { useApp } from '~/Core/composables/useApp'
+import { useDates } from '~/Core/composables/useDates'
 
 const { currentUser } = useApp()
 const { localizedDateTime } = useDates()

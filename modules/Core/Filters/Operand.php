@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,12 +14,11 @@ namespace Modules\Core\Filters;
 
 use Exception;
 use JsonSerializable;
-use Modules\Core\Fields\ChangesKeys;
 use Modules\Core\Makeable;
 
 class Operand implements JsonSerializable
 {
-    use Makeable, ChangesKeys;
+    use Makeable;
 
     /**
      * @var \Modules\Core\Filters\Filter
@@ -27,14 +26,14 @@ class Operand implements JsonSerializable
     public $rule;
 
     /**
-     * @var mixed
+     * From where the value key should be taken
      */
-    public $value;
+    public string $valueKey = 'value';
 
     /**
-     * @var string
+     * From where the label key should be taken
      */
-    public $label;
+    public string $labelKey = 'label';
 
     /**
      * Initialize Operand class
@@ -42,10 +41,8 @@ class Operand implements JsonSerializable
      * @param  mixed  $value
      * @param  string  $label
      */
-    public function __construct($value, $label)
+    public function __construct(public $value, public $label)
     {
-        $this->value = $value;
-        $this->label = $label;
     }
 
     /**
@@ -65,6 +62,26 @@ class Operand implements JsonSerializable
         }
 
         $this->rule = $rule;
+
+        return $this;
+    }
+
+    /**
+     * Set custom key for value.
+     */
+    public function valueKey(string $key): static
+    {
+        $this->valueKey = $key;
+
+        return $this;
+    }
+
+    /**
+     * Set custom label key.
+     */
+    public function labelKey(string $key): static
+    {
+        $this->labelKey = $key;
 
         return $this;
     }

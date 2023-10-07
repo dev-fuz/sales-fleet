@@ -8,8 +8,8 @@
         dealStatus === 'lost' ||
         dealStatus === 'won'
       "
-      :request-in-progress="requestInProgress"
       v-i-tooltip="tooltipLabel"
+      :request-in-progress="resourceBeingUpdated"
       :deal-status="dealStatus"
       :deal-stage-index="dealStageIndex"
       :stage-index="index"
@@ -20,18 +20,18 @@
 
     <DealMiniPipelineStageCurrent
       v-else-if="dealStageIsCurrentStage"
-      :request-in-progress="requestInProgress"
-      @click="updateStage"
       v-i-tooltip="tooltipLabel"
+      :request-in-progress="resourceBeingUpdated"
+      @click="updateStage"
     >
       {{ stageName }}
     </DealMiniPipelineStageCurrent>
 
     <DealMiniPipelineStageFuture
       v-else
-      :request-in-progress="requestInProgress"
-      @click="updateStage"
       v-i-tooltip="tooltipLabel"
+      :request-in-progress="resourceBeingUpdated"
+      @click="updateStage"
     >
       {{ stageName }}
     </DealMiniPipelineStageFuture>
@@ -39,7 +39,7 @@
     <template v-if="index !== totalStages - 1">
       <!-- Arrow separator for lg screens and up -->
       <div
-        class="absolute top-0 right-0 hidden h-full w-5 bg-neutral-50 dark:bg-neutral-800 lg:block"
+        class="absolute right-0 top-0 hidden h-full w-5 bg-neutral-50 dark:bg-neutral-800 lg:block"
         aria-hidden="true"
       >
         <svg
@@ -59,12 +59,16 @@
     </template>
   </li>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
-import DealMiniPipelineStageCurrent from './DealMiniPipelineStageCurrent.vue'
-import DealMiniPipelineStageComplete from './DealMiniPipelineStageComplete.vue'
-import DealMiniPipelineStageFuture from './DealMiniPipelineStageFuture.vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import { useResourceable } from '~/Core/composables/useResourceable'
+
+import DealMiniPipelineStageComplete from './DealMiniPipelineStageComplete.vue'
+import DealMiniPipelineStageCurrent from './DealMiniPipelineStageCurrent.vue'
+import DealMiniPipelineStageFuture from './DealMiniPipelineStageFuture.vue'
 
 const emit = defineEmits(['stage-updated'])
 
@@ -82,7 +86,9 @@ const props = defineProps({
 
 const { t } = useI18n()
 
-const requestInProgress = ref(false)
+const { updateResource, resourceBeingUpdated } = useResourceable(
+  Innoclapps.resourceName('deals')
+)
 
 /**
  * Get the current stage index
@@ -123,13 +129,23 @@ const duration = computed(() =>
  * Get the stage tooltip label
  */
 const tooltipLabel = computed(() => {
-  if (!beenInStage.value) {
-    return t('deals::deal.hasnt_been_in_stage')
+  let tooltip = ''
+
+  // When there are more then 6 stages they may be truncated
+  // for this reason, show the stage name in the tooltip
+  if (props.totalStages > 6) {
+    tooltip += props.stageName + ' - '
   }
 
-  return t('deals::deal.been_in_stage_time', {
-    time: duration.value.humanize(),
-  })
+  if (!beenInStage.value) {
+    tooltip += t('deals::deal.hasnt_been_in_stage')
+  } else {
+    tooltip += t('deals::deal.been_in_stage_time', {
+      time: duration.value.humanize(),
+    })
+  }
+
+  return tooltip
 })
 
 function updateStage() {
@@ -137,15 +153,8 @@ function updateStage() {
     return
   }
 
-  requestInProgress.value = true
-  Innoclapps.request()
-    .put(`/deals/${props.dealId}`, {
-      stage_id: props.stageId,
-    })
-    .then(({ data }) => {
-      emit('stage-updated', data)
-      Innoclapps.$emit('deals-record-updated', data)
-    })
-    .finally(() => (requestInProgress.value = false))
+  updateResource({ stage_id: props.stageId }, props.dealId).then(deal => {
+    emit('stage-updated', deal)
+  })
 }
 </script>

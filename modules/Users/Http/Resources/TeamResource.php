@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,15 +12,12 @@
 
 namespace Modules\Users\Http\Resources;
 
-use App\Http\Resources\ProvidesCommonData;
 use Illuminate\Http\Request;
-use Modules\Core\JsonResource;
+use Modules\Core\Http\Resources\JsonResource;
 
 /** @mixin \Modules\Users\Models\Team */
 class TeamResource extends JsonResource
 {
-    use ProvidesCommonData;
-
     /**
      * Transform the resource collection into an array.
      */
@@ -28,7 +25,9 @@ class TeamResource extends JsonResource
     {
         return $this->withCommonData([
             'name' => $this->name,
-            'description' => $this->description,
+            $this->mergeWhen($request->user()->isSuperAdmin(), [
+                'description' => $this->description,
+            ]),
             'user_id' => $this->user_id,
             'manager' => new UserResource($this->whenLoaded('manager')),
             'members' => UserResource::collection($this->whenLoaded('users')),

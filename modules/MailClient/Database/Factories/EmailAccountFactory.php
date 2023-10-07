@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,7 @@
 namespace Modules\MailClient\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Modules\Core\Synchronization\SyncState;
+use Modules\Core\Support\Synchronization\SyncState;
 use Modules\MailClient\Client\ConnectionType;
 use Modules\MailClient\Models\EmailAccount;
 use Modules\Users\Models\User;

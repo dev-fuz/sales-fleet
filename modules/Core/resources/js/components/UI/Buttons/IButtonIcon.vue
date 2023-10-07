@@ -2,24 +2,22 @@
   <button
     v-bind="$attrs"
     type="button"
-    @click="handleClickEvent"
     :class="[
       'flex items-center rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-neutral-100',
       computedClass,
     ]"
+    @click="handleClickEvent"
   >
     <slot>
       <Icon :icon="icon" :class="['pointer-events-none', iconClass]" />
     </slot>
   </button>
 </template>
+
 <script>
-export default {
-  inheritAttrs: false,
-}
 const colorMaps = {
   secondary:
-    'text-neutral-600 hover:text-neutral-800 focus:ring-primary-500 dark:text-white dark:hover:text-neutral-400',
+    'text-neutral-500 hover:text-neutral-700 focus:ring-primary-500 dark:text-neutral-200 dark:hover:text-neutral-400',
   primary:
     'text-primary-600 hover:text-primary-700 focus:ring-primary-500 dark:text-primary-400 dark:hover:text-primary-500',
   success:
@@ -52,6 +50,10 @@ const props = defineProps({
     type: [String, Array, Object],
     default: 'w-5 h-5',
   },
+})
+
+defineOptions({
+  inheritAttrs: false,
 })
 
 const router = useRouter()

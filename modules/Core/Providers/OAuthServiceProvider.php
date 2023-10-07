@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,7 +15,7 @@ namespace Modules\Core\Providers;
 use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Support\ServiceProvider;
 use Modules\Core\Contracts\OAuth\StateStorage;
-use Modules\Core\OAuth\State\StateStorageManager;
+use Modules\Core\Support\OAuth\State\StateStorageManager;
 
 class OAuthServiceProvider extends ServiceProvider implements DeferrableProvider
 {

@@ -5,25 +5,25 @@
       <div class="flex items-center space-x-3 lg:space-x-6">
         <IMinimalDropdown type="horizontal" placement="bottom-end">
           <IDropdownItem
-            @click="redirectToEdit(dashboard)"
             icon="PencilAlt"
             :text="$t('core::dashboard.edit_current')"
+            @click="redirectToEdit(dashboard)"
           />
           <IDropdownItem
-            @click="$iModal.show('newDashboard')"
             icon="Plus"
             :text="$t('core::dashboard.new_dashboard')"
+            @click="$iModal.show('newDashboard')"
           />
           <IDropdownItem
-            @click="destroy(dashboard)"
             icon="Trash"
             :text="$t('core::dashboard.delete_current')"
+            @click="destroy(dashboard)"
           />
         </IMinimalDropdown>
 
-        <FormDropdownSelect
+        <DropdownSelectInput
           adaptive-width
-          :modelValue="dashboard"
+          :model-value="dashboard"
           :items="userDashboards"
           label-key="name"
           placement="bottom-end"
@@ -32,14 +32,14 @@
           value-key="id"
           @change="setActiveDashboard"
         >
-          <template v-slot="{ label, toggle }">
+          <template #default="{ label, toggle }">
             <IButton
               variant="white"
-              @click="toggle"
               :class="[
                 'w-full',
                 { 'pointer-events-none blur': !componentReady },
               ]"
+              @click="toggle"
             >
               <span class="truncate">
                 <!-- "Dashboard" text allow the blur to be more visible while loading -->
@@ -56,7 +56,7 @@
             />
             {{ label }}
           </template>
-        </FormDropdownSelect>
+        </DropdownSelectInput>
       </div>
     </template>
 
@@ -97,16 +97,17 @@
         </div>
       </template>
     </draggable>
+
     <IModal
       id="newDashboard"
       size="sm"
       :cancel-title="$t('core::app.cancel')"
       :ok-title="$t('core::app.create')"
       form
-      @submit="create"
       :ok-disabled="form.busy"
-      @keydown="form.onKeydown($event)"
       :title="$t('core::dashboard.create')"
+      @submit="create"
+      @keydown="form.onKeydown($event)"
       @shown="() => $refs.inputNameRef.focus()"
     >
       <IFormGroup label-for="name" :label="$t('core::dashboard.name')" required>
@@ -116,23 +117,25 @@
     </IModal>
   </ILayout>
 </template>
+
 <script setup>
-import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import filter from 'lodash/filter'
-import find from 'lodash/find'
-import sortBy from 'lodash/sortBy'
-import orderBy from 'lodash/orderBy'
-import findIndex from 'lodash/findIndex'
-import draggable from 'vuedraggable'
-import { CancelToken } from '~/Core/resources/js/services/HTTP'
-import { useCards } from '~/Core/resources/js/components/Cards/useCards'
-import CardPlaceholder from '~/Core/resources/js/components/Cards/CardPlaceholder.vue'
-import { useDraggable } from '~/Core/resources/js/composables/useDraggable'
-import { useStore } from 'vuex'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import { useApp } from '~/Core/resources/js/composables/useApp'
-import { useForm } from '~/Core/resources/js/composables/useForm'
+import draggable from 'vuedraggable'
+import { useStore } from 'vuex'
+import filter from 'lodash/filter'
+import find from 'lodash/find'
+import findIndex from 'lodash/findIndex'
+import orderBy from 'lodash/orderBy'
+import sortBy from 'lodash/sortBy'
+
+import CardPlaceholder from '~/Core/components/Cards/CardPlaceholder.vue'
+import { useApp } from '~/Core/composables/useApp'
+import { useCards } from '~/Core/composables/useCards'
+import { useDraggable } from '~/Core/composables/useDraggable'
+import { useForm } from '~/Core/composables/useForm'
+import { CancelToken } from '~/Core/services/HTTP'
 
 const { t } = useI18n()
 const router = useRouter()

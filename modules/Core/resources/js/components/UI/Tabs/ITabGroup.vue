@@ -9,7 +9,7 @@ import { TabGroup } from '@headlessui/vue'
 
 const emit = defineEmits(['update:modelValue'])
 
-const props = defineProps({ modelValue: Number })
+defineProps({ modelValue: Number })
 
 function handleChangeEvent(index) {
   emit('update:modelValue', index)

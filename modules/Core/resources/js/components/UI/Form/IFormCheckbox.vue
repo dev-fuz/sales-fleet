@@ -8,8 +8,8 @@
         :disabled="disabled"
         :checked="isChecked"
         :value="value"
-        @change="handleChangeEvent"
         class="form-check dark:bg-neutral-700"
+        @change="handleChangeEvent"
       />
     </div>
     <div>
@@ -30,22 +30,26 @@
       </IFormLabel>
       <IFormText
         v-if="description"
+        :id="id + 'description'"
         class="mt-1"
         v-text="description"
-        :id="id + 'description'"
       />
     </div>
   </div>
 </template>
+
 <script setup>
 import { computed } from 'vue'
-import { randomString } from '@/utils'
-import isArray from 'lodash/isArray'
 import clone from 'lodash/clone'
 import findIndex from 'lodash/findIndex'
-import TextBackground from '~/Core/resources/js/components/TextBackground.vue'
+import isArray from 'lodash/isArray'
+
+import { randomString } from '@/utils'
+
+import TextBackground from '~/Core/components/TextBackground.vue'
 
 const emit = defineEmits(['update:checked', 'change'])
+
 const props = defineProps({
   name: String,
   label: String,
@@ -93,6 +97,7 @@ function handleChangeEvent(e) {
 
     emit('update:checked', cloneChecked)
     emit('change', cloneChecked)
+
     return
   }
 

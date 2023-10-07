@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -18,20 +18,20 @@ use Modules\Core\Contracts\Presentable;
 use Modules\Core\Contracts\Resources\HasEmail;
 use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Fields\Email;
-use Modules\Core\Fields\MailEditor;
 use Modules\Core\Fields\Select;
 use Modules\Core\Fields\Text;
-use Modules\Core\MailableTemplate\Renderer;
-use Modules\Core\Placeholders\Collection as BasePlaceholders;
-use Modules\Core\Resource\Placeholders;
+use Modules\Core\Resource\PlaceholdersGroup;
+use Modules\Core\Resource\ResourcePlaceholders;
+use Modules\Core\Support\MailableTemplate\Renderer;
+use Modules\Core\Support\Placeholders\Placeholders as BasePlaceholders;
 use Modules\Core\Workflow\Action;
 use Modules\MailClient\Client\Compose\Message;
 use Modules\MailClient\Client\Exceptions\ConnectionErrorException;
 use Modules\MailClient\Concerns\InteractsWithEmailMessageAssociations;
 use Modules\MailClient\Criteria\EmailAccountsForUserCriteria;
+use Modules\MailClient\Fields\MailEditor;
 use Modules\MailClient\Models\EmailAccount;
 use Modules\MailClient\Services\EmailAccountMessageSyncService;
-use Modules\MailClient\Support\MailTracker;
 use Modules\Users\Models\User;
 use ReflectionClass;
 
@@ -67,7 +67,7 @@ class SendEmailAction extends Action implements ShouldQueue
      */
     public function run()
     {
-        $account = EmailAccount::find($this->email_account_id);
+        $account = $this->getAccountForSending();
 
         if (! $account || ! $account->canSendMails()) {
             return;
@@ -83,9 +83,8 @@ class SendEmailAction extends Action implements ShouldQueue
                 $message = tap($composer, function ($instance) use ($address, $message, $subject) {
                     $instance->htmlBody($message)
                         ->subject($subject)
-                        ->to($address);
-
-                    (new MailTracker)->createTrackers($instance);
+                        ->to($address)
+                        ->withTrackers();
 
                     if ($resources = $this->getAssociateableResources()) {
                         $this->addComposerAssociationsHeaders($instance, $resources);
@@ -106,6 +105,26 @@ class SendEmailAction extends Action implements ShouldQueue
     }
 
     /**
+     * Get the account that is intended to be used to send the mail.
+     */
+    protected function getAccountForSending(): ?EmailAccount
+    {
+        if ($this->email_account_id === 'owner_account') {
+            if (! $this->model->user) {
+                return null;
+            }
+
+            $accounts = $this->getEmailAccountsForUser($this->model->user);
+
+            return $accounts->first(
+                fn (EmailAccount $account) => $account->isPrimary($this->model->user)
+            ) ?? $accounts->first();
+        }
+
+        return EmailAccount::find($this->email_account_id);
+    }
+
+    /**
      * Parse message body placeholders for the current email
      */
     protected function parsePlaceholders(): array
@@ -120,31 +139,66 @@ class SendEmailAction extends Action implements ShouldQueue
     }
 
     /**
+     * Get the message for the mail to be sent.
+     */
+    protected function getMessage(): string
+    {
+        $message = $this->message;
+
+        if (! $message) {
+            return '';
+        }
+
+        $signature = null;
+
+        if ($this->email_account_id === 'owner_account') {
+            $signature = $this->model->user->mail_signature;
+        } elseif ($account = $this->getAccountForSending()) {
+            if ($account->isPersonal()) {
+                $signature = $account->user->mail_signature;
+            }
+        }
+
+        // TODO, what about shared?
+
+        if ($signature) {
+            $message = $message.'<br /><br />----------<br />'.$signature;
+        }
+
+        return $message;
+    }
+
+    /**
      * Parse the message for sending when via resource to field
      */
     protected function parsePlaceholdersWhenToField(): array
     {
-        $message = $this->message;
+        $message = $this->getMessage();
         $subject = $this->subject;
 
-        collect($this->getResourcesForPlaceholders())->map(function ($ids, $resourceName) {
-            $resource = Innoclapps::resourceByName($resourceName);
-            // At this time, only from the for associateable the placeholders are taken
-            return $resource && count($ids) > 0 ? [
-                'resource' => $resource,
-                'placeholders' => new Placeholders($resource, $resource->displayQuery()->find($ids[0])),
-            ] : null;
-        })
-            ->filter()
-            ->unique(function ($data) {
-                return $data['resource']->name();
-            })
-            ->each(function ($data) use (&$message, &$subject) {
-                $message = $data['placeholders']->parseWhenViaInputFields($message);
-                $subject = $data['placeholders']->parseViaInterpolation($subject);
-            });
+        $groups = [];
 
-        return [$subject, Placeholders::cleanup($message)];
+        foreach ($this->getResourcesForPlaceholders() as $resourceName => $ids) {
+            // At this time, only from the for associateable the placeholders are taken
+            if (count($ids) > 0 && $resource = Innoclapps::resourceByName($resourceName)) {
+                $groups[$resourceName] = new PlaceholdersGroup($resource, $resource->displayQuery()->find($ids[0]));
+            }
+        }
+
+        $placeholders = new ResourcePlaceholders(array_values($groups));
+
+        return [
+            $placeholders->render($subject),
+            BasePlaceholders::cleanup($placeholders->parseWhenViaInputFields($message)),
+        ];
+    }
+
+    /**
+     * Get email accounts that the given user can see.
+     */
+    protected function getEmailAccountsForUser(User $user)
+    {
+        return EmailAccount::criteria(new EmailAccountsForUserCriteria($user))->get();
     }
 
     /**
@@ -152,16 +206,18 @@ class SendEmailAction extends Action implements ShouldQueue
      */
     public function fields(): array
     {
-        $accounts = EmailAccount::criteria(new EmailAccountsForUserCriteria(auth()->user()))->get();
+        $accounts = $this->getEmailAccountsForUser(auth()->user());
 
         $fields = [
             Select::make('email_account_id')->options(function () use ($accounts) {
-                return $accounts->mapWithKeys(function ($account) {
+                return $accounts->mapWithKeys(function (EmailAccount $account) {
                     return [$account->id => $account->email];
-                });
+                })->union([
+                    'owner_account' => __('mailclient::mail.workflows.fields.send_from_owner_primary_account'),
+                ]);
             })
                 ->withMeta(['attributes' => ['placeholder' => __('mailclient::mail.workflows.fields.from_account')]])
-                ->rules('required', 'in:'.$accounts->pluck('id')->implode(',')),
+                ->rules(['required', 'in:'.$accounts->pluck('id')->push('owner_account')->implode(',')]),
 
             Text::make('subject')
                 ->withMeta(['attributes' => ['placeholder' => __('mailclient::mail.workflows.fields.subject')]])
@@ -173,7 +229,7 @@ class SendEmailAction extends Action implements ShouldQueue
                         'placeholder' => __('mailclient::mail.workflows.fields.message'),
                     ],
                     $this->resourcesToField ? [
-                        'placeholders' => Placeholders::createGroupsFromResources(
+                        'placeholders' => ResourcePlaceholders::createGroupsFromResources(
                             $this->filteredResourcesForPlaceholders()->all()
                         ),
                         'placeholders-disabled' => true,
@@ -455,8 +511,8 @@ class SendEmailAction extends Action implements ShouldQueue
     protected function getMailRenderer(): Renderer
     {
         return app(Renderer::class, [
-            'htmlTemplate' => $this->message,
-            'subject' => $this->subject, // currently not supported
+            'htmlTemplate' => $this->getMessage(),
+            'subject' => $this->subject,
             'placeholders' => $this->placeholders(),
         ]);
     }

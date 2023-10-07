@@ -1,15 +1,17 @@
 <template>
   <IOverlay :show="!initialized && !disabled">
     <div class="contentbuilder"></div>
+    <!-- eslint-disable-next-line vue/no-v-html -->
     <div v-if="disabled" class="contentbuilder" v-html="modelValue"></div>
   </IOverlay>
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import { getLocale, randomString, isDarkMode } from '@/utils'
-import { useStore } from 'vuex'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useStore } from 'vuex'
+
+import { getLocale, isDarkMode, randomString } from '@/utils'
 
 import {
   addExternalScript,
@@ -21,7 +23,7 @@ const emit = defineEmits(['update:modelValue'])
 
 const props = defineProps({
   modelValue: {},
-  disabled: { type: Boolean, default: false },
+  disabled: Boolean,
   placeholders: { type: Array, default: () => [] },
 })
 
@@ -31,6 +33,7 @@ const store = useStore()
 const internalContent = ref('')
 const initialized = ref(false)
 const filesDraftId = randomString()
+
 const colors = Innoclapps.config('favourite_colors').concat([
   '#388d3c',
   '#616161',
@@ -41,6 +44,8 @@ const colors = Innoclapps.config('favourite_colors').concat([
 
 // The editor uses the _txt variable to store the translations, will add them manually
 window._txt = window.lang[getLocale()].core.contentbuilder.builder
+
+const sectionDeleteButtonsClasses = ['elm-remove', 'cell-remove', 'row-remove']
 
 let builder = null
 const editorCssUrl = builderUrl('contentbuilder/contentbuilder.css')
@@ -75,6 +80,7 @@ watch(
   },
   { immediate: true }
 )
+
 /**
  * Destroy the builder instance
  */
@@ -84,6 +90,8 @@ function destroyBuilder() {
   if (addSnippetsMoreButton) {
     addSnippetsMoreButton.removeEventListener('click', viewSnippets)
   }
+
+  document.removeEventListener('click', ensureDeleteModalButtonIsFocused)
 
   if (builder) {
     builder.destroy()
@@ -142,6 +150,7 @@ function viewSnippets() {
     )
   }
 }
+
 /**
  * Create a content builder location URL
  */
@@ -157,6 +166,7 @@ async function urltoFileInstance(url, filename, mimeType) {
   mimeType = mimeType || (url.match(/^data:([^;]+);/) || '')[1]
   const res = await fetch(url)
   const buf = await res.arrayBuffer()
+
   return new File([buf], filename, { type: mimeType })
 }
 
@@ -193,6 +203,7 @@ function saveBase64Images() {
     // Probably disabled or not yet initialized?
     if (!builder) {
       resolve()
+
       return
     }
 
@@ -218,6 +229,7 @@ function saveBase64Images() {
     )
   })
 }
+
 /**
  * Initialize the builder
  */
@@ -230,6 +242,7 @@ function initializeBuilder() {
 
   const selector = '.contentbuilder'
 
+  // eslint-disable-next-line no-undef
   builder = new ContentBuilder({
     container: selector,
     colors: colors,
@@ -239,8 +252,10 @@ function initializeBuilder() {
     rowHtmlEditor: false,
     columnHtmlEditor: false,
     enableDragResize: true,
+    // rowTool: 'left',
     customTags: props.placeholders.map(placeholder => {
       let tagWithInterpolation = `${placeholder.interpolation_start} ${placeholder.tag} ${placeholder.interpolation_end}`
+
       return [
         placeholder.description || tagWithInterpolation,
         tagWithInterpolation,
@@ -394,6 +409,24 @@ function initializeBuilder() {
   initialized.value = true
 }
 
+function focusModalDeleteButton(e) {
+  sectionDeleteButtonsClasses.forEach(className => {
+    if (e.target.classList.contains(className)) {
+      let modal = document.querySelector('.is-modal.is-confirm')
+
+      if (modal) {
+        modal.querySelector('button').focus()
+      }
+
+      return
+    }
+  })
+}
+
+function ensureDeleteModalButtonIsFocused() {
+  document.addEventListener('click', focusModalDeleteButton)
+}
+
 function prepareAddMoreButton() {
   // We will get the add more button and remove all event listeners
   // Next we will attach new click event listener to use the component function
@@ -420,6 +453,7 @@ onMounted(() => {
 
   setTimeout(() => {
     prepareAddMoreButton()
+    ensureDeleteModalButtonIsFocused()
   }, 1000)
 })
 
@@ -431,14 +465,15 @@ onBeforeUnmount(() => {
 
 defineExpose({ saveBase64Images, viewSnippets })
 </script>
+
 <style lang="scss">
 @import './resources/scss/contenteditable.scss?inline';
 .is-modal.snippets.active .is-modal-overlay {
   background: rgba(30, 41, 59, 0.5) !important;
 }
 
-.is-elementrte-tool button[data-plugin="more"] {
-  display:none !important;
+.is-elementrte-tool button[data-plugin='more'] {
+  display: none !important;
 }
 
 .is-rte-pop.rte-customtag-options {

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -17,7 +17,7 @@ trait InteractsWithEnums
     /**
      * Find enum by given name.
      */
-    public static function find(string $name): ?self
+    public static function find(string $name): ?static
     {
         return array_values(array_filter(static::cases(), function ($status) use ($name) {
             return $status->name == $name;

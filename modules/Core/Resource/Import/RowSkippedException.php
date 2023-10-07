@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,15 +13,17 @@
 namespace Modules\Core\Resource\Import;
 
 use Exception;
-use Illuminate\Support\Collection;
 
 class RowSkippedException extends Exception
 {
     /**
-     * @var Failure[]
+     * @var \Modules\Core\Resource\Import\Failure[]
      */
-    private $failures;
+    protected array $failures;
 
+    /**
+     * Create new RowSkippedException instance.
+     */
     public function __construct(Failure ...$failures)
     {
         $this->failures = $failures;
@@ -30,18 +32,10 @@ class RowSkippedException extends Exception
     }
 
     /**
-     * @return Failure[]|Collection
+     * @return \Modules\Core\Resource\Import\Failure[]
      */
-    public function failures(): Collection
+    public function failures(): array
     {
-        return new Collection($this->failures);
-    }
-
-    /**
-     * @return int[]
-     */
-    public function skippedRows(): array
-    {
-        return $this->failures()->map->row()->all();
+        return $this->failures;
     }
 }

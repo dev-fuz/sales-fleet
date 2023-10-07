@@ -2,6 +2,7 @@
   <span v-show="isSupported">
     <component
       :is="tag"
+      v-bind="$attrs"
       :icon="tag === 'IButtonIcon' ? $attrs.icon || 'Clipboard' : undefined"
       @click="performCopy"
     >
@@ -22,6 +23,8 @@ const props = defineProps({
     default: 'Text copied to clipboard.',
   },
 })
+
+defineOptions({ inheritAttrs: false })
 
 const { copy, isSupported } = useClipboard({
   source: toRef(props, 'text'),

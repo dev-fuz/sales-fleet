@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -174,11 +174,11 @@ class Patcher
 
         $patches = json_decode($response->getBody()->getContents());
 
-        return $this->patches[$version] = collect($patches)->map(function ($patch) {
+        return $this->patches[$version] = collect($patches)->map(function (object $patch) {
             $patch->date = Carbon::parse($patch->date);
 
             return $patch;
-        })->map(function ($patch) use ($version) {
+        })->map(function (object $patch) use ($version) {
             $downloadUrl = Updater::createInternalRequestUrl(
                 $this->config['patches_url'].'/'.$version.'/'.$patch->token
             );
@@ -190,7 +190,7 @@ class Patcher
                     Str::finish($this->config['download_path'], DIRECTORY_SEPARATOR).$patch->token.'.zip'
                 );
         })->sortBy([
-            [fn ($patch) => $patch->isApplied(), 'asc'],
+            [fn (Patch $patch) => $patch->isApplied(), 'asc'],
             ['date', 'asc'],
         ])->values();
     }

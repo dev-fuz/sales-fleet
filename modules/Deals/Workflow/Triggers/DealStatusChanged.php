@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -58,9 +58,9 @@ class DealStatusChanged extends Trigger implements FieldChangeTrigger, ModelTrig
     public static function changeField()
     {
         return Select::make(static::field())->options([
-            DealStatus::won->name => __('deals::deal.status.won'),
-            DealStatus::lost->name => __('deals::deal.status.lost'),
-            DealStatus::open->name => __('deals::deal.status.open'),
+            DealStatus::won->name => DealStatus::won->label(),
+            DealStatus::lost->name => DealStatus::lost->label(),
+            DealStatus::open->name => DealStatus::open->label(),
         ]);
     }
 

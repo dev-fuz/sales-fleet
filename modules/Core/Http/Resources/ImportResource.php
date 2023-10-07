@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,16 +12,12 @@
 
 namespace Modules\Core\Http\Resources;
 
-use App\Http\Resources\ProvidesCommonData;
 use Illuminate\Http\Request;
-use Modules\Core\JsonResource;
 use Modules\Users\Http\Resources\UserResource;
 
 /** @mixin \Modules\Core\Models\Import */
 class ImportResource extends JsonResource
 {
-    use ProvidesCommonData;
-
     /**
      * Transform the resource collection into an array.
      */
@@ -36,10 +32,13 @@ class ImportResource extends JsonResource
             'imported' => $this->imported,
             'skipped' => $this->skipped,
             'duplicates' => $this->duplicates,
-            'fields' => $this->fields(),
+            'progress' => $this->progress(),
+            'fields' => $this->serializeFields(),
             'user_id' => $this->user_id,
             'user' => new UserResource($this->whenLoaded('user')),
+            'next_batch' => $this->nextBatch(),
             'completed_at' => $this->completed_at,
+            'revertable' => $this->isRevertable(),
         ], $request);
     }
 }

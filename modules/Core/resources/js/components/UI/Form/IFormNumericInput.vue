@@ -1,28 +1,31 @@
 <template>
   <IFormInput
     ref="inputRef"
+    v-model="amount"
     :placeholder="placeholder"
     :disabled="disabled"
+    v-bind="$attrs"
+    type="tel"
     @blur="onBlurHandler"
     @input="onInputHandler"
     @focus="onFocusHandler"
-    v-model="amount"
     @change="onChangeHandler"
-    v-bind="$attrs"
-    type="tel"
   />
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import { unformat, toFixed, formatMoney } from 'accounting-js'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { formatMoney, toFixed, unformat } from 'accounting-js'
+
 import numericInputProps from './numericInputProps'
+
 const emit = defineEmits(['change', 'blur', 'focus', 'update:modelValue'])
+
 const props = defineProps(numericInputProps)
+
+defineOptions({
+  inheritAttrs: false,
+})
 
 const amount = ref('')
 const inputRef = ref(null)
@@ -48,6 +51,7 @@ const decimalSeparatorSymbol = computed(() => {
   if (typeof props.decimalSeparator !== 'undefined')
     return props.decimalSeparator
   if (props.separator === ',') return '.'
+
   return ','
 })
 
@@ -60,6 +64,7 @@ const thousandSeparatorSymbol = computed(() => {
     return props.thousandSeparator
   if (props.separator === '.') return '.'
   if (props.separator === 'space') return ' '
+
   return ','
 })
 
@@ -69,6 +74,7 @@ const thousandSeparatorSymbol = computed(() => {
  */
 const symbolPosition = computed(() => {
   if (!props.currency) return '%v'
+
   return props.currencySymbolPosition === 'suffix' ? '%v %s' : '%s %v'
 })
 
@@ -133,6 +139,7 @@ function onBlurHandler(e) {
  */
 function onFocusHandler(e) {
   emit('focus', e)
+
   if (valueNumber.value === 0) {
     amount.value = null
   } else {
@@ -149,6 +156,7 @@ function onFocusHandler(e) {
 /**
  * Handle input event.
  */
+// eslint-disable-next-line no-unused-vars
 function onInputHandler(e) {
   process(amountNumber.value)
 }
@@ -170,6 +178,7 @@ function process(value) {
  */
 function update(value) {
   const fixedValue = toFixed(value, props.precision)
+
   const output =
     props.outputType.toLowerCase() === 'string'
       ? fixedValue

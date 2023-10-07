@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -18,7 +18,7 @@ function objectToFormData(object, formData = new FormData(), parent = null) {
   }
 
   for (const property in object) {
-    if (object.hasOwnProperty(property)) {
+    if (Object.hasOwn(object, property)) {
       appendToFormData(formData, getKey(parent, property), object[property])
     }
   }

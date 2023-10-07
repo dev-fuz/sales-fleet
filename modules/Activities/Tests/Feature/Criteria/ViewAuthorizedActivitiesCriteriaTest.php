@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,7 +14,6 @@ namespace Modules\Activities\Tests\Feature\Criteria;
 
 use Modules\Activities\Criteria\ViewAuthorizedActivitiesCriteria;
 use Modules\Activities\Models\Activity;
-use Modules\Core\Database\Seeders\PermissionsSeeder;
 use Modules\Users\Models\Team;
 use Modules\Users\Models\User;
 use Tests\TestCase;
@@ -23,7 +22,6 @@ class ViewAuthorizedActivitiesCriteriaTest extends TestCase
 {
     public function test_own_activities_criteria_queries_only_own_activities()
     {
-        $this->seed(PermissionsSeeder::class);
         $user = $this->asRegularUser()->withPermissionsTo('view own activities')->createUser();
 
         Activity::factory()->for($user)->create();
@@ -36,7 +34,6 @@ class ViewAuthorizedActivitiesCriteriaTest extends TestCase
 
     public function test_it_returns_all_activities_when_user_is_authorized_to_see_all_activities()
     {
-        $this->seed(PermissionsSeeder::class);
         $user = $this->asRegularUser()->withPermissionsTo('view all activities')->createUser();
 
         Activity::factory()->for($user)->create();
@@ -53,7 +50,6 @@ class ViewAuthorizedActivitiesCriteriaTest extends TestCase
 
     public function test_it_retrieves_the_activities_where_user_attends_to_and_are_owned_by()
     {
-        $this->seed(PermissionsSeeder::class);
         $user = $this->asRegularUser()->withPermissionsTo('view attends and owned activities')->createUser();
 
         Activity::factory()->create();
@@ -71,7 +67,6 @@ class ViewAuthorizedActivitiesCriteriaTest extends TestCase
     public function test_it_retrieves_attends_and_owned_including_team_activities()
     {
         // Ticket #461
-        $this->seed(PermissionsSeeder::class);
         $user = $this->asRegularUser()
             ->withPermissionsTo(['view attends and owned activities', 'view team activities'])
             ->createUser();

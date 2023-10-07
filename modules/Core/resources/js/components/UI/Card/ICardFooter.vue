@@ -8,6 +8,7 @@
     <slot></slot>
   </div>
 </template>
+
 <script setup>
-const props = defineProps({ condensed: { type: Boolean, default: false } })
+defineProps({ condensed: Boolean })
 </script>

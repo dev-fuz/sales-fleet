@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,8 +14,6 @@ return [
     'add' => 'Agregar nuevo',
     'fields' => 'Campos',
     'field' => 'Campo',
-    'more' => 'Mostrar campos ocultos',
-    'less' => 'Menor número de campos',
     'updated' => 'Campos actualizados',
     'reseted' => 'Los campos se establecen correctamente en el estado inicial',
     'updated_field' => 'Campo actualizado',
@@ -35,7 +33,7 @@ return [
     'settings' => [
         'create' => 'Campos de creación',
         'create_info' => 'Campos que se mostrarán cuando cualquier usuario cree un registro.',
-        'update' => 'Editar / Previsualizar campos',
+        'update' => 'Editar campos',
         'update_info' => 'Los campos disponibles serán mostrados en la vista de edición/visualización de registros.',
         'detail' => 'Campos detallados',
         'detail_info' => 'Los campos disponibles serán mostrados en el detalle de los registros.',
@@ -47,8 +45,8 @@ return [
 
     'is_required' => '¿Es obligatorio?',
     'options' => 'Opciones',
-    'is_unique' => 'No permitir valores duplicados',
-    'is_unique_change_info' => 'El valor de esta opción sólo puede establecerse al crear el campo.',
+    'mark_as_unique' => 'No permitir valores duplicados',
+    'mark_as_unique_change_info' => 'El valor de esta opción sólo puede establecerse al crear el campo.',
 
     'validation' => [
         'exist' => 'Parece que el campo con este ID ya existe para el recurso.',

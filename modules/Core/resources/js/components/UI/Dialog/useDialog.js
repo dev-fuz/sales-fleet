@@ -1,15 +1,16 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import { onMounted, unref } from 'vue'
-import { useGlobalEventListener } from '~/Core/resources/js/composables/useGlobalEventListener'
+import { computed, onMounted, unref } from 'vue'
+
+import { useGlobalEventListener } from '~/Core/composables/useGlobalEventListener'
 
 export function useDialog(show, hide, dialogId) {
   function globalShow(id) {
@@ -27,5 +28,30 @@ export function useDialog(show, hide, dialogId) {
   onMounted(() => {
     useGlobalEventListener('modal-hide', globalHide)
     useGlobalEventListener('modal-show', globalShow)
+  })
+}
+
+export function useDialogSize(size) {
+  return computed(() => {
+    let plainSize = unref(size)
+
+    if (!plainSize || plainSize === 'sm') {
+      return 'sm:max-w-lg'
+    }
+
+    if (plainSize === 'md') {
+      return 'sm:max-w-2xl'
+    }
+
+    if (plainSize === 'lg') {
+      return 'sm:max-w-3xl'
+    }
+
+    if (plainSize === 'xl') {
+      return 'sm:max-w-4xl'
+    }
+
+    // xxl
+    return 'sm:max-w-5xl'
   })
 }

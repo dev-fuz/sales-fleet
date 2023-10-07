@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,26 +13,17 @@
 namespace Modules\Core\Filters;
 
 use Modules\Core\Facades\Timezone as Facade;
-use Modules\Core\Fields\ChangesKeys;
-use Modules\Core\Fields\HasOptions;
 
-class Timezone extends Filter
+class Timezone extends Optionable
 {
-    use HasOptions,
-        ChangesKeys;
-
     /**
-     * @param  string  $field
-     * @param  string|null  $label
-     * @param  null|array  $operators
+     * Resolve the filter options.
      */
-    public function __construct($field, $label = null, $operators = null)
+    public function resolveOptions(): array
     {
-        parent::__construct($field, $label, $operators);
-
-        $this->options(collect(Facade::toArray())->mapWithKeys(function ($timezone) {
-            return [$timezone => $timezone];
-        })->all());
+        return collect(Facade::toArray())->map(function ($timezone) {
+            return [$this->labelKey => $timezone, $this->valueKey => $timezone];
+        })->all();
     }
 
     /**

@@ -25,6 +25,7 @@
     </div>
   </IFormGroup>
 </template>
+
 <script setup>
 defineProps({
   placeholders: Array,

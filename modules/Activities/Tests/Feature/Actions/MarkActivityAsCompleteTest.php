@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,7 +14,6 @@ namespace Modules\Activities\Tests\Feature\Actions;
 
 use Modules\Activities\Actions\MarkActivityAsComplete;
 use Modules\Activities\Models\Activity;
-use Modules\Core\Database\Seeders\PermissionsSeeder;
 use Modules\Core\Tests\ResourceTestCase;
 
 class MarkActivityAsCompleteTest extends ResourceTestCase
@@ -45,12 +44,11 @@ class MarkActivityAsCompleteTest extends ResourceTestCase
             'ids' => [$activity->id],
         ])->assertOk();
 
-        $this->assertTrue((bool) $activity->fresh()->isCompleted);
+        $this->assertTrue((bool) $activity->fresh()->is_completed);
     }
 
     public function test_authorized_user_can_run_mark_activity_as_complete_action()
     {
-        $this->seed(PermissionsSeeder::class);
 
         $this->asRegularUser()->withPermissionsTo('edit all activities')->signIn();
 
@@ -61,12 +59,11 @@ class MarkActivityAsCompleteTest extends ResourceTestCase
             'ids' => [$activity->id],
         ])->assertOk();
 
-        $this->assertTrue((bool) $activity->fresh()->isCompleted);
+        $this->assertTrue((bool) $activity->fresh()->is_completed);
     }
 
     public function test_unauthorized_user_can_run_mark_activity_as_complete_action_on_own_activity()
     {
-        $this->seed(PermissionsSeeder::class);
 
         $signedInUser = $this->asRegularUser()->withPermissionsTo('edit own activities')->signIn();
         $this->createUser();
@@ -82,6 +79,6 @@ class MarkActivityAsCompleteTest extends ResourceTestCase
             'ids' => [$activityForSignedIn->id],
         ]);
 
-        $this->assertTrue((bool) $activityForSignedIn->fresh()->isCompleted);
+        $this->assertTrue((bool) $activityForSignedIn->fresh()->is_completed);
     }
 }

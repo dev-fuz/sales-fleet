@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -32,7 +32,6 @@ class LogReaderTest extends TestCase
         $logs = $reader->get();
 
         $this->assertEquals($date, $logs['date']);
-        $this->assertArrayHasKey('filename', $logs);
         $this->assertArrayHasKey('log_dates', $logs);
         $this->assertArrayHasKey('logs', $logs);
         $this->assertNotNull(collect($logs['logs'])->where('message', 'Test log')->first(), 'The "Test log" was not found in the logs.');
@@ -62,12 +61,12 @@ class LogReaderTest extends TestCase
 
     public function test_it_can_determine_when_there_are_no_logs_available_for_the_given_date()
     {
-        $reader = new LogReader(['date' => $date = date('Y-m-d', strtotime('+1 year'))]);
+        $reader = new LogReader(['date' => date('Y-m-d', strtotime('+1 year'))]);
         Log::debug('Test log');
 
         $logs = $reader->get();
 
         $this->assertFalse($logs['success']);
-        $this->assertSame('No log file found with selected date '.$date, $logs['message']);
+        $this->assertSame('No log file found for the selected date', $logs['message']);
     }
 }

@@ -1,17 +1,18 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
+import find from 'lodash/find'
 import findIndex from 'lodash/findIndex'
 import sortBy from 'lodash/sortBy'
-import find from 'lodash/find'
-import { getDefaultQuery } from '~/Core/resources/js/components/QueryBuilder/utils'
+
+import { getDefaultQuery } from '~/Core/components/QueryBuilder/utils'
 
 const state = {
   // The available saved filters
@@ -274,11 +275,12 @@ const mutations = {
 const findNested = (rules, ruleId) => {
   let found = null
   rules.every(rule => {
-    if (rule.query.hasOwnProperty('children') && rule.query.children) {
+    if (Object.hasOwn(rule.query, 'children') && rule.query.children) {
       found = findNested(rule.query.children, ruleId)
     } else if (rule.query.rule == ruleId) {
       found = rule
     }
+
     return found ? false : true
   })
 

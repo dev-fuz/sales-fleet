@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,9 +14,11 @@ namespace Modules\Core\Fields;
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Modules\Core\Contracts\Fields\Customfieldable;
-use Modules\Core\Contracts\Fields\CustomfieldUniqueable;
+use Modules\Core\Contracts\Fields\UniqueableCustomfield;
 use Modules\Core\Facades\Fields;
+use Modules\Core\Models\CustomField;
 use Modules\Core\SubClassDiscovery;
 use ReflectionClass;
 
@@ -85,100 +87,34 @@ class FieldsManager
     }
 
     /**
-     * Resolves fields for the given group and view.
+     * Get fields for the given group and view.
      */
-    public function resolve(string $group, string $view): FieldsCollection
+    public function get(string $group, string $view = null): FieldsCollection
     {
-        return $this->{'resolve'.ucfirst($view).'Fields'}($group);
+        return $this->inGroup($group, $view);
     }
 
     /**
-     * Resolves fields for the given group and view for display.
+     * Get the fields intended for settings.
      */
-    public function resolveForDisplay(string $group, string $view): FieldsCollection
+    public function getForSettings(string $group, string $view): FieldsCollection
     {
-        return $this->{'resolve'.ucfirst($view).'FieldsForDisplay'}($group);
-    }
-
-    /**
-     * Resolve the create fields for display.
-     */
-    public function resolveCreateFieldsForDisplay(string $group): FieldsCollection
-    {
-        return $this->resolveCreateFields($group)
-            ->reject(fn ($field) => $field->showOnCreation === false)
+        return $this->get($group, $view)
+            ->reject(function (Field $field) use ($view) {
+                return $field->isExcludedFromSettings($view);
+            })
+            ->filter(fn (Field $field) => match ($view) {
+                Fields::DETAIL_VIEW => $field->isApplicableForDetail(),
+                Fields::UPDATE_VIEW => $field->isApplicableForUpdate(),
+                Fields::CREATE_VIEW => $field->isApplicableForCreation(),
+            })
             ->values();
-    }
-
-    /**
-     * Resolve the update fields for display.
-     */
-    public function resolveUpdateFieldsForDisplay(string $group): FieldsCollection
-    {
-        return $this->resolveUpdateFields($group)
-            ->reject(fn ($field) => $field->showOnUpdate === false)
-            ->values();
-    }
-
-    /**
-     * Resolve the detail fields for display.
-     */
-    public function resolveDetailFieldsForDisplay(string $group): FieldsCollection
-    {
-        return $this->resolveDetailFields($group)
-            ->reject(fn ($field) => $field->showOnDetail === false)
-            ->values();
-    }
-
-    /**
-     * Resolve the create fields for the given group.
-     */
-    public function resolveCreateFields(string $group): FieldsCollection
-    {
-        return $this->resolveAndAuthorize($group, Fields::CREATE_VIEW)
-            ->filter->isApplicableForCreation()->values();
-    }
-
-    /**
-     * Resolve the update fields for the given group.
-     */
-    public function resolveUpdateFields(string $group): FieldsCollection
-    {
-        return $this->resolveAndAuthorize($group, Fields::UPDATE_VIEW)
-            ->filter->isApplicableForUpdate()->values();
-    }
-
-    /**
-     * Resolve the detail fields for the given group.
-     */
-    public function resolveDetailFields(string $group): FieldsCollection
-    {
-        return $this->resolveAndAuthorize($group, Fields::DETAIL_VIEW)
-            ->filter->isApplicableForDetail()->values();
-    }
-
-    /**
-     * Resolve and authorize the fields for the given group.
-     */
-    public function resolveAndAuthorize(string $group, ?string $view = null): FieldsCollection
-    {
-        return $this->inGroup($group, $view)->filter->authorizedToSee();
-    }
-
-    /**
-     * Resolve the fields intended for settings.
-     */
-    public function resolveForSettings(string $group, string $view): FieldsCollection
-    {
-        return $this->resolveAndAuthorize($group, $view)->reject(function ($field) use ($view) {
-            return is_bool($field->excludeFromSettings) ? $field->excludeFromSettings : $field->excludeFromSettings === $view;
-        })->values();
     }
 
     /**
      * Get all fields in specific group.
      */
-    public function inGroup(string $group, ?string $view = null): FieldsCollection
+    protected function inGroup(string $group, string $view = null): FieldsCollection
     {
         if (isset(static::$loaded[$cacheKey = (string) $group.$view])) {
             return static::$loaded[$cacheKey];
@@ -199,7 +135,14 @@ class FieldsManager
             return $field;
         };
 
-        return static::$loaded[$cacheKey] = $this->load($group)->map($callback)->sortBy('order')->values();
+        return static::$loaded[$cacheKey] = $this->load($group)
+            ->map($callback)
+            ->sortBy('order')
+            ->when(! Auth::check(), function ($fields) {
+                return $fields->reject(function (Field $field) {
+                    return $field->authRequired === true;
+                });
+            })->values();
     }
 
     /**
@@ -207,7 +150,14 @@ class FieldsManager
      */
     public function customize(mixed $data, string $group, string $view): void
     {
-        settings([$this->storageKey($group, $view) => json_encode($data)]);
+        $this->syncSettingsToOppositeView($data, $group, $view);
+
+        settings()->set(
+            $this->storageKey($group, $view),
+            json_encode($data)
+        );
+
+        settings()->save();
 
         static::flushLoadedCache();
     }
@@ -215,7 +165,7 @@ class FieldsManager
     /**
      * Get the customized fields
      */
-    public function customized(string $group, string $view, ?string $attribute = null): array
+    public function customized(string $group, string $view, string $attribute = null): array
     {
         $attributes = json_decode(settings()->get($this->storageKey($group, $view), '[]'), true);
 
@@ -224,6 +174,46 @@ class FieldsManager
         }
 
         return $attributes;
+    }
+
+    protected function syncSettingsToOppositeView(mixed $data, string $group, string $view): void
+    {
+        // Technically, the details and the update views are the same, the details view option
+        // exists only for the front-end, in this case, we need to make sure that the isRequired
+        // customizable attribute should be propagated to the opposite view, as the fields for validation
+        // when performing update are taken from the "update" view, as it's an update, there is no separate endpoints
+        if (! in_array($view, [Fields::UPDATE_VIEW, Fields::DETAIL_VIEW])) {
+            return;
+        }
+
+        $oppositeView = $view === Fields::UPDATE_VIEW ? Fields::DETAIL_VIEW : Fields::UPDATE_VIEW;
+
+        $oppositeViewSettings = $this->customized($group, $oppositeView);
+
+        foreach ($data as $attribute => $field) {
+            if (! isset($oppositeViewSettings[$attribute])) {
+                $oppositeViewSettings[$attribute] = [];
+            }
+
+            if (array_key_exists('isRequired', $field)) {
+                $oppositeViewSettings[$attribute]['isRequired'] = $field['isRequired'];
+            }
+
+            if (array_key_exists('uniqueUnmarked', $field)) {
+                $oppositeViewSettings[$attribute]['uniqueUnmarked'] = $field['uniqueUnmarked'];
+            }
+
+            if (count($oppositeViewSettings[$attribute]) === 0) {
+                unset($oppositeViewSettings[$attribute]);
+            }
+        }
+
+        if (count($oppositeViewSettings) > 0) {
+            settings()->set(
+                $this->storageKey($group, $oppositeView),
+                json_encode($oppositeViewSettings)
+            );
+        }
     }
 
     /**
@@ -243,30 +233,42 @@ class FieldsManager
     }
 
     /**
+     * Flush the fields cache.
+     */
+    public static function flushCache(): void
+    {
+        static::flushLoadedCache();
+        static::flushRegisteredCache();
+    }
+
+    /**
      * Get the available fields that can be used as custom fields
      */
     public function customFieldable(): Collection
     {
-        if ($this->customFields) {
-            return $this->customFields;
-        }
-
-        if (! $this->customFieldable) {
-            $this->customFieldable = SubClassDiscovery::make(Customfieldable::class)->in(__DIR__)->moduleable()->find();
-        }
-
-        return $this->customFields = collect($this->customFieldable)->mapWithKeys(function ($className) {
+        return $this->customFields ??= collect($this->scanCustomFieldables())->mapWithKeys(function (string $className) {
+            /** @var \Modules\Core\Fields\Field */
             $field = (new ReflectionClass($className))->newInstanceWithoutConstructor();
-            $type = class_basename($className);
 
-            return [$type => [
+            return [$type = class_basename($className) => [
                 'type' => $type,
                 'className' => $className,
-                'uniqueable' => $field instanceof CustomfieldUniqueable,
+                'uniqueable' => $field instanceof UniqueableCustomfield,
                 'optionable' => $field->isOptionable(),
                 'multioptionable' => $field->isMultiOptionable(),
             ]];
         });
+    }
+
+    /**
+     * Custom fields that are custom field ables.
+     */
+    protected function scanCustomFieldables(): array
+    {
+        return $this->customFieldable ??= SubClassDiscovery::make(Customfieldable::class)
+            ->in(__DIR__)
+            ->moduleable()
+            ->find();
     }
 
     /**
@@ -306,8 +308,8 @@ class FieldsManager
      */
     public function getCustomFieldsForResource(string $resourceName): Collection
     {
-        return (new CustomFieldService())->forResource($resourceName)->map(
-            fn ($field) => CustomFieldFactory::createInstance($field)
+        return (new CustomFieldService)->forResource($resourceName)->map(
+            fn (CustomField $field) => CustomFieldFactory::createInstance($field)
         );
     }
 
@@ -316,7 +318,7 @@ class FieldsManager
      */
     protected function load(string $group): FieldsCollection
     {
-        $fields = new FieldsCollection();
+        $fields = new FieldsCollection;
 
         foreach (static::$fields[$group] ?? [] as $provider) {
             if ($provider instanceof Field) {
@@ -369,28 +371,16 @@ class FieldsManager
         // e.q. the field visibility is set to false when it must be visible because the field is marked as primary field
 
         return $field->isPrimary() ?
-        $this->allowedCustomizableAttributesForPrimary() :
-        $this->allowedCustomizableAttributes();
-    }
-
-    /**
-     * Check whether the given field is required in the opposite update view
-     */
-    protected function isRequiredInOppositeUpdateView(string $attribute, string $view, string $group): bool
-    {
-        $oppositeView = $view === Fields::DETAIL_VIEW ? Fields::UPDATE_VIEW : Fields::DETAIL_VIEW;
-
-        return (bool) (
-            $this->customized($group, $oppositeView, $attribute)['isRequired'] ?? false
-        );
+            $this->allowedCustomizableAttributesForPrimary() :
+            $this->allowedCustomizableAttributes();
     }
 
     /**
      * Apply any customized options by user
      */
-    protected function applyCustomizedAttributes(Field $field, string $group, ?string $view): Field
+    public function applyCustomizedAttributes(Field $field, string $group, ?string $view): Field
     {
-        if (! $view) {
+        if (! $view || $field->isExcludedFromSettings($view)) {
             return $field;
         }
 
@@ -398,16 +388,6 @@ class FieldsManager
             $this->customized($group, $view, $field->attribute),
             $this->allowedCustomizeableAttributes($field)
         );
-
-        // Technically, the details and the update views are the same, the details view option
-        // exists only for the front-end, in this case, we need to make sure that the isRequired
-        // customizable attribute should be propagated to the opposite view, as the fields for validation
-        // when performing update are taken from the "update" view, as it's an update, there is no separate endpoints
-        if (in_array($view, [Fields::UPDATE_VIEW, Fields::DETAIL_VIEW]) && $field->attribute) {
-            if ($this->isRequiredInOppositeUpdateView($field->attribute, $view, $group)) {
-                $attributes['isRequired'] = true;
-            }
-        }
 
         foreach (['order', 'showOnCreation', 'showOnUpdate', 'showOnDetail', 'collapsed'] as $key) {
             if (array_key_exists($key, $attributes)) {
@@ -423,7 +403,11 @@ class FieldsManager
         }
 
         if (array_key_exists('isRequired', $attributes) && $attributes['isRequired'] == true) {
-            $field->rules(['sometimes', 'required']);
+            $field->rules(['sometimes', 'required'])->required(true);
+
+            if (method_exists($field, 'withoutClearAction')) {
+                $field->withoutClearAction();
+            }
         }
 
         return $field;

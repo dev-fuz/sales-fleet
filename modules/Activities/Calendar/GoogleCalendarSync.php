@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,6 +14,8 @@ namespace Modules\Activities\Calendar;
 
 use Google\Service\Calendar\Channel;
 use Google\Service\Calendar\Event;
+use Google\Service\Calendar\EventAttendee;
+use Google\Service\Calendar\EventReminder;
 use Google\Service\Calendar\Events;
 use Google\Service\Exception as GoogleException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -27,7 +29,7 @@ use Modules\Core\Contracts\Synchronization\Synchronizable;
 use Modules\Core\Contracts\Synchronization\SynchronizesViaWebhook;
 use Modules\Core\Facades\Google as Client;
 use Modules\Core\Models\Synchronization;
-use Modules\Core\OAuth\EmptyRefreshTokenException;
+use Modules\Core\Support\OAuth\EmptyRefreshTokenException;
 
 class GoogleCalendarSync extends CalendarSynchronization implements Synchronizable, SynchronizesViaWebhook
 {
@@ -165,7 +167,7 @@ class GoogleCalendarSync extends CalendarSynchronization implements Synchronizab
             'end_date' => $endDate->format('Y-m-d'),
             'end_time' => ! $isAllDay ? $endDate->format('H:i').':00' : null,
             'reminder_minutes_before' => $this->determineReminderMinutesBefore($event),
-            'guests' => collect($event->getAttendees())->map(function ($attendee) {
+            'guests' => collect($event->getAttendees())->map(function (EventAttendee $attendee) {
                 return [
                     'email' => $attendee->getEmail(),
                     'name' => $attendee->getDisplayName(),
@@ -177,7 +179,7 @@ class GoogleCalendarSync extends CalendarSynchronization implements Synchronizab
     /**
      * Determine reminder minutes before for the given event
      */
-    protected function determineReminderMinutesBefore(Event $event): int|null
+    protected function determineReminderMinutesBefore(Event $event): ?int
     {
         // There are no reminders on Holidays calendars
         if (is_null($event->getReminders())) {
@@ -197,7 +199,7 @@ class GoogleCalendarSync extends CalendarSynchronization implements Synchronizab
             }
         }
 
-        return collect($event->getReminders())->mapWithKeys(function ($reminder) {
+        return collect($event->getReminders())->mapWithKeys(function (EventReminder $reminder) {
             return [$reminder->getMethod() => $reminder->getMinutes()];
         })->values()->min();
     }
@@ -333,7 +335,7 @@ class GoogleCalendarSync extends CalendarSynchronization implements Synchronizab
     {
         $currentReminders = $this->calendar->data['defaultReminders'] ?? null;
 
-        $defaultReminders = collect($list->getDefaultReminders())->mapWithKeys(function ($reminder) {
+        $defaultReminders = collect($list->getDefaultReminders())->mapWithKeys(function (EventReminder $reminder) {
             return [$reminder->getMethod() => $reminder->getMinutes()];
         })->all();
 

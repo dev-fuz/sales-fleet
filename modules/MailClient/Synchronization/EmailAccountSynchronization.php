@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -18,8 +18,8 @@ use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
-use Modules\Core\OAuth\EmptyRefreshTokenException;
-use Modules\Core\Synchronization\SyncState;
+use Modules\Core\Support\OAuth\EmptyRefreshTokenException;
+use Modules\Core\Support\Synchronization\SyncState;
 use Modules\MailClient\Client\Contracts\FolderInterface;
 use Modules\MailClient\Client\Contracts\ImapInterface;
 use Modules\MailClient\Client\Contracts\MessageInterface;
@@ -30,6 +30,7 @@ use Modules\MailClient\Models\EmailAccountFolder;
 use Modules\MailClient\Models\EmailAccountMessage;
 use Modules\MailClient\Services\EmailAccountMessageService;
 use Modules\MailClient\Services\EmailAccountMessageSyncService;
+use Throwable;
 
 abstract class EmailAccountSynchronization extends EmailAccountSynchronizationManager
 {
@@ -80,11 +81,9 @@ abstract class EmailAccountSynchronization extends EmailAccountSynchronizationMa
     /**
      * Start account messages synchronization
      *
-     * @return void
-     *
      * @throws \Modules\MailClient\Synchronization\Exceptions\SyncFolderTimeoutException
      */
-    abstract public function syncMessages();
+    abstract public function syncMessages(): void;
 
     /**
      * Start account folders synchronization
@@ -131,55 +130,18 @@ abstract class EmailAccountSynchronization extends EmailAccountSynchronizationMa
                 $this->account->setRequiresAuthentication(false);
             }
 
+            $this->account->removeMeta('connection-fails');
+
             return $this->performed();
         } catch (ConnectionErrorException $e) {
-            $this->account->setRequiresAuthentication();
-            $this->account->setSyncState(
-                SyncState::DISABLED,
-                'Email account synchronization disabled because of failed authentication, re-authenticate and enable sync for this account.'
-            );
-
-            Log::debug("Mail account ({$this->account->email}) connection error: {$e->getMessage()}");
-            $this->error('Email account synchronization disabled because of failed authentication ['.$e->getMessage().'].');
-            // To broadcast
-            $this->synced = true;
+            $this->handleConnectionErrorException($e);
         } catch (DecryptException) {
-            $this->account->setSyncState(
-                SyncState::DISABLED,
-                'Failed to decrypt account password, re-add password and enable sync for this account.'
-            );
+            $this->handleDecryptException();
         } catch (EmptyRefreshTokenException) {
-            $this->account->setSyncState(
-                SyncState::STOPPED,
-                'The sync for this email account is disabled because of empty refresh token, try to remove the app from your '.explode('@', $this->account->email)[1].' account connected apps section and re-connect the account again from the Connected Accounts page.'
-            );
-
-            $this->error('Email account synchronization stopped because empty refresh token.');
+            $this->handleEmptyRefreshTokenException();
         } catch (IdentityProviderException $e) {
-            // Handle account grant error and account deletition after they are connected
-            // e.q. G Suite account ads a user with email, the email connected to the CRM
-            // but after that the email is deleted, in this case, we need to catch this error and disable
-            // the account sync to stop any exceptions thrown each time the synchronizer runs
-            $message = $e->getMessage();
-            $responseBody = $e->getResponseBody();
-
-            if ($responseBody instanceof Response) {
-                $responseBody = $responseBody->getReasonPhrase();
-            }
-
-            if ($responseBody != $message) {
-                $message .= ' ['.is_array($responseBody) ?
-                    ($responseBody['error_description'] ?? $responseBody['error'] ?? json_encode($responseBody)) :
-                    $responseBody.']';
-            }
-
-            $this->account->setSyncState(
-                SyncState::STOPPED,
-                'Email account sync stopped because of an OAuth error, try reconnecting the account. '.$message
-            );
-
-            $this->error('Email account synchronization stopped because of identity provider exception.');
-        } catch (Exception $e) {
+            $this->handleIdentityProviderException($e);
+        } catch (Exception|Throwable $e) {
             // Catch any exceptions to prevent stopping account sync for other valid accounts.
             Log::error("An error occured while synchronizing the {$this->account->email} email account. [{$e->getMessage()}]");
 
@@ -198,6 +160,74 @@ abstract class EmailAccountSynchronization extends EmailAccountSynchronizationMa
      */
     protected function finished(): void
     {
+    }
+
+    protected function handleConnectionErrorException(ConnectionErrorException $e): void
+    {
+        // Before disabling the account, we will check if this is the fifth time the connection fails,
+        // it may be a temporary connection error caused by SMTP rate limiting or temporary network failure
+        // https://laracasts.com/discuss/channels/laravel/errorexception-fgets-ssl-connection-reset-by-peer?page=1&replyId=843475
+        $fails = (int) $this->account->getMeta('connection-fails') + 1;
+
+        if ($fails < 5) {
+            $this->account->setMeta('connection-fails', $fails);
+        } else {
+            $this->account->setRequiresAuthentication();
+            $this->account->setSyncState(
+                SyncState::DISABLED,
+                'Email account synchronization disabled because of failed authentication, re-authenticate and enable sync for this account.'
+            );
+
+            Log::debug("Mail account ({$this->account->email}) connection error: {$e->getMessage()}");
+            $this->error('Email account synchronization disabled because of failed authentication ['.$e->getMessage().'].');
+            // To broadcast
+            $this->synced = true;
+        }
+    }
+
+    protected function handleDecryptException(): void
+    {
+        $this->account->setSyncState(
+            SyncState::DISABLED,
+            'Failed to decrypt account password, re-add password and enable sync for this account.'
+        );
+    }
+
+    protected function handleEmptyRefreshTokenException(): void
+    {
+        $this->account->setSyncState(
+            SyncState::STOPPED,
+            'The sync for this email account is disabled because of empty refresh token, try to remove the app from your '.explode('@', $this->account->email)[1].' account connected apps section and re-connect the account again from the Connected Accounts page.'
+        );
+
+        $this->error('Email account synchronization stopped because empty refresh token.');
+    }
+
+    protected function handleIdentityProviderException(IdentityProviderException $e): void
+    {
+        // Handle account grant error and account deletition after they are connected
+        // e.q. G Suite account ads a user with email, the email connected to the CRM
+        // but after that the email is deleted, in this case, we need to catch this error and disable
+        // the account sync to stop any exceptions thrown each time the synchronizer runs
+        $message = $e->getMessage();
+        $responseBody = $e->getResponseBody();
+
+        if ($responseBody instanceof Response) {
+            $responseBody = $responseBody->getReasonPhrase();
+        }
+
+        if ($responseBody != $message) {
+            $message .= ' ['.is_array($responseBody) ?
+                ($responseBody['error_description'] ?? $responseBody['error'] ?? json_encode($responseBody)) :
+                $responseBody.']';
+        }
+
+        $this->account->setSyncState(
+            SyncState::STOPPED,
+            'Email account sync stopped because of an OAuth error, try reconnecting the account. '.$message
+        );
+
+        $this->error('Email account synchronization stopped because of identity provider exception.');
     }
 
     /**
@@ -225,11 +255,7 @@ abstract class EmailAccountSynchronization extends EmailAccountSynchronizationMa
      */
     public function getImapClient(): ImapInterface
     {
-        if (is_null($this->imap)) {
-            $this->imap = $this->account->createClient()->getImap();
-        }
-
-        return $this->imap;
+        return $this->imap ??= $this->account->createClient()->getImap();
     }
 
     /**
@@ -242,7 +268,7 @@ abstract class EmailAccountSynchronization extends EmailAccountSynchronizationMa
      * e.q. for IMAP account the remote_id may not be unique, as the remote_id
      * is unique per folder
      */
-    protected function processMessages($messages, ?EmailAccountFolder $folder = null): void
+    protected function processMessages($messages, EmailAccountFolder $folder = null): void
     {
         $count = 0;
         $processed = 0;
@@ -291,13 +317,13 @@ abstract class EmailAccountSynchronization extends EmailAccountSynchronizationMa
      *
      * @param  array  $messages
      */
-    protected function saveMessages($messages, ?EmailAccountFolder $folder = null): void
+    protected function saveMessages($messages, EmailAccountFolder $folder = null): void
     {
         foreach ($messages as $message) {
             // Check if message exists in database
             // If exists, we will perform update to this message
-            if (! is_null($this->findDatabaseMessageViaRemoteId($message->getId(), $folder))) {
-                $this->updateMessage($message, $message->getId(), $folder);
+            if ($dbMessage = $this->findDatabaseMessageViaRemoteId($message->getId(), $folder)) {
+                $this->updateMessage($message, $dbMessage);
             } else {
                 // UPDATE: This can be solved with using the prefer header idtype immutableid
                 // see https://learn.microsoft.com/en-us/graph/outlook-immutable-id
@@ -336,30 +362,22 @@ abstract class EmailAccountSynchronization extends EmailAccountSynchronizationMa
     /**
      * Find database message via the message remote id
      */
-    protected function findDatabaseMessageViaRemoteId(string|int $id, ?EmailAccountFolder $folder = null): ?EmailAccountMessage
+    protected function findDatabaseMessageViaRemoteId(string|int $remoteId, EmailAccountFolder $folder = null): ?EmailAccountMessage
     {
-        return $this->getDatabaseMessages($folder)->firstWhere('remote_id', $id);
-    }
+        return EmailAccountMessage::query()
+            ->when($folder instanceof EmailAccountFolder,
+                fn ($query) => $query->ofFolder($folder->id),
+                fn ($query) => $query->where('email_account_id', $this->account->id)
+            )
+            ->where('remote_id', $remoteId)
+            ->first();
 
-    /**
-     * Fetch all account database messages
-     *
-     *
-     * @return mixed
-     */
-    protected function getDatabaseMessages(?EmailAccountFolder $folder = null)
-    {
-        $columns = ['subject', 'message_id', 'remote_id', 'id'];
-
-        return ($folder ?
-                $this->service->getUidsByFolder($folder->id, $columns) :
-                $this->service->getUidsByAccount($this->account->id, $columns))->eager();
     }
 
     /**
      * Delete message
      */
-    protected function deleteMessage(string|int $id, ?EmailAccountFolder $folder = null): bool
+    protected function deleteMessage(string|int $id, EmailAccountFolder $folder = null): bool
     {
         if ($dbMessage = $this->findDatabaseMessageViaRemoteId($id, $folder)) {
             // Triggers observers
@@ -377,20 +395,18 @@ abstract class EmailAccountSynchronization extends EmailAccountSynchronizationMa
     /**
      * Update message
      */
-    protected function updateMessage(MessageInterface $message, string|int $id, ?EmailAccountFolder $folder = null): bool
+    protected function updateMessage(MessageInterface $message, EmailAccountMessage $dbMessage): bool
     {
         // Message updated, update it in our local database too
         // e.q. can be used for draft updates messages and also
         // update properties like isRead etc...
-        if ($dbMessage = $this->findDatabaseMessageViaRemoteId($id, $folder)) {
-            $updatedMessage = $this->syncService->update($message, $dbMessage->id);
+        $updatedMessage = $this->syncService->update($message, $dbMessage);
 
-            if ($updatedMessage->isDirty()) {
-                $this->info(sprintf('Updated message, UID: %s', $id));
-                $this->synced = true;
+        if ($updatedMessage->isDirty()) {
+            $this->info(sprintf('Updated message, UID: %s', $updatedMessage->remote_id));
+            $this->synced = true;
 
-                return true;
-            }
+            return true;
         }
 
         return false;
@@ -410,7 +426,6 @@ abstract class EmailAccountSynchronization extends EmailAccountSynchronizationMa
 
     /**
      * Find remote folder by a given database folder
-     *
      *
      * @return \Modules\MailClient\Client\Contracts\FolderInterface|\Modules\MailClient\Client\Gmail\Folder|\Modules\MailClient\Client\Outlook\Folder|\Modules\MailClient\Client\Imap\Folder|null
      */

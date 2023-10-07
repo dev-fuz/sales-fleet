@@ -1,21 +1,21 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import { DEFAULT_PALETTE_CONFIG } from './constants'
-
 export function luminanceFromRGB(r, g, b) {
   // Formula from WCAG 2.0
   const [R, G, B] = [r, g, b].map(function (c) {
     c /= 255 // to 0-1 range
+
     return c < 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
   })
+
   return 21.26 * R + 71.52 * G + 7.22 * B
 }
 
@@ -26,6 +26,7 @@ export function luminanceFromHex(H) {
 // TODO: Even out this function, luminance values aren't linear/good
 export function lightnessFromHSLum(H, S, Lum) {
   const vals = {}
+
   for (let L = 99; L >= 0; L--) {
     vals[L] = Math.abs(
       Lum - luminanceFromRGB(...Object.values(HSLtoRGB(H, S, L)))
@@ -35,6 +36,7 @@ export function lightnessFromHSLum(H, S, Lum) {
   // Run through all these and find the closest to 0
   let lowestDiff = 100
   let newL = 100
+
   for (let i = Object.keys(vals).length - 1; i >= 0; i--) {
     if (vals[i] < lowestDiff) {
       newL = i
@@ -53,6 +55,7 @@ export function hexToRGB(H) {
   let r = `0`
   let g = `0`
   let b = `0`
+
   if (H.length === 4) {
     r = `0x${H[1]}${H[1]}`
     g = `0x${H[2]}${H[2]}`
@@ -164,10 +167,12 @@ export function HSLToHex(h, s, l) {
 
 export function round(value, precision = 0) {
   const multiplier = Math.pow(10, precision)
+
   return Math.round(value * multiplier) / multiplier
 }
 
 export function rgbToHex(red, green, blue) {
   const rgb = (red << 16) | (green << 8) | (blue << 0)
+
   return '#' + (0x1000000 + rgb).toString(16).slice(1)
 }

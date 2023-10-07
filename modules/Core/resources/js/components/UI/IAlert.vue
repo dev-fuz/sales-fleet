@@ -1,7 +1,7 @@
 <template>
   <div
-    :class="['p-4', colors[variant].bg, { 'rounded-md': rounded }]"
     v-show="computedShow"
+    :class="['p-4', colors[variant].bg, { 'rounded-md': rounded }]"
   >
     <div :class="['flex', wrapperClass]">
       <div class="shrink-0">
@@ -23,12 +23,12 @@
           <slot></slot>
         </div>
       </div>
-      <div class="ml-auto pl-3" v-if="dismissible">
+      <div v-if="dismissible" class="ml-auto pl-3">
         <div class="-mx-1.5 -my-1.5">
           <button
             type="button"
+            class="inline-flex p-1.5 text-neutral-500 hover:opacity-50 focus:outline-none"
             @click="dismiss"
-            class="inline-flex p-1.5 text-neutral-500 focus:outline-none hover:opacity-50"
           >
             <Icon icon="X" class="h-5 w-5" />
           </button>
@@ -37,15 +37,16 @@
     </div>
   </div>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const emit = defineEmits(['dismissed'])
 
 const props = defineProps({
   heading: String,
   show: { type: Boolean, default: true },
-  dismissible: { type: Boolean, default: false },
+  dismissible: Boolean,
   rounded: { type: Boolean, default: true },
   icon: String,
   wrapperClass: [Array, Object, String],

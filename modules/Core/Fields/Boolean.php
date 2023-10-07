@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,15 +12,16 @@
 
 namespace Modules\Core\Fields;
 
+use Illuminate\Support\Arr;
 use Modules\Core\Contracts\Fields\Customfieldable;
-use Modules\Core\Table\BooleanColumn;
+use Modules\Core\Table\Column;
 
 class Boolean extends Field implements Customfieldable
 {
     /**
-     * Field component
+     * Field component.
      */
-    public ?string $component = 'boolean-field';
+    public static $component = 'boolean-field';
 
     /**
      * Checkbox checked value
@@ -33,13 +34,24 @@ class Boolean extends Field implements Customfieldable
     public mixed $falseValue = false;
 
     /**
-     * Custom boot function
-     *
-     * @return void
+     * Initialize new Boolean instance.
      */
-    public function boot()
+    public function __construct()
     {
-        $this->provideSampleValueUsing(fn () => 1);
+        parent::__construct(...func_get_args());
+
+        $this->provideSampleValueUsing(fn () => is_bool($this->trueValue) ?
+            Arr::random([$this->trueValue, 1, 'true']) :
+            $this->trueValue
+        );
+    }
+
+    /**
+     * Get the field index column.
+     */
+    public function indexColumn(): Column
+    {
+        return parent::indexColumn()->centered();
     }
 
     /**
@@ -98,17 +110,6 @@ class Boolean extends Field implements Customfieldable
     public static function createValueColumn($table, $fieldId)
     {
         $table->boolean($fieldId)->nullable()->default(false);
-    }
-
-    /**
-     * Provide the column used for index
-     */
-    public function indexColumn(): BooleanColumn
-    {
-        return tap(new BooleanColumn($this->attribute, $this->label), function ($column) {
-            $column->trueValue($this->trueValue);
-            $column->falseValue($this->falseValue);
-        });
     }
 
     /**

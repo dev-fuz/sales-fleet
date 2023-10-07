@@ -3,6 +3,7 @@
     <slot v-bind="slotProps"></slot>
   </td>
 </template>
+
 <script setup>
 import { computed } from 'vue'
 

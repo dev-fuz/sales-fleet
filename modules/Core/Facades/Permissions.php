@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,7 @@
 namespace Modules\Core\Facades;
 
 use Illuminate\Support\Facades\Facade;
-use Modules\Core\Permissions\PermissionsManager;
+use Modules\Core\PermissionsManager;
 
 /**
  * @method static void group(string|array $group, \Closure $callback)
@@ -24,7 +24,7 @@ use Modules\Core\Permissions\PermissionsManager;
  * @method static array labeled()
  * @method static void register(\Closure $callback)
  *
- * @mixin \Modules\Core\Permissions\PermissionsManager
+ * @mixin \Modules\Core\PermissionsManager
  */
 class Permissions extends Facade
 {

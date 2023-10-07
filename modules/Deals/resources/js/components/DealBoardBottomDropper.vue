@@ -4,14 +4,14 @@
     class="h-dropper fixed left-0 border border-neutral-300 bg-white shadow-sm dark:border-neutral-900 dark:bg-neutral-900 sm:left-56"
   >
     <IModal
-      size="sm"
       id="markAsLostModal"
+      size="sm"
       :title="$t('deals::deal.actions.mark_as_lost')"
       form
-      @submit="markAsLost(markingAsLostID)"
-      :ok-disabled="markAsLostForm.busy"
+      :ok-disabled="changeStatusForm.busy"
       :ok-title="$t('deals::deal.actions.mark_as_lost')"
       ok-variant="danger"
+      @submit="markAsLost(markingAsLostID)"
       @hidden="markAsLostModalHidden"
     >
       <IFormGroup
@@ -20,8 +20,8 @@
         :optional="!setting('lost_reason_is_required')"
         :required="setting('lost_reason_is_required')"
       >
-        <LostReasonField v-model="markAsLostForm.lost_reason" />
-        <IFormError v-text="markAsLostForm.getError('lost_reason')" />
+        <LostReasonField v-model="changeStatusForm.lost_reason" />
+        <IFormError v-text="changeStatusForm.getError('lost_reason')" />
       </IFormGroup>
     </IModal>
     <div class="flex justify-end">
@@ -29,17 +29,18 @@
         class="h-dropper relative w-1/3 border-t-2 border-neutral-800 sm:w-1/5"
       >
         <draggable
-          :modelValue="[]"
+          :model-value="[]"
           :item-key="item => item.id"
-          @change="movedToDelete"
           class="h-dropper dropper-delete dropper"
           :group="{ name: 'delete', put: true, pull: false }"
+          async
+          @change="movedToDelete"
         >
-          <template #item="{ element }"><div></div></template>
+          <template #item><div></div></template>
           <template #header>
             <div
-              class="dropper-header h-dropper absolute inset-0 flex place-content-center items-center font-medium text-neutral-800 dark:text-neutral-200"
               v-t="'core::app.delete'"
+              class="dropper-header h-dropper absolute inset-0 flex place-content-center items-center font-medium text-neutral-800 dark:text-neutral-200"
             />
           </template>
         </draggable>
@@ -48,17 +49,17 @@
         class="h-dropper relative w-1/3 border-t-2 border-danger-500 sm:w-1/5"
       >
         <draggable
-          @change="movedToLost"
-          :modelValue="[]"
+          :model-value="[]"
           :item-key="item => item.id"
           class="h-dropper dropper-lost dropper"
           :group="{ name: 'lost', put: true, pull: false }"
+          @change="movedToLost"
         >
-          <template #item="{ element }"><div></div></template>
+          <template #item><div></div></template>
           <template #header>
             <div
-              class="dropper-header h-dropper absolute inset-0 flex place-content-center items-center font-medium text-neutral-800 dark:text-neutral-200"
               v-t="'deals::deal.status.lost'"
+              class="dropper-header h-dropper absolute inset-0 flex place-content-center items-center font-medium text-neutral-800 dark:text-neutral-200"
             />
           </template>
         </draggable>
@@ -67,17 +68,17 @@
         class="h-dropper relative w-1/3 border-t-2 border-success-500 sm:w-1/5"
       >
         <draggable
-          @change="movedToWon"
-          :modelValue="[]"
+          :model-value="[]"
           :item-key="item => item.id"
           class="h-dropper dropper-won dropper"
           :group="{ group: 'won', put: true, pull: false }"
+          @change="movedToWon"
         >
-          <template #item="{ element }"><div></div></template>
+          <template #item><div></div></template>
           <template #header>
             <div
-              class="dropper-header h-dropper absolute inset-0 flex place-content-center items-center font-medium text-neutral-800 dark:text-neutral-200"
               v-t="'deals::deal.status.won'"
+              class="dropper-header h-dropper absolute inset-0 flex place-content-center items-center font-medium text-neutral-800 dark:text-neutral-200"
             />
           </template>
         </draggable>
@@ -85,48 +86,56 @@
     </div>
   </div>
 </template>
+
 <script setup>
 import { ref } from 'vue'
 // https://stackoverflow.com/questions/51619243/vue-draggable-delete-item-by-dragging-into-designated-region
 import draggable from 'vuedraggable'
-import LostReasonField from './DealLostReasonField.vue'
+
 import { throwConfetti } from '@/utils'
-import { useApp } from '~/Core/resources/js/composables/useApp'
-import { useForm } from '~/Core/resources/js/composables/useForm'
+
+import { useApp } from '~/Core/composables/useApp'
+import { useForm } from '~/Core/composables/useForm'
+import { useResourceable } from '~/Core/composables/useResourceable'
+
+import LostReasonField from './DealLostReasonField.vue'
 
 const emit = defineEmits(['deleted', 'won', 'refresh-requested'])
 
-const props = defineProps({
+defineProps({
   resourceId: { required: true },
 })
 
 const { setting } = useApp()
 
 const markingAsLostID = ref(null)
-const { form: markAsLostForm } = useForm({ lost_reason: null })
+
+const { form: changeStatusForm } = useForm(
+  { lost_reason: null },
+  { resetOnSuccess: true }
+)
+
+const { updateResource, deleteResource } = useResourceable(
+  Innoclapps.resourceName('deals')
+)
 
 /**
  * Handle deal moved to delete dropper
- *
- * @param  {Object} e
- *
- * @return {Void}
  */
-function movedToDelete(e) {
+async function movedToDelete(e) {
   if (e.added) {
-    Innoclapps.request()
-      .delete(`/deals/${e.added.element.id}`)
-      .catch(() => {
-        requestRefresh()
-      })
-      .then(() => emit('deleted', e.added.element))
+    try {
+      await Innoclapps.dialog().confirm()
+      await deleteResource(e.added.element.id)
+      emit('deleted', e.added.element)
+    } catch {
+      requestRefresh()
+    }
   }
 }
 
 /**
  * Request board refresh
- *
- * @return {Void}
  */
 function requestRefresh() {
   emit('refresh-requested')
@@ -134,10 +143,6 @@ function requestRefresh() {
 
 /**
  * Handle deal moved to lost dropper
- *
- * @param  {Object} e
- *
- * @return {Void}
  */
 function movedToLost(e) {
   if (e.added) {
@@ -148,41 +153,31 @@ function movedToLost(e) {
 
 /**
  * Handle the mark as lost modal hidden event
- *
- * @return {Void}
  */
 function markAsLostModalHidden() {
-  markAsLostForm.lost_reason = null
+  changeStatusForm.reset()
+  changeStatusForm.errors.clear()
   markingAsLostID.value = null
   requestRefresh()
 }
 
 /**
  * Mark the deal as lost
- *
- * @param {Integer} id
- *
- * @return {Void}
  */
 function markAsLost(id) {
-  markAsLostForm
-    .put(`/deals/${id}/status/lost`)
-    .then(() => Innoclapps.modal().hide('markAsLostModal'))
+  updateResource(changeStatusForm.fill({ status: 'lost' }), id).then(() =>
+    Innoclapps.modal().hide('markAsLostModal')
+  )
 }
 
 /**
  * Mark the deal as lost
- *
- * @param {Integer} id
- *
- * @return {Void}
  */
 function markAsWon(id) {
-  Innoclapps.request()
-    .put(`/deals/${id}/status/won`)
-    .then(({ data }) => {
+  updateResource(changeStatusForm.fill({ status: 'won' }), id)
+    .then(deal => {
       throwConfetti()
-      emit('won', data)
+      emit('won', deal)
       requestRefresh()
     })
     .catch(() => requestRefresh())
@@ -190,10 +185,6 @@ function markAsWon(id) {
 
 /**
  * Handle deal moved to won dropper
- *
- * @param  {Object} e
- *
- * @return {Void}
  */
 function movedToWon(e) {
   if (e.added) {
@@ -201,6 +192,7 @@ function movedToWon(e) {
   }
 }
 </script>
+
 <style>
 .h-dropper {
   height: 75px;

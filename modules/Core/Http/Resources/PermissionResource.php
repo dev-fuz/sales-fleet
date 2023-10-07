@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,15 +12,11 @@
 
 namespace Modules\Core\Http\Resources;
 
-use App\Http\Resources\ProvidesCommonData;
 use Illuminate\Http\Request;
-use Modules\Core\JsonResource;
 
 /** @mixin \Modules\Core\Models\Permission */
 class PermissionResource extends JsonResource
 {
-    use ProvidesCommonData;
-
     /**
      * Transform the resource collection into an array.
      */

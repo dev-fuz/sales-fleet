@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,6 +13,7 @@
 namespace Modules\Core\Tests;
 
 use Database\Seeders\CustomFieldsSeeder;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Http\Testing\File;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -21,22 +22,25 @@ use Modules\Core\Contracts\Resources\AcceptsCustomFields;
 use Modules\Core\Facades\Fields;
 use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Fields\Boolean;
+use Modules\Core\Fields\ColorSwatch;
 use Modules\Core\Fields\Date;
 use Modules\Core\Fields\DateTime;
 use Modules\Core\Fields\Email;
 use Modules\Core\Fields\Number;
 use Modules\Core\Fields\Numeric;
 use Modules\Core\Fields\Timezone;
+use Modules\Core\Fields\Url;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Models\Import;
 use Modules\Core\Models\Model;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Table\Column;
 use Modules\Core\Tests\Concerns\TestsCustomFields;
 use Modules\Core\Tests\Concerns\TestsImportAndExport;
 use Tests\TestCase;
 
 class ResourceTestCase extends TestCase
 {
-    use TestsImportAndExport, TestsCustomFields;
+    use TestsCustomFields, TestsImportAndExport;
 
     protected $resourceName;
 
@@ -50,7 +54,7 @@ class ResourceTestCase extends TestCase
         }
     }
 
-    public function test_unauthenticated_user_cannot_access_resource_ednpoints()
+    public function test_unauthenticated_user_cannot_access_resource_endpoints()
     {
         $this->getJson($this->indexEndpoint())->assertUnauthorized();
         $this->getJson($this->showEndpoint(1))->assertUnauthorized();
@@ -80,7 +84,7 @@ class ResourceTestCase extends TestCase
         return $this->resource()->newModel()->getTable();
     }
 
-    protected function factory()
+    protected function factory(): Factory
     {
         return $this->resource()->newModel()->factory();
     }
@@ -231,6 +235,8 @@ class ResourceTestCase extends TestCase
                 ->where('cf_custom_field_datetime', Carbon::parse('2021-12-05 10:00:00')->toJSON())
                 ->where('cf_custom_field_date', Carbon::parse('2021-12-05')->toJSON())
                 ->where('cf_custom_field_boolean', true)
+                ->where('cf_custom_field_color_swatch', '#333333')
+                ->where('cf_custom_field_url', 'https://concordcrm.com')
                 ->has('cf_custom_field_multiselect', 1)
                 ->where('cf_custom_field_checkbox.0.id', $this->findCustomField('cf_custom_field_checkbox')->options->first()->getKey())
                 ->etc();
@@ -261,15 +267,21 @@ class ResourceTestCase extends TestCase
                     $value = 'info@concordcrm.com';
                 } elseif ($field instanceof Boolean) {
                     $value = true;
+                } elseif ($field instanceof Url) {
+                    $value = 'https://concordcrm.com';
+                } elseif ($field instanceof ColorSwatch) {
+                    $value = '#333333';
                 }
 
                 return [$field->attribute => $value];
             })->all();
     }
 
-    protected function performImportTest()
+    protected function performImportTest($overrides = [])
     {
-        $import = $this->performImportUpload($this->createFakeImportFile());
+        $import = $this->performImportUpload($this->createFakeImportFile(
+            [$this->createImportHeader(), $this->createImportRow($overrides)]
+        ));
 
         $this->postJson($this->importEndpoint($import), [
             'mappings' => $import->data['mappings'],
@@ -321,14 +333,14 @@ class ResourceTestCase extends TestCase
 
     protected function createImportHeader()
     {
-        return $this->resource()->importable()->resolveFields()->map(function ($field) {
+        return $this->resource()->fieldsForImport()->map(function ($field) {
             return $field->label;
         })->all();
     }
 
     protected function createImportRow($overrides = [])
     {
-        return $this->resource()->importable()->resolveFields()->mapWithKeys(function ($field) {
+        return $this->resource()->fieldsForImport()->mapWithKeys(function ($field) {
             return [$field->attribute => $field->sampleValueForImport()];
         })->merge($this->customFieldsPayload())->mapWithKeys(function ($value, $attribute) use ($overrides) {
             if (array_key_exists($attribute, $overrides)) {
@@ -360,23 +372,25 @@ class ResourceTestCase extends TestCase
             $csvArray = $this->csvToArray($response->getFile()->getPathname());
             $this->assertCount(2, $csvArray);
             $export = $this->resource()->exportable($this->resource()->newQuery());
-            $fields = $export->resolveFields();
+            $fields = $export->getFields();
 
             $records = $this->resource()->displayQuery()->latest()->get();
-
-            foreach ($records as $key => $contact) {
+            $failMessage = 'Failed to assert that the field with attribute %s and "%s" value matches exported value "%s".';
+            foreach ($records as $key => $record) {
                 foreach ($fields as $field) {
+                    $fieldValue = $field->resolveForExport($record);
+                    $exportedValue = $csvArray[$key][$export->heading($field)];
+
                     if ($field instanceof Numeric) {
-                        $this->assertEquals(
-                            (float) $field->resolveForExport($contact),
-                            (float) $csvArray[$key][$export->heading($field)]
-                        );
-                    } else {
-                        $this->assertEquals(
-                            $field->resolveForExport($contact),
-                            $csvArray[$key][$export->heading($field)]
-                        );
+                        $fieldValue = (float) $fieldValue;
+                        $exportedValue = (float) $exportedValue;
                     }
+
+                    $this->assertEquals(
+                        $fieldValue,
+                        $exportedValue,
+                        sprintf($failMessage, $field->attribute, $fieldValue, $exportedValue)
+                    );
                 }
             }
         } finally {
@@ -398,7 +412,7 @@ class ResourceTestCase extends TestCase
             ->assertJsonStructure([
                 'data',
                 'meta' => [
-                    'current_page', 'from', 'last_page', 'links', 'path', 'per_page', 'to', 'total', 'all_time_total',
+                    'current_page', 'from', 'last_page', 'links', 'path', 'per_page', 'to', 'total', 'pre_total',
                 ],
                 'links' => ['first', 'last', 'prev', 'next'],
             ]);
@@ -408,15 +422,13 @@ class ResourceTestCase extends TestCase
     {
         $this->signIn();
 
-        $this->resource()->resolveFields()->filter->isApplicableForIndex()
-            ->each(function ($field) {
-                $field->tapIndexColumn(function ($column) {
-                    $column->hidden(false);
-                });
+        $this->resource()->fieldsForIndex()->each(function ($field) {
+            $field->tapIndexColumn(function (Column $column) {
+                $column->hidden(false);
             });
+        });
 
-        $attributes = $this->resource()->resolveFields()
-            ->filter->isApplicableForIndex()
+        $attributes = $this->resource()->fieldsForIndex()
             ->map(fn ($field) => $field->resolveIndexColumn())
             ->filter()
             ->map(fn ($column) => $column->attribute)

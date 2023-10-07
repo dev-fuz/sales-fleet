@@ -2,13 +2,13 @@
   <div class="flex items-start">
     <input
       :id="id"
+      v-model="localModelValue"
       :name="name"
       type="radio"
-      v-model="localModelValue"
       :value="value"
       :disabled="disabled"
-      @change="handleChangeEvent"
       class="form-radio dark:bg-neutral-700"
+      @change="handleChangeEvent"
     />
     <IFormLabel :for="id" class="-mt-0.5 ml-2">
       <component
@@ -23,15 +23,18 @@
         <slot>{{ label }}</slot>
       </component>
     </IFormLabel>
-    <IFormText :id="id + 'description'" class="mt-1" v-if="description">
+    <IFormText v-if="description" :id="id + 'description'" class="mt-1">
       {{ description }}
     </IFormText>
   </div>
 </template>
+
 <script setup>
+import { onMounted, shallowRef, watch } from 'vue'
+
 import { randomString } from '@/utils'
-import TextBackground from '~/Core/resources/js/components/TextBackground.vue'
-import { shallowRef, watch, onMounted } from 'vue'
+
+import TextBackground from '~/Core/components/TextBackground.vue'
 
 const emit = defineEmits(['update:modelValue', 'change'])
 
@@ -66,6 +69,12 @@ function handleChangeEvent(e) {
   // Allow providing null as a value
   if (value === 'on' && props.value === null) {
     value = null
+  }
+
+  if (value === 'false') {
+    value = false
+  } else if (value === 'true') {
+    value = true
   }
 
   emit('update:modelValue', value)

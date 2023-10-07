@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,17 +12,19 @@
 
 namespace Modules\Users\Concerns;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Modules\Users\Models\Team;
+use Modules\Users\Models\User;
 use Modules\Users\Support\TeamCache;
 
-/** @mixin \Modules\Core\Models\Model */
+/** @mixin \Modules\Users\Models\User */
 trait HasTeams
 {
     /**
-     * Get all of the teams the user belongs to
+     * Get all of the teams the user belongs to.
      */
     public function teams(): BelongsToMany
     {
@@ -30,7 +32,7 @@ trait HasTeams
     }
 
     /**
-     * Get all of the teams the user manages
+     * Get all of the teams the user manages.
      */
     public function managedTeams(): HasMany
     {
@@ -38,7 +40,7 @@ trait HasTeams
     }
 
     /**
-     * Get all of the teams the user belongs to or manages
+     * Get all of the teams the user belongs to or manages.
      */
     public function allTeams(): Collection
     {
@@ -46,15 +48,15 @@ trait HasTeams
     }
 
     /**
-     * Determine if the user manages the given team
+     * Determine if the user manages the given team.
      */
     public function managesTeam(Team $team): bool
     {
-        return $this->id == $team->{$this->getForeignKey()};
+        return $this->id == $team->user_id;
     }
 
     /**
-     * Determine if the user manages any of the given user teams
+     * Determine if the user manages any of the given user teams.
      */
     public function managesAnyTeamsOf(int $userId): bool
     {
@@ -62,12 +64,65 @@ trait HasTeams
     }
 
     /**
-     * Determine if the user belongs to the given team
+     * Determine if the given users is in the same team with the user.
+     */
+    public function isInSameTeamWith(User $user): bool
+    {
+        return $this->allTeams()->contains(fn ($t) => $user->belongsToTeam($t));
+    }
+
+    /**
+     * Determine if the user belongs to the given team.
      */
     public function belongsToTeam(Team $team): bool
     {
         return $this->managesTeam($team) || $this->teams->contains(
             fn ($t) => $t->id === $team->id
         );
+    }
+
+    /**
+     * Scope a query to filter users when the user can't see all users.
+     */
+    public function scopeFilterWhenOnlyTeamUsersAreShown(Builder $query, User $user): void
+    {
+        $query->when(
+            ! $user->isSuperAdmin() && (bool) settings('only_show_team_users') === true,
+            function (Builder $query) use ($user) {
+                $query->isInSameTeamWith($user);
+            });
+    }
+
+    /**
+     * Scope a query to exclude users that are not part of the given user teams.
+     */
+    public function scopeIsInSameTeamWith(Builder $query, User $user, bool $includeCurrentUser = true): void
+    {
+        $query->where(function (Builder $query) use ($user, $includeCurrentUser) {
+            $query
+                // Include all the users the user manages
+                ->ofManager($user, $includeCurrentUser)
+                // Include all users from the user teams
+                ->when($user->teams->isNotEmpty(), function (Builder $query) use ($user) {
+                    $query->orWhereHas('teams', function (Builder $query) use ($user) {
+                        $query->whereIn('team_id', $user->teams->pluck('id'));
+                    });
+                })
+                // Include the user team managers
+                ->orWhereHas('managedTeams', function (Builder $query) use ($user) {
+                    $query->whereHas('users', fn (Builder $query) => $query->where('user_id', $user->id));
+                });
+        });
+    }
+
+    /**
+     * Scope a query to include only users that are managed by the given user.
+     */
+    public function scopeOfManager(Builder $query, User $user, bool $includeCurrentUser = true): void
+    {
+        $query->where(function (Builder $query) use ($user, $includeCurrentUser) {
+            $query->whereHas('teams', fn (Builder $query) => $query->where('teams.user_id', $user->id))
+                ->when($includeCurrentUser, fn (Builder $query) => $query->orWhere('users.id', $user->id));
+        });
     }
 }

@@ -1,17 +1,19 @@
 <template>
   <TimelineEntry
     :resource-name="resourceName"
+    :resource-id="resourceId"
     :created-at="log.created_at"
     :is-pinned="log.is_pinned || false"
     :timelineable-id="log.id"
     :timeline-relationship="log.timeline_relation"
+    :timeline-subject-key="resource.timeline_subject_key"
     :timelineable-key="log.timeline_key"
     :icon="log.type.icon"
     :heading="$t('activities::activity.timeline.heading')"
     heading-class="font-medium"
   >
     <div class="mt-3">
-      <Activity
+      <RelatedActivity
         :activity-id="log.id"
         :title="log.title"
         :comments-count="log.comments_count"
@@ -28,15 +30,21 @@
         :attachments-count="log.media.length"
         :media="log.media"
         :authorizations="log.authorizations"
+        :comments="log.comments || []"
         :associations="log.associations"
         :via-resource="resourceName"
+        :via-resource-id="resourceId"
+        :related-resource="resource"
       />
     </div>
   </TimelineEntry>
 </template>
+
 <script setup>
-import Activity from './RelatedActivityListItem.vue'
-import TimelineEntry from '~/Core/resources/js/views/Timeline/RecordTabTimelineTemplate.vue'
-import propsDefinition from '~/Core/resources/js/views/Timeline/props'
+import propsDefinition from '~/Core/views/Timeline/props'
+import TimelineEntry from '~/Core/views/Timeline/RecordTabTimelineTemplate.vue'
+
+import RelatedActivity from './RelatedActivity.vue'
+
 defineProps(propsDefinition)
 </script>

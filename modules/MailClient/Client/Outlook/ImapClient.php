@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -17,12 +17,12 @@ use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
 use Microsoft\Graph\Model\MailFolder;
 use Microsoft\Graph\Model\Message as MessageModel;
 use Modules\Core\Facades\MsGraph as Api;
-use Modules\Core\Microsoft\Services\Batch\BatchDeleteRequest;
-use Modules\Core\Microsoft\Services\Batch\BatchGetRequest;
-use Modules\Core\Microsoft\Services\Batch\BatchPatchRequest;
-use Modules\Core\Microsoft\Services\Batch\BatchPostRequest;
-use Modules\Core\Microsoft\Services\Batch\BatchRequests;
-use Modules\Core\OAuth\AccessTokenProvider;
+use Modules\Core\Support\Microsoft\Services\Batch\BatchDeleteRequest;
+use Modules\Core\Support\Microsoft\Services\Batch\BatchGetRequest;
+use Modules\Core\Support\Microsoft\Services\Batch\BatchPatchRequest;
+use Modules\Core\Support\Microsoft\Services\Batch\BatchPostRequest;
+use Modules\Core\Support\Microsoft\Services\Batch\BatchRequests;
+use Modules\Core\Support\OAuth\AccessTokenProvider;
 use Modules\MailClient\Client\AbstractImapClient;
 use Modules\MailClient\Client\Contracts\FolderInterface;
 use Modules\MailClient\Client\Contracts\MessageInterface;
@@ -181,7 +181,7 @@ class ImapClient extends AbstractImapClient
      *
      * @throws \Modules\MailClient\Client\Exceptions\ConnectionErrorException
      */
-    public function batchMarkAsRead($messages, ?FolderIdentifier $folder = null)
+    public function batchMarkAsRead($messages, FolderIdentifier $folder = null)
     {
         return $this->batchModifyMessagesReadProperty($messages, true);
     }
@@ -194,7 +194,7 @@ class ImapClient extends AbstractImapClient
      *
      * @throws \Modules\MailClient\Client\Exceptions\ConnectionErrorException
      */
-    public function batchMarkAsUnread($messages, ?FolderIdentifier $folder = null)
+    public function batchMarkAsUnread($messages, FolderIdentifier $folder = null)
     {
         return $this->batchModifyMessagesReadProperty($messages, false);
     }
@@ -208,7 +208,7 @@ class ImapClient extends AbstractImapClient
      * @throws \Modules\MailClient\Client\Exceptions\MessageNotFoundException
      * @throws \Modules\MailClient\Client\Exceptions\ConnectionErrorException
      */
-    public function getMessage($id, ?FolderIdentifier $folder = null)
+    public function getMessage($id, FolderIdentifier $folder = null)
     {
         try {
             $request = Api::createGetRequest($this->getMessageUri($id))

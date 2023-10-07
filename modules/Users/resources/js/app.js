@@ -1,24 +1,22 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import i18n from '~/Core/resources/js/i18n'
+import { useNotification } from '~/Core/composables/useBroadcast'
+import { GatePlugin } from '~/Core/gate'
+import i18n from '~/Core/i18n'
 
 import UserInvitationAcceptForm from './components/UserInvitationAcceptForm.vue'
-
-import UserProfile from './views/UserProfile.vue'
-import PersonalAccessTokens from './views/PersonalAccessTokens.vue'
-
-import settingsRoutes from './settingsRoutes'
 import UsersStore from './store/Users'
-import { GatePlugin } from '~/Core/resources/js/gate'
-import { useNotification } from '~/Core/resources/js/composables/useBroadcast'
+import UsersPersonalAccessTokens from './views/UsersPersonalAccessTokens.vue'
+import UsersProfile from './views/UsersProfile.vue'
+import settingsRoutes from './settingsRoutes'
 
 if (window.Innoclapps) {
   Innoclapps.booting((Vue, router, store) => {
@@ -45,7 +43,7 @@ if (window.Innoclapps) {
     router.addRoute({
       path: '/profile',
       name: 'profile',
-      component: UserProfile,
+      component: UsersProfile,
       meta: {
         title: i18n.t('users::profile.profile'),
       },
@@ -54,7 +52,7 @@ if (window.Innoclapps) {
     router.addRoute({
       path: '/personal-access-tokens',
       name: 'personal-access-tokens',
-      component: PersonalAccessTokens,
+      component: UsersPersonalAccessTokens,
       meta: {
         title: i18n.t('core::api.personal_access_tokens'),
         gate: 'access-api',

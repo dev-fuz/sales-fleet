@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -43,7 +43,7 @@ trait HasPhones
     /**
      * Scope a query to include records by phone.
      */
-    public function scopeByPhone(Builder $query, string $phone, ?PhoneType $type = null): void
+    public function scopeByPhone(Builder $query, string $phone, PhoneType $type = null): void
     {
         $query->whereHas('phones', function ($query) use ($phone, $type) {
             if ($type) {
@@ -52,22 +52,5 @@ trait HasPhones
 
             return $query->where('number', $phone);
         });
-    }
-
-    /**
-     * Handle the attributes updated event
-     */
-    public function morphManyAtributesUpdated(string $relationName, array $new, array $old): void
-    {
-        if ($relationName === 'phones') {
-            $valueProvider = function ($changed) {
-                return collect($changed)->pluck('number')->filter()->implode(', ');
-            };
-
-            static::logDirtyAttributesOnLatestLog([
-                'attributes' => ['phone' => $valueProvider($new)],
-                'old' => ['phone' => $valueProvider($old)],
-            ], $this);
-        }
     }
 }

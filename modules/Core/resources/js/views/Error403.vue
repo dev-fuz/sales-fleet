@@ -27,10 +27,5 @@
     </div>
   </ILayout>
 </template>
-<script setup>
-import { useApp } from '~/Core/resources/js/composables/useApp'
 
-const { setPageTitle } = useApp()
-
-setPageTitle('403')
-</script>
+<script setup></script>

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,7 +14,7 @@ namespace Modules\MailClient\Tests\Unit;
 
 use Illuminate\Support\Facades\Crypt;
 use Modules\Core\Models\OAuthAccount;
-use Modules\Core\Synchronization\SyncState;
+use Modules\Core\Support\Synchronization\SyncState;
 use Modules\MailClient\Client\Client;
 use Modules\MailClient\Client\Gmail\ImapClient as GmailImapClient;
 use Modules\MailClient\Client\Gmail\SmtpClient as GmailSmtpClient;

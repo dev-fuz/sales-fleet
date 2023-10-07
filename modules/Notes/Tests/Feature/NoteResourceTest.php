@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,13 +12,17 @@
 
 namespace Modules\Notes\Tests\Feature;
 
-use Modules\Activities\Models\ActivityType;
+use Illuminate\Support\Facades\Notification;
 use Modules\Contacts\Models\Contact;
-use Modules\Core\Database\Seeders\PermissionsSeeder;
 use Modules\Core\Tests\ResourceTestCase;
+use Modules\Notes\Models\Note;
+use Modules\Users\Notifications\UserMentioned;
+use Modules\Users\Tests\Concerns\TestsMentions;
 
 class NoteResourceTest extends ResourceTestCase
 {
+    use TestsMentions;
+
     protected $resourceName = 'notes';
 
     public function test_user_can_create_resource_record()
@@ -144,7 +148,6 @@ class NoteResourceTest extends ResourceTestCase
 
     public function test_user_can_retrieve_notes_that_are_associated_with_related_records_the_user_is_authorized_to_see()
     {
-        $this->seed(PermissionsSeeder::class);
         $user = $this->asRegularUser()->withPermissionsTo('view own contacts')->createUser();
         $this->signIn($user);
         $user2 = $this->createUser();
@@ -193,38 +196,6 @@ class NoteResourceTest extends ResourceTestCase
         $this->deleteJson($this->deleteEndpoint($note))->assertForbidden();
     }
 
-    public function test_user_can_create_note_and_follow_up_task()
-    {
-        $this->withUserAttrs(['timezone' => 'UTC'])->signIn();
-        ActivityType::factory()->create(['flag' => 'task']);
-        $contact = Contact::factory()->create();
-
-        $this->postJson($this->createEndpoint(), [
-            'body' => 'Note Body',
-            'via_resource' => 'contacts',
-            'via_resource_id' => $contact->id,
-            'contacts' => [$contact->id],
-            'task_date' => $date = date('Y-m-d'),
-        ])->assertCreated()->assertJson([
-            'createdActivity' => [
-                'due_date' => [
-                    'date' => $date,
-                    'time' => value(function () {
-                        return now()->setHour(config('activities.defaults.hour'))
-                            ->setMinute(config('activities.defaults.minute'))
-                            ->format('H:i');
-                    }),
-                ],
-            ], ]);
-
-        $this->assertCount(1, $contact->activities);
-        $this->assertDatabaseHas('activities', [
-            'note' => __('notes::note.follow_up_task_body', [
-                'content' => 'Note Body',
-            ]),
-        ]);
-    }
-
     public function test_it_eager_loads_relations_when_retrieving_via_associated_record()
     {
         $this->signIn();
@@ -244,12 +215,55 @@ class NoteResourceTest extends ResourceTestCase
 
     public function test_user_can_retrieve_notes_related_to_associations_authorized_to_view()
     {
-        $this->seed(PermissionsSeeder::class);
-
         $user = $this->asRegularUser()->withPermissionsTo('view own contacts')->signIn();
         $note = $this->factory()->has(Contact::factory()->for($user))->create();
         $contact = $note->contacts[0];
 
         $this->getJson("/api/notes/$note->id?via_resource=contacts&via_resource_id=$contact->id")->assertOk();
+    }
+
+    public function test_it_send_notifications_to_mentioned_users_when_note_is_created()
+    {
+        Notification::fake();
+
+        $this->signIn();
+
+        $mentionUser = $this->createUser();
+        $contact = Contact::factory()->create();
+
+        $this->postJson($this->createEndpoint(), [
+            'via_resource' => 'contacts',
+            'via_resource_id' => $contact->id,
+            'body' => 'Other Text - '.$this->mentionText($mentionUser->id, $mentionUser->name),
+        ]);
+
+        $note = Note::first();
+
+        Notification::assertSentTo($mentionUser, UserMentioned::class, function ($notification) use ($contact, $note) {
+            return $notification->mentionUrl === "/contacts/{$contact->id}?section=notes&resourceId={$note->id}";
+        });
+    }
+
+    public function test_it_send_notifications_to_mentioned_users_when_note_is_updated()
+    {
+        Notification::fake();
+
+        $user = $this->signIn();
+
+        $mentionUser = $this->createUser();
+        $note = $this->factory()->for($user)->create();
+        $contact = Contact::factory()->create();
+
+        $this->putJson($this->updateEndpoint($note), [
+            'body' => $note->body.$this->mentionText($mentionUser->id, $mentionUser->name),
+            'via_resource' => 'contacts',
+            'via_resource_id' => $contact->id,
+        ]);
+
+        $note->refresh();
+
+        Notification::assertSentTo($mentionUser, UserMentioned::class, function ($notification) use ($contact, $note) {
+            return $notification->mentionUrl === "/contacts/{$contact->id}?section=notes&resourceId={$note->id}";
+        });
     }
 }

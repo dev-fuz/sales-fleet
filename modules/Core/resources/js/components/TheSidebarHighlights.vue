@@ -2,11 +2,11 @@
   <div class="group mt-8 px-2">
     <h3
       v-once
-      class="hidden px-3 text-xs font-medium uppercase tracking-wider text-neutral-50 group-hover:inline-flex group-hover:items-center"
       id="highlights-headline"
       v-i-tooltip.right="
         $t('core::app.highlights.refresh_interval', { interval: 10 })
       "
+      class="hidden px-3 text-xs font-medium uppercase tracking-wider text-neutral-50 group-hover:inline-flex group-hover:items-center"
     >
       <Icon icon="QuestionMarkCircle" class="mr-2 h-5 w-5 text-current"></Icon>
       {{ $t('core::app.highlights.highlights') }}
@@ -25,7 +25,9 @@
       >
         <span
           :class="[
-            highlight.count > 0 ? highlight.bgColorClass : 'bg-success-500',
+            highlight.count > 0
+              ? getBackgroundColorClass(highlight)
+              : 'bg-success-500',
             'mr-4 h-2.5 w-2.5 rounded-full',
           ]"
           aria-hidden="true"
@@ -36,8 +38,9 @@
     </div>
   </div>
 </template>
+
 <script setup>
-import { onMounted, onBeforeUnmount, shallowRef } from 'vue'
+import { onBeforeUnmount, onMounted, shallowRef } from 'vue'
 
 const highlights = shallowRef(Innoclapps.config('highlights'))
 
@@ -49,6 +52,14 @@ function fetch() {
     .then(({ data }) => {
       highlights.value = data
     })
+}
+
+function getBackgroundColorClass(highlight) {
+  if (highlight.backgroundColorVariant === 'warning') return 'bg-warning-500'
+  if (highlight.backgroundColorVariant === 'danger') return 'bg-danger-500'
+  if (highlight.backgroundColorVariant === 'info') return 'bg-info-500'
+  if (highlight.backgroundColorVariant === 'primary') return 'bg-primary-500'
+  if (highlight.backgroundColorVariant === 'neutral') return 'bg-neutral-500'
 }
 
 onMounted(() => {

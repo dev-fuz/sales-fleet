@@ -10,17 +10,22 @@
   >
     <template #header>
       <p
-        class="font-semibold text-neutral-800 dark:text-neutral-200"
+        :class="[
+          'font-semibold',
+          !originalField
+            ? 'text-danger-500'
+            : 'text-neutral-800 dark:text-neutral-200',
+        ]"
         v-text="sectionHeading"
       />
     </template>
     <template #actions>
       <div class="inline-flex space-x-2">
         <IButtonIcon
+          v-show="canEditSection"
           icon="PencilAlt"
           class="block md:hidden md:group-hover:block"
           icon-class="h-4 w-4"
-          v-show="canEditSection"
           @click="setEditingMode"
         />
         <IButtonIcon
@@ -35,6 +40,7 @@
       v-show="!editing"
       class="text-sm text-neutral-900 dark:text-neutral-300"
     >
+      <!-- eslint-disable-next-line vue/no-v-html -->
       <p v-html="section.label"></p>
     </div>
     <div v-if="editing">
@@ -43,59 +49,59 @@
         label-for="resourceName"
       >
         <ICustomSelect
+          v-model="resourceName"
           label="label"
           field-id="resourceName"
           :clearable="false"
           :options="availableResources"
-          @option:selected="field = null"
           :reduce="resource => resource.id"
-          v-model="resourceName"
+          @option:selected="field = null"
         />
       </IFormGroup>
       <IFormGroup :label="$t('core::fields.field')" label-for="field">
         <ICustomSelect
+          v-model="field"
           label="label"
           field-id="field"
           :clearable="false"
           :selectable="field => field.disabled"
           :options="availableFields"
           @option:selected="handleFieldChanged"
-          v-model="field"
         />
       </IFormGroup>
-      <IFormGroup :label="$t('core::fields.label')" v-show="field !== null">
+      <IFormGroup v-show="field !== null" :label="$t('core::fields.label')">
         <Editor
+          v-model="fieldLabel"
           :with-image="false"
           default-tag="div"
           toolbar="bold italic underline link removeformat"
-          v-model="fieldLabel"
         />
       </IFormGroup>
       <div class="text-right">
         <div class="flex items-center justify-between">
           <div>
             <IFormCheckbox
-              id="is-required"
-              name="is-required"
-              v-model:checked="isRequired"
               v-show="field !== null"
+              id="is-required"
+              v-model:checked="isRequired"
+              name="is-required"
               :disabled="fieldMustBeRequired"
               :label="$t('core::fields.is_required')"
             />
           </div>
           <div class="space-x-2">
             <IButton
-              @click="editing = false"
               size="sm"
               variant="white"
               :text="$t('core::app.cancel')"
+              @click="editing = false"
             />
             <IButton
-              @click="requestSectionSave"
               size="sm"
               :disabled="saveIsDisabled"
               :text="$t('core::app.save')"
               variant="secondary"
+              @click="requestSectionSave"
             />
           </div>
         </div>
@@ -103,11 +109,13 @@
     </div>
   </ICard>
 </template>
+
 <script setup>
-import { ref, toRef, computed } from 'vue'
+import { computed, ref, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useFieldSection } from './useSectionField'
 import find from 'lodash/find'
+
+import { useFieldSection } from '../../composables/useSectionField'
 
 const emit = defineEmits([
   'update-section-requested',

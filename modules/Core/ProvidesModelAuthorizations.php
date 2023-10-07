@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,6 +12,7 @@
 
 namespace Modules\Core;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use ReflectionClass;
 use ReflectionMethod;
@@ -19,18 +20,14 @@ use ReflectionMethod;
 trait ProvidesModelAuthorizations
 {
     /**
-     * Get all defined authorizations for the model
-     *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @param  array  $without Exclude abilities from authorization
-     * @return array|null
+     * Get all defined authorizations for the model.
      */
-    public function getAuthorizations($model, $without = [])
+    public function getAuthorizations(Model $model, array $exclude = []): ?array
     {
         if ($policy = policy($model)) {
             return collect((new ReflectionClass($policy))->getMethods(ReflectionMethod::IS_PUBLIC))
-                ->reject(function ($method) use ($without) {
-                    return in_array($method->name, array_merge($without, ['denyAsNotFound', 'denyWithStatus', 'before']));
+                ->reject(function ($method) use ($exclude) {
+                    return in_array($method->name, array_merge($exclude, ['denyAsNotFound', 'denyWithStatus', 'before']));
                 })
                 ->mapWithKeys(fn ($method) => [$method->name => Gate::allows($method->name, $model)])->all();
         }

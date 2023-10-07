@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -24,6 +24,34 @@ class WebFormControllerTest extends TestCase
         User::setAssigneer(null);
 
         parent::tearDown();
+    }
+
+    public function test_it_fails_when_form_does_not_exists()
+    {
+        $this->get(route('webform.view', 'invalid-uuid'))->assertNotFound();
+    }
+
+    public function test_inactive_form_can_be_viewed_when_there_is_logged_in_user()
+    {
+        $this->signIn();
+
+        $form = WebForm::factory()->inactive()->create();
+
+        $this->get($form->publicUrl)->assertViewIs('webforms::view');
+    }
+
+    public function test_inactive_form_cant_be_viewed_when_there_is_no_logged_in_user()
+    {
+        $form = WebForm::factory()->inactive()->create();
+
+        $this->get($form->publicUrl)->assertNotFound();
+    }
+
+    public function test_it_uses_the_web_form_title()
+    {
+        $form = WebForm::factory()->create();
+
+        $this->get($form->publicUrl)->assertSee('<title>'.$form->title.'</title>', false);
     }
 
     public function test_web_form_can_be_submitted()

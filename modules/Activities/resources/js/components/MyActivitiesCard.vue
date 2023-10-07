@@ -1,17 +1,17 @@
 <template>
-  <CardTableAsync :card="card" ref="tableRef">
+  <CreateActivityModal
+    :visible="activityBeingCreated"
+    @created="handleActivityCreatedEvent"
+    @modal-hidden="activityBeingCreated = false"
+  />
+  <CardTableAsync ref="tableRef" :card="card">
     <template #actions>
       <IButtonMinimal
         variant="primary"
         icon="Plus"
         :text="$t('activities::activity.create')"
+        class="hide-when-editing mt-2 text-[0.8rem] sm:mt-0"
         @click="activityBeingCreated = true"
-        class="hide-when-editing mt-2 sm:mt-0"
-      />
-      <CreateActivityModal
-        :visible="activityBeingCreated"
-        @created="handleActivityCreatedEvent"
-        @modal-hidden="activityBeingCreated = false"
       />
     </template>
     <template #empty="slotProps">
@@ -22,9 +22,9 @@
         }"
       >
         <Icon
+          v-show="!slotProps.search && !slotProps.loading"
           icon="Check"
           class="h-9 w-9 text-success-500"
-          v-show="!slotProps.search && !slotProps.loading"
         />
 
         <p
@@ -59,6 +59,7 @@
         </router-link>
       </div>
     </template>
+    <!-- eslint-disable-next-line vue/valid-v-slot -->
     <template #type.name="{ row, formatted }">
       <TextBackground
         :color="row.type.swatch_color"
@@ -72,12 +73,15 @@
     </template>
   </CardTableAsync>
 </template>
+
 <script setup>
 import { ref } from 'vue'
-import StateChange from './ActivityStateChange.vue'
-import TextBackground from '~/Core/resources/js/components/TextBackground.vue'
 
-const props = defineProps({ card: Object })
+import TextBackground from '~/Core/components/TextBackground.vue'
+
+import StateChange from './ActivityStateChange.vue'
+
+defineProps({ card: Object })
 
 const tableRef = ref(null)
 const activityBeingCreated = ref(false)
@@ -91,6 +95,7 @@ function reloadTable() {
   tableRef.value.reload()
 }
 </script>
+
 <style scoped>
 :deep(tr > td) {
   position: relative;

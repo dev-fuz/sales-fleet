@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -33,6 +33,7 @@ return new class extends Migration
             $table->string('discount_type')->nullable();
             $table->decimal('discount_total', 15, 2)->default(0);
             $table->decimal('amount', 15, 3)->index()->default(0);
+            $table->decimal('amount_tax_exl', 15, 3)->index()->default(0);
             $table->text('note')->nullable();
             $table->integer('display_order')->index();
             $table->foreignId('billable_id')->constrained('billables');

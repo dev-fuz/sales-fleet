@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,6 +14,7 @@ namespace Modules\Comments\Concerns;
 
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Modules\Comments\Models\Comment;
+use Modules\Core\Models\Model;
 use Modules\Users\Mention\PendingMention;
 
 /** @mixin \Modules\Core\Models\Model */
@@ -24,9 +25,9 @@ trait HasComments
      */
     protected static function bootHasComments(): void
     {
-        static::deleting(function ($model) {
+        static::deleting(function (Model $model) {
             if (! $model->usesSoftDeletes() || $model->isForceDeleting()) {
-                $model->comments->each->delete();
+                $model->loadMissing('comments')->comments->each->delete();
             }
         });
     }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,16 +16,18 @@ use App\Http\View\FrontendComposers\Tab;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\ServiceProvider;
-use Modules\Contacts\Resource\Company\Frontend\ViewComponent as CompanyViewComponent;
-use Modules\Contacts\Resource\Contact\Frontend\ViewComponent as ContactViewComponent;
+use Modules\Contacts\Resource\Company\Pages\DetailComponent as CompanyDetailComponent;
+use Modules\Contacts\Resource\Contact\Pages\DetailComponent as ContactDetailComponent;
 use Modules\Core\DatabaseState;
 use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Facades\MailableTemplates;
 use Modules\Core\Settings\DefaultSettings;
 use Modules\Core\Workflow\Workflows;
-use Modules\Deals\Resource\Frontend\ViewComponent as DealViewComponent;
+use Modules\Deals\Resource\Pages\DetailComponent as DealDetailComponent;
 use Modules\Documents\Console\Commands\SendScheduledDocuments;
 use Modules\Documents\Listeners\TransferDocumentsUserData;
+use Modules\Documents\Models\Document;
+use Modules\Documents\Observers\DocumentObserver;
 use Modules\Documents\Support\ToScriptProvider;
 use Modules\Users\Events\TransferringUserData;
 
@@ -58,6 +60,7 @@ class DocumentsServiceProvider extends ServiceProvider
         $this->app->booted(function () {
             $this->registerResources();
             Innoclapps::whenReadyForServing($this->bootModule(...));
+            Document::observe(DocumentObserver::class);
         });
     }
 
@@ -165,9 +168,9 @@ class DocumentsServiceProvider extends ServiceProvider
     {
         $tab = Tab::make('documents', 'documents-tab')->panel('documents-tab-panel')->order(25);
 
-        ContactViewComponent::registerTab($tab);
-        CompanyViewComponent::registerTab($tab);
-        DealViewComponent::registerTab($tab);
+        ContactDetailComponent::registerTab($tab);
+        CompanyDetailComponent::registerTab($tab);
+        DealDetailComponent::registerTab($tab);
     }
 
     /**
@@ -183,16 +186,21 @@ class DocumentsServiceProvider extends ServiceProvider
      */
     public function scheduleTasks(): void
     {
+        /** @var \Illuminate\Console\Scheduling\Schedule */
         $schedule = $this->app->make(Schedule::class);
 
-        if (function_exists('proc_open') && function_exists('proc_close')) {
-            $schedule->command('documents:send-scheduled')->everyTwoMinutes()->withoutOverlapping(5);
-        } else {
-            $schedule->call(function () {
-                Artisan::call('documents:send-scheduled');
-            })
+        $sendScheduledDocumentsCommandName = 'send-scheduled-documents';
+
+        if (Innoclapps::canRunProcess()) {
+            $schedule->command(SendScheduledDocuments::class)
+                ->name($sendScheduledDocumentsCommandName)
                 ->everyTwoMinutes()
-                ->name('send-scheduled-documents')
+                ->withoutOverlapping(5);
+        } else {
+            $schedule
+                ->call(fn () => Artisan::call(SendScheduledDocuments::class))
+                ->everyTwoMinutes()
+                ->name($sendScheduledDocumentsCommandName)
                 ->withoutOverlapping(5);
         }
     }

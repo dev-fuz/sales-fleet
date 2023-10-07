@@ -5,7 +5,8 @@
     "keywords": [],
     "priority": 0,
     "providers": [
-        "Modules\\Calls\\Providers\\CallsServiceProvider"
+        "Modules\\Calls\\Providers\\CallsServiceProvider",
+        "Modules\\Calls\\Providers\\VoIPServiceProvider"
     ],
     "files": []
 }

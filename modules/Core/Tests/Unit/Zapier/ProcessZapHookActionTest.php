@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,7 +16,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Modules\Core\Models\ZapierHook;
-use Modules\Core\Zapier\ProcessZapHookAction;
+use Modules\Core\Support\Zapier\ProcessZapHookAction;
 use Tests\TestCase;
 
 class ProcessZapHookActionTest extends TestCase

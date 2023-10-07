@@ -13,19 +13,19 @@
         <!-- On mobile pointer events are disabled to not open the keyboard on touch,
         in this case, the user will be able to select only from the dropdown provided values -->
         <IFormInput
-          @click="toggle(), inputClicked()"
-          @blur="inputBlur"
           :id="inputId"
           v-bind="$attrs"
+          ref="inputRef"
+          v-model="selectedItem"
           autocomplete="off"
           :class="[
             'pointer-events-none pr-8',
             { 'sm:pointer-events-auto': !disabled },
           ]"
-          ref="inputRef"
           :disabled="disabled"
-          v-model="selectedItem"
           :placeholder="placeholder"
+          @click="toggle(), inputClicked()"
+          @blur="inputBlur"
         />
         <Icon
           v-show="Boolean(selectedItem)"
@@ -48,19 +48,15 @@
         v-for="(item, index) in items"
         :key="index"
         :active="isSelected(item)"
-        @click="itemPicked(item)"
         :text="item"
+        @click="itemPicked(item)"
       />
     </div>
   </IDropdown>
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
-import { watch, ref, shallowRef } from 'vue'
+import { ref, shallowRef, watch } from 'vue'
 
 const emit = defineEmits(['update:modelValue', 'blur', 'cleared', 'shown'])
 
@@ -74,6 +70,10 @@ const props = defineProps({
   items: Array,
   disabled: Boolean,
   full: { type: Boolean, default: true },
+})
+
+defineOptions({
+  inheritAttrs: false,
 })
 
 const isOpen = ref(false)
@@ -105,10 +105,12 @@ function openIfNeeded() {
   }
 }
 
+// eslint-disable-next-line no-unused-vars
 function inputClicked(e) {
   openIfNeeded()
 }
 
+// eslint-disable-next-line no-unused-vars
 function inputBlur(e) {
   // Allow timeout as if user  clicks on the dropdown item to have
   // a selected value in case @blur event is checking the value

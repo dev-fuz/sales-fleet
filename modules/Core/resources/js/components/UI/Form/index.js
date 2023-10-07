@@ -1,25 +1,25 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import IFormGroupComponent from './IFormGroup.vue'
-import IFormLabelComponent from './IFormLabel.vue'
 import IFormCheckboxComponent from './IFormCheckbox.vue'
-import IFormToggleComponent from './IFormToggle.vue'
-import IFormRadioComponent from './IFormRadio.vue'
 import IFormErrorComponent from './IFormError.vue'
-import IFormTextComponent from './IFormText.vue'
+import IFormGroupComponent from './IFormGroup.vue'
 import IFormInputComponent from './IFormInput.vue'
 import IFormInputDropdownComponent from './IFormInputDropdown.vue'
+import IFormLabelComponent from './IFormLabel.vue'
 import IFormNumericInputComponent from './IFormNumericInput.vue'
+import IFormRadioComponent from './IFormRadio.vue'
 import IFormSelectComponent from './IFormSelect.vue'
+import IFormTextComponent from './IFormText.vue'
 import IFormTextareaComponent from './IFormTextarea.vue'
+import IFormToggleComponent from './IFormToggle.vue'
 
 const IFormPlugin = {
   install(app) {

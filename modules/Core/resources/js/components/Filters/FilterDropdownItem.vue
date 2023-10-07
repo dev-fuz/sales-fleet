@@ -1,15 +1,17 @@
 <template>
   <IDropdownItem
-    @click="$emit('click', filterId)"
     :active="isActive"
     :text="name"
     :icon="isDefault ? 'Star' : null"
     prepend-icon
+    @click="$emit('click', filterId)"
   />
 </template>
+
 <script setup>
 import { computed } from 'vue'
-import { useFilterable } from './useFilterable'
+
+import { useFilterable } from '../../composables/useFilterable'
 
 defineEmits(['click'])
 

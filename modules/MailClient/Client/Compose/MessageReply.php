@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -30,7 +30,7 @@ class MessageReply extends AbstractComposer
     /**
      * Create new MessageReply instance
      */
-    public function __construct(Client $client, string|int $remoteId, FolderIdentifier $folder, ?FolderIdentifier $sentFolder = null)
+    public function __construct(Client $client, string|int $remoteId, FolderIdentifier $folder, FolderIdentifier $sentFolder = null)
     {
         parent::__construct($client, $sentFolder);
 

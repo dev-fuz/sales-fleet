@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,13 +13,10 @@
 namespace Modules\Core;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Notifications\Notification as BaseNotification;
 use Illuminate\Support\Str;
-use Modules\Core\Contracts\Metable;
+use Modules\Core\Contracts\HasNotificationsSettings;
 use Modules\Core\Facades\Innoclapps;
-use Modules\Core\MailableTemplate\MailableTemplate;
-use Modules\Users\Models\User;
 
 class Notification extends BaseNotification
 {
@@ -28,49 +25,31 @@ class Notification extends BaseNotification
     /**
      * Get the notification's delivery channels.
      */
-    public function via(Metable $notifiable): array
+    public function via(HasNotificationsSettings $notifiable): array
     {
-        // First, get the notifiable notifications settings
-        $settings = Innoclapps::notificationSettings(static::key(), $notifiable);
+        $settings = $notifiable->getNotificationPreference(static::key());
 
-        // Next we will check if the notifiable has notifications settings configured, if nothing configured
-        // we will notify via all channels, by default notifications are enabled for all channels
         if (count($settings) === 0) {
             return static::availableChannels();
         }
 
-        // Next, we will filter the channels the user specifically turned off notifications
+        // Filter the channels the user specifically turned off notifications
         $except = array_keys(array_filter($settings, fn ($notify) => $notify === false));
 
         return array_values(array_diff(static::availableChannels(), $except));
     }
 
     /**
-     * Get the mail representation of the notification.
-     *
-     * NOTE: When using database mail templates the locale, must be configured for the MailableTemplate
-     */
-    public function viaMailableTemplate(MailableTemplate $mailable, Metable $notifiable): MailableTemplate
-    {
-        if ($notifiable instanceof HasLocalePreference) {
-            $mailable->locale($notifiable->preferredLocale());
-        }
-
-        // Automatically add the notifiable as "To"
-        if (count($mailable->to) === 0 && is_a($notifiable, User::class, true)) {
-            $mailable->to($notifiable);
-        }
-
-        return $mailable;
-    }
-
-    /**
      * Determine if the notification should be sent.
      */
-    public function shouldSend(Metable $notifiable, string $channel): bool
+    public function shouldSend(object $notifiable, string $channel): bool
     {
         if (Innoclapps::notificationsDisabled()) {
             return false;
+        }
+
+        if (! $notifiable instanceof HasNotificationsSettings) {
+            return true;
         }
 
         // When the user turned off all notifications, only the broadcast will be available

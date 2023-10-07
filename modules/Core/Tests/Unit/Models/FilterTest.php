@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -87,10 +87,11 @@ class FilterTest extends TestCase
             ],
         ];
 
-        $filter = Filter::factory()->make(['rules' => $rules = [
-            'condition' => 'and',
-            'children' => [$rule],
-        ],
+        $filter = Filter::factory()->make([
+            'rules' => $rules = [
+                'condition' => 'and',
+                'children' => [$rule],
+            ],
         ]);
 
         $this->assertEquals($rules, $filter->rules);
@@ -117,5 +118,30 @@ class FilterTest extends TestCase
         ];
 
         $this->assertEquals($expected, $filter->rules);
+    }
+
+    public function test_filter_can_be_translated_with_custom_group()
+    {
+        $model = Filter::factory()->create(['name' => 'Original']);
+
+        Lang::addLines(['custom.filter.'.$model->id => 'Changed'], 'en');
+
+        $this->assertSame('Changed', $model->name);
+    }
+
+    public function test_filter_can_be_translated_with_lang_key()
+    {
+        $model = Filter::factory()->create(['name' => 'custom.filter.some']);
+
+        Lang::addLines(['custom.filter.some' => 'Changed'], 'en');
+
+        $this->assertSame('Changed', $model->name);
+    }
+
+    public function test_it_uses_database_name_when_no_custom_trans_available()
+    {
+        $model = Filter::factory()->create(['name' => 'Database Name']);
+
+        $this->assertSame('Database Name', $model->name);
     }
 }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,7 @@
 namespace Modules\Activities\Listeners;
 
 use Modules\Activities\Models\Calendar;
-use Modules\Core\OAuth\Events\OAuthAccountDeleting;
+use Modules\Core\Support\OAuth\Events\OAuthAccountDeleting;
 
 class StopRelatedOAuthCalendars
 {
@@ -22,14 +22,12 @@ class StopRelatedOAuthCalendars
      */
     public function handle(OAuthAccountDeleting $event): void
     {
-        $oAuthAccount = $event->account;
-
-        if ($calendar = Calendar::with('synchronization')->where('access_token_id', $oAuthAccount->id)->first()) {
-            Calendar::unguarded(function () use ($calendar) {
-                $calendar->fill(['access_token_id' => null])->save();
+        Calendar::with('synchronization')
+            ->where('access_token_id', $event->account->id)
+            ->get()
+            ->each(function (Calendar $calendar) {
+                $calendar->forceFill(['access_token_id' => null])->save();
+                $calendar->disableSync();
             });
-
-            $calendar->disableSync();
-        }
     }
 }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -24,6 +24,14 @@ class ImportPolicy
      * Determine whether the user can delete the import.
      */
     public function delete(User $user, Import $import): bool
+    {
+        return (int) $import->user_id === (int) $user->id;
+    }
+
+    /**
+     * Determine whether the user can revert the import.
+     */
+    public function revert(User $user, Import $import): bool
     {
         return (int) $import->user_id === (int) $user->id;
     }

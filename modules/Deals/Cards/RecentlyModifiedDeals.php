@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,8 +12,9 @@
 
 namespace Modules\Deals\Cards;
 
+use Illuminate\Http\Request;
 use Modules\Core\Card\TableCard;
-use Modules\Core\Date\Carbon;
+use Modules\Core\Support\Date\Carbon;
 use Modules\Deals\Criteria\ViewAuthorizedDealsCriteria;
 use Modules\Deals\Models\Deal;
 
@@ -34,28 +35,26 @@ class RecentlyModifiedDeals extends TableCard
     protected $days = 30;
 
     /**
-     * Provide the table items
+     * Provide the table items.
      *
-     * @return \Illuminate\Http\Resources\Json\JsonResource
+     * @return \Illuminate\Support\Collection
      */
-    public function items(): iterable
+    public function items(Request $request): iterable
     {
         return Deal::select(['id', 'name', 'updated_at', 'stage_id'])
             ->criteria(ViewAuthorizedDealsCriteria::class)
-            ->with('stage')
+            ->with(['stage' => fn ($query) => $query->select(['id', 'name'])])
             ->where('updated_at', '>', Carbon::asCurrentTimezone()->subDays($this->days)->inAppTimezone())
             ->orderBy('updated_at', 'desc')
             ->limit($this->limit)
             ->get()
-            ->map(function ($deal) {
-                return [
-                    'id' => $deal->id,
-                    'name' => $deal->name,
-                    'stage' => $deal->stage,
-                    'updated_at' => $deal->updated_at,
-                    'path' => $deal->path,
-                ];
-            });
+            ->map(fn (Deal $deal) => [
+                'id' => $deal->id,
+                'name' => $deal->name,
+                'stage' => $deal->stage,
+                'updated_at' => $deal->updated_at,
+                'path' => $deal->path,
+            ]);
     }
 
     /**
@@ -84,7 +83,7 @@ class RecentlyModifiedDeals extends TableCard
     public function jsonSerialize(): array
     {
         return array_merge(parent::jsonSerialize(), [
-            'help' => __('deals::deal.cards.recently_modified_info', ['total' => $this->limit, 'days' => $this->days]),
+            'helpText' => __('deals::deal.cards.recently_modified_info', ['total' => $this->limit, 'days' => $this->days]),
         ]);
     }
 }

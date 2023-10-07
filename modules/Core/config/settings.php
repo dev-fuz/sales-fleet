@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -96,11 +96,6 @@ return [
         'core.recaptcha.site_key' => 'recaptcha_site_key',
         'core.recaptcha.secret_key' => 'recaptcha_secret_key',
         'core.recaptcha.ignored_ips' => 'recaptcha_ignored_ips',
-
-        'core.services.twilio.applicationSid' => 'twilio_app_sid',
-        'core.services.twilio.accountSid' => 'twilio_account_sid',
-        'core.services.twilio.authToken' => 'twilio_auth_token',
-        'core.services.twilio.number' => 'twilio_number',
 
         'broadcasting.connections.pusher.key' => 'pusher_app_key',
         'broadcasting.connections.pusher.secret' => 'pusher_app_secret',

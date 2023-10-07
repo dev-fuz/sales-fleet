@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,6 +12,7 @@
 
 namespace Modules\Core\Menu;
 
+use Closure;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\Str;
 use JsonSerializable;
@@ -53,10 +54,8 @@ class MenuItem implements Arrayable, JsonSerializable
 
     /**
      * Badge for the sidebar item
-     *
-     * @var mixed
      */
-    public $badge = null;
+    public null|string|int|float|Closure $badge = null;
 
     /**
      * Badge color variant
@@ -98,10 +97,8 @@ class MenuItem implements Arrayable, JsonSerializable
 
     /**
      * Set badge for the menu item
-     *
-     * @param  mixed  $badge
      */
-    public function badge(mixed $value): static
+    public function badge(string|int|float|Closure $value): static
     {
         $this->badge = $value;
 

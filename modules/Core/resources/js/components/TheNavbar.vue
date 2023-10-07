@@ -13,7 +13,7 @@
     </button>
     <div class="flex flex-1 justify-between pr-4 sm:pr-6 lg:pr-8">
       <div class="flex flex-1">
-        <div class="mx-8 hidden max-w-xs py-5 lg:block" v-show="navbarTitle">
+        <div v-show="navbarTitle" class="mx-8 hidden max-w-xs py-5 lg:block">
           <h1
             class="truncate font-semibold uppercase text-neutral-800 dark:text-neutral-100"
             v-text="navbarTitle"
@@ -43,24 +43,25 @@
                 />
               </div>
               <input
-                v-once
-                ref="searchInputRef"
                 id="navSearchInput"
+                ref="searchInputRef"
+                v-model="searchValue"
+                v-memo="[searchValue]"
                 autocomplete="off"
                 class="peer block h-full w-full appearance-none border-transparent py-2 pl-14 pr-3 text-neutral-900 placeholder-neutral-500 focus:border-transparent focus:placeholder-neutral-400 focus:outline-none focus:ring-0 dark:bg-neutral-700 dark:text-neutral-200 dark:placeholder-neutral-400 dark:focus:placeholder-neutral-500 sm:text-sm"
-                v-model="searchValue"
-                @keydown.enter="performSearch(searchValue)"
-                @input="performSearch($event.target.value)"
                 :placeholder="$t('core::app.search')"
                 type="search"
                 name="search"
+                @keydown.enter="performSearch(searchValue)"
+                @input="performSearch($event.target.value)"
               />
               <div
                 v-if="shouldUseSearchKeyboardShortcut"
-                v-once
+                v-memo="[shouldUseSearchKeyboardShortcut, Boolean(searchValue)]"
                 class="absolute left-56 top-[1.1rem] hidden peer-focus:hidden lg:block"
               >
                 <kbd
+                  v-show="Boolean(searchValue) === false"
                   class="inline-flex items-center rounded border border-neutral-300 px-2 font-sans text-sm font-bold text-neutral-500 dark:border-neutral-300 dark:text-neutral-300"
                 >
                   {{ searchKeyboardShortcutMainKey }}&nbsp;{{
@@ -90,32 +91,29 @@
                   <div class="bg-white dark:bg-neutral-800">
                     <div
                       v-if="hasSearchResults"
-                      class="max-h-screen overflow-y-auto px-5 py-3"
+                      class="max-h-screen overflow-y-auto px-5 py-3 lg:max-h-[40rem]"
                     >
-                      <span
-                        v-for="resource in searchResults"
-                        :key="resource.title"
-                      >
+                      <span v-for="result in searchResults" :key="result.title">
                         <p
-                          class="mb-1.5 mt-3 font-medium text-neutral-900 dark:text-white"
-                          v-text="resource.title"
+                          class="mb-1.5 mt-3 text-sm font-medium text-neutral-900 dark:text-white"
+                          v-text="result.title"
                         />
                         <router-link
-                          v-for="record in resource.data"
-                          :key="record.path"
-                          :to="record.path"
-                          @click="showSearchResults = false"
+                          v-for="resource in result.data"
+                          :key="resource.path"
+                          :to="resource.path"
                           class="group relative mb-2 block whitespace-normal rounded-lg border border-neutral-100 bg-neutral-50 py-3 pl-5 pr-12 text-sm text-neutral-800 hover:border-primary-700 hover:bg-primary-600 hover:text-white dark:border-neutral-600 dark:bg-neutral-700 dark:text-white dark:hover:border-primary-600 dark:hover:bg-primary-600"
+                          @click="showSearchResults = false"
                         >
                           <span class="block truncate font-medium">
-                            {{ record.display_name }}
+                            {{ resource.display_name }}
                           </span>
                           <span
-                            v-if="record.created_at"
+                            v-if="resource.created_at"
                             class="text-neutral-500 group-hover:text-primary-200 dark:text-neutral-300"
                           >
                             {{ $t('core::app.created_at') }}
-                            {{ localizedDateTime(record.created_at) }}
+                            {{ localizedDateTime(resource.created_at) }}
                           </span>
                           <Icon
                             icon="ChevronRight"
@@ -126,8 +124,8 @@
                     </div>
                     <div
                       v-if="!hasSearchResults"
-                      class="p-3 text-center text-sm text-neutral-700 dark:text-neutral-200"
                       v-t="'core::app.no_search_results'"
+                      class="p-3 text-center text-sm text-neutral-700 dark:text-neutral-200"
                     />
                   </div>
                 </div>
@@ -140,24 +138,24 @@
         <IButtonIcon
           v-once
           id="header__moon"
-          @click="toLightMode"
-          class="md:block"
           v-i-tooltip.bottom="$t('core::app.theme.switch_light')"
+          class="md:block"
           icon="Moon"
+          @click="toLightMode"
         />
         <IButtonIcon
           v-once
-          @click="toSystemMode"
+          id="header__sun"
           v-i-tooltip.bottom="$t('core::app.theme.switch_system')"
           icon="Sun"
-          id="header__sun"
+          @click="toSystemMode"
         />
         <IButtonIcon
           v-once
-          @click="toDarkMode"
+          id="header__indeterminate"
           v-i-tooltip.bottom="$t('core::app.theme.switch_dark')"
           icon="Sun"
-          id="header__indeterminate"
+          @click="toDarkMode"
         >
           <svg class="h-5 w-5 text-neutral-400" viewBox="0 0 24 24">
             <path
@@ -166,30 +164,25 @@
             ></path>
           </svg>
         </IButtonIcon>
-
         <NavbarSeparator v-once />
-
         <!-- Notifications -->
         <div class="mr-1 lg:mr-3">
           <NavbarNotifications />
         </div>
-
         <!-- Quick create dropdown -->
         <div v-once class="hidden md:block">
           <NavbarQuickCreate />
         </div>
-
         <!-- Teleport target -->
         <div id="navbar-actions" class="hidden items-center lg:flex"></div>
-
         <!-- Profile dropdown -->
         <div class="ml-1 md:hidden lg:ml-3">
           <IDropdown placement="bottom-end" :full="false">
             <template #toggle="{ toggle }">
               <button
                 type="button"
-                @click="toggle"
                 class="flex max-w-xs items-center rounded-full bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                @click="toggle"
               >
                 <IAvatar
                   :src="currentUser.avatar_url"
@@ -226,8 +219,8 @@
               <div class="py-1">
                 <IDropdownItem
                   href="#"
-                  @click="$store.dispatch('logout')"
                   :text="$t('auth.logout')"
+                  @click="$store.dispatch('logout')"
                 />
               </div>
             </div>
@@ -237,17 +230,23 @@
     </div>
   </div>
 </template>
-<script setup>
-import { computed, shallowRef, ref, onMounted } from 'vue'
 
+<script setup>
+import { computed, onMounted, ref, shallowRef, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useStore } from 'vuex'
+import { onClickOutside } from '@vueuse/core'
 import debounce from 'lodash/debounce'
+
+import { useApp } from '~/Core/composables/useApp'
+import { useDates } from '~/Core/composables/useDates'
+
+import { usePageTitle } from '../composables/usePageTitle'
+
 import NavbarNotifications from './TheNavbarNotifications.vue'
 import NavbarQuickCreate from './TheNavbarQuickCreate.vue'
-import { useDates } from '~/Core/resources/js/composables/useDates'
-import { useApp } from '~/Core/resources/js/composables/useApp'
-import { onClickOutside } from '@vueuse/core'
 
+const route = useRoute()
 const store = useStore()
 const { localizedDateTime } = useDates()
 const { currentUser } = useApp()
@@ -265,8 +264,7 @@ const searchResults = shallowRef([])
 const hasSearchResults = computed(() => searchResults.value.length > 0)
 const showSearchResults = ref(false)
 const searchRequestInProgress = ref(false)
-const navbarTitle = computed(() => store.state.pageTitle)
-
+const navbarTitle = usePageTitle()
 const isMacintosh = /mac/.test(window.userAgent)
 const searchKeyboardShortcutMainKey = isMacintosh ? '⌘' : 'Ctrl'
 
@@ -301,6 +299,7 @@ const performSearch = debounce(function (value) {
   if (!value) {
     searchResults.value = []
     showSearchResults.value = false
+
     return
   }
 
@@ -329,6 +328,7 @@ onMounted(() => {
         e.key === searchKeyboardShortcutKey.toLowerCase()
       ) {
         e.preventDefault()
+
         if (document.activeElement === searchInputRef.value) {
           searchInputRef.value.blur()
           clearSearch()
@@ -339,7 +339,18 @@ onMounted(() => {
     })
   }
 })
+
+// Clear the search value when navigating to different route
+watch(
+  () => route.path,
+  (newVal, oldVal) => {
+    if (oldVal !== '/' && searchValue.value) {
+      searchValue.value = null
+    }
+  }
+)
 </script>
+
 <style>
 #header__sun,
 #header__moon,

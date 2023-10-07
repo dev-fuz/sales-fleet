@@ -2,10 +2,9 @@
 
 namespace Tests\Fixtures;
 
-use Illuminate\Http\Request;
 use Modules\Core\Contracts\Resources\AcceptsCustomFields;
 use Modules\Core\Contracts\Resources\Exportable;
-use Modules\Core\Contracts\Resources\Resourceful;
+use Modules\Core\Contracts\Resources\HasOperations;
 use Modules\Core\Contracts\Resources\Tableable;
 use Modules\Core\Facades\Fields;
 use Modules\Core\Fields\BelongsTo;
@@ -17,11 +16,11 @@ use Modules\Core\Fields\Number;
 use Modules\Core\Fields\Text;
 use Modules\Core\Fields\User;
 use Modules\Core\Filters\Text as TextFilter;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Resource\Resource;
 use Modules\Core\Table\Table;
 
-class EventResource extends Resource implements Resourceful, Tableable, AcceptsCustomFields, Exportable
+class EventResource extends Resource implements AcceptsCustomFields, Exportable, HasOperations, Tableable
 {
     public static bool $globallySearchable = true;
 
@@ -29,13 +28,15 @@ class EventResource extends Resource implements Resourceful, Tableable, AcceptsC
 
     public static string $model = 'Tests\Fixtures\Event';
 
+    public static bool $hasDetailView = true;
+
     public static function swapFields($fields)
     {
         Fields::fresh();
         static::$useFields = $fields;
     }
 
-    public function table($query, Request $request): Table
+    public function table($query, ResourceRequest $request): Table
     {
         return new EventTable($query, $request);
     }
@@ -45,7 +46,7 @@ class EventResource extends Resource implements Resourceful, Tableable, AcceptsC
         return OwnEventsCriteria::class;
     }
 
-    public function fields(Request $request): array
+    public function fields(ResourceRequest $request): array
     {
         if (static::$useFields) {
             return static::$useFields;
@@ -61,7 +62,6 @@ class EventResource extends Resource implements Resourceful, Tableable, AcceptsC
             Number::make('total_guests', 'Total Guests'),
             User::make(),
             BelongsTo::make('status', Event::class, 'Status'),
-            LocationField::make('locations', 'Locations')->excludeFromExport(),
         ];
     }
 

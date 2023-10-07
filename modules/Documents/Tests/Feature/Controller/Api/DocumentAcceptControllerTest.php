@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -54,7 +54,8 @@ class DocumentAcceptControllerTest extends TestCase
 
         $document = Document::factory()
             ->singable()
-            ->draft()->has(DocumentSigner::factory(), 'signers')
+            ->sent()
+            ->has(DocumentSigner::factory(), 'signers')
             ->create();
 
         $this->postJson("/api/d/$document->uuid/sign", [
@@ -65,7 +66,11 @@ class DocumentAcceptControllerTest extends TestCase
         $document->refresh();
 
         $this->assertEquals(DocumentStatus::ACCEPTED, $document->status);
-        Notification::assertSentTimes(SignerSignedDocument::class, 1);
+
+        Notification::assertSentTo($document->user, SignerSignedDocument::class, function ($notification, $channels) {
+            return in_array('mail', $channels);
+        });
+
         Mail::assertSent(DocumentSignedThankYouMessage::class, function (DocumentSignedThankYouMessage $mail) use ($email) {
             return $mail->hasTo($email);
         });

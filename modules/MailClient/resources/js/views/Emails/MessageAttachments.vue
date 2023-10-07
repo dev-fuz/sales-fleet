@@ -23,9 +23,9 @@
       class="divide-y divide-neutral-100 rounded-md border border-neutral-200 bg-white dark:divide-neutral-800 dark:border-neutral-800 dark:bg-neutral-900"
     >
       <li
-        class="flex items-center justify-between py-4 pl-4 pr-5 text-sm leading-6"
         v-for="media in attachments"
         :key="media.id"
+        class="flex items-center justify-between py-4 pl-4 pr-5 text-sm leading-6"
       >
         <div class="flex w-0 flex-1 items-center">
           <Icon icon="PaperClip" class="h-5 w-5 shrink-0 text-neutral-400" />
@@ -42,13 +42,13 @@
               <a
                 v-else
                 :href="media.view_url"
+                rel="noopener noreferrer"
+                tabindex="0"
                 @click.prevent="
                   activeLightboxImageIndex = findIndexForLightbox(
                     media.preview_url
                   )
                 "
-                rel="noopener noreferrer"
-                tabindex="0"
                 v-text="media.file_name"
               />
             </span>
@@ -60,19 +60,22 @@
         </div>
         <div class="ml-4 shrink-0">
           <a
+            v-t="'core::app.download'"
             :href="media.download_url"
             class="link font-medium"
-            v-t="'core::app.download'"
           />
         </div>
       </li>
     </ul>
   </dd>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
+
 import { formatBytes } from '@/utils'
-import Lightbox from '~/Core/resources/js/components/Lightbox/Lightbox.vue'
+
+import Lightbox from '~/Core/components/Lightbox/Lightbox.vue'
 
 const props = defineProps({
   attachments: { required: true, type: Array },

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,16 +16,18 @@ use Modules\Core\Models\Filter;
 use Modules\Core\Models\Workflow;
 use Modules\Users\Events\TransferringUserData;
 use Modules\Users\Models\Team;
-use ReflectionClass;
-use ReflectionMethod;
+use Modules\Users\Models\User;
 
 class TransferUserDataService
 {
+    protected int $fromUserId;
+
     /**
      * Create new TransferUserData instance.
      */
-    public function __construct(protected int $toUserId, protected int $fromUserId)
+    public function __construct(protected int $toUserId, protected User $fromUser)
     {
+        $this->fromUserId = $fromUser->getKey();
     }
 
     /**
@@ -33,37 +35,33 @@ class TransferUserDataService
      */
     public function __invoke(): void
     {
-        TransferringUserData::dispatch($this->toUserId, $this->fromUserId);
+        TransferringUserData::dispatch($this->toUserId, $this->fromUserId, $this->fromUser);
 
-        $methods = (new ReflectionClass($this))->getMethods(ReflectionMethod::IS_PUBLIC);
-
-        foreach ($methods as $method) {
-            if (! str_starts_with($method->getName(), '__')) {
-                $this->{$method->getName()}();
-            }
-        }
+        $this->transferSharedFilters();
+        $this->transferTeams();
+        $this->transferWorkflows();
     }
 
     /**
-     * Transfer shared filter
+     * Transfer shared filter.
      */
-    public function filters(): void
+    public function transferSharedFilters(): void
     {
-        Filter::where('user_id', $this->fromUserId)->where('is_shared', true)->update(['user_id' => $this->toUserId]);
+        Filter::where('user_id', $this->fromUserId)->shared()->update(['user_id' => $this->toUserId]);
     }
 
     /**
-     * Transfer created workflows
+     * Transfer created workflows.
      */
-    public function workflows(): void
+    public function transferWorkflows(): void
     {
         Workflow::where('created_by', $this->fromUserId)->update(['created_by' => $this->toUserId]);
     }
 
     /**
-     * Transfer teams
+     * Transfer teams.
      */
-    public function teams(): void
+    public function transferTeams(): void
     {
         Team::where('user_id', $this->fromUserId)->update(['user_id' => $this->toUserId]);
     }

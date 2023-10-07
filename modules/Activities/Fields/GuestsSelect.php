@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,23 +13,36 @@
 namespace Modules\Activities\Fields;
 
 use Modules\Activities\Http\Resources\GuestResource;
+use Modules\Activities\Services\ActivityGuestService;
 use Modules\Core\Fields\Field;
+use Modules\Core\Http\Requests\ResourceRequest;
+use Modules\Core\Models\Model;
 
 class GuestsSelect extends Field
 {
     /**
-     * Field component
+     * Field component.
      */
-    public ?string $component = 'guests-select-field';
+    public static $component = 'guests-select-field';
 
     /**
-     * Custom boot function
-     *
-     * @return void
+     * Initialize new GuestsSelect instance.
      */
-    public function boot()
+    public function __construct()
     {
-        $this->provideSampleValueUsing(fn () => []);
+        parent::__construct(...func_get_args());
+
+        $this->toggleable()
+            ->provideSampleValueUsing(fn () => [])
+            ->fillUsing(function (Model $model, string $attribute, ResourceRequest $request, mixed $value, string $requestAttribute) {
+                if (! is_array($value)) {
+                    return;
+                }
+
+                return function () use ($model, $value, $request) {
+                    (new ActivityGuestService())->save($model, $this->parseGuestsForSave($value, $request));
+                };
+            });
     }
 
     /**
@@ -62,7 +75,22 @@ class GuestsSelect extends Field
         if ($model->relationLoaded('guests')) {
             return ['guests' => GuestResource::collection($model->guests)];
         }
+    }
 
-        return null;
+    /**
+     * Parse the given guests array for save
+     */
+    protected function parseGuestsForSave(array $guests, ResourceRequest $request): array
+    {
+        $parsed = [];
+
+        foreach ($guests as $resourceName => $ids) {
+            $parsed = array_merge(
+                $parsed,
+                $request->findResource($resourceName)->newQuery()->findMany($ids)->all()
+            );
+        }
+
+        return $parsed;
     }
 }

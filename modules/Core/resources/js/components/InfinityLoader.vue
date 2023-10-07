@@ -6,9 +6,11 @@
     </div>
   </div>
 </template>
+
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import debounce from 'lodash/debounce'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import lodashDebounce from 'lodash/debounce'
+
 import { isVisible, passiveEventArg } from '@/utils'
 
 const emit = defineEmits([
@@ -24,7 +26,7 @@ const props = defineProps({
   scrollElement: String,
   debounce: { type: Number, default: 200 },
   offset: { type: Number, default: 0 },
-  loadWhenMounted: { type: Boolean, default: false },
+  loadWhenMounted: Boolean,
 })
 
 const STATUS = {
@@ -92,7 +94,7 @@ function _handleOnScroll(e) {
 }
 
 if (props.debounce) {
-  handleOnScroll = debounce(_handleOnScroll, props.debounce, {
+  handleOnScroll = lodashDebounce(_handleOnScroll, props.debounce, {
     trailing: true,
   })
 } else {

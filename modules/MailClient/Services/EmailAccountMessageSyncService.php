@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use MediaUploader;
 use Modules\Core\Facades\Innoclapps;
-use Modules\Core\Mail\ContentDecoder;
+use Modules\Core\Support\Mail\ContentDecoder;
 use Modules\Core\Resource\AssociatesResources;
 use Modules\MailClient\Client\AbstractMessage;
 use Modules\MailClient\Client\Contracts\AttachmentInterface;
@@ -51,7 +51,7 @@ class EmailAccountMessageSyncService
     /**
      * Get messages for account
      */
-    public function create(int $accountId, AbstractMessage $message, ?array $associations = null)
+    public function create(int $accountId, AbstractMessage $message, array $associations = null)
     {
         $data = $message->toArray();
 
@@ -117,13 +117,29 @@ class EmailAccountMessageSyncService
      *
      * NOTE: This functions does not sync attachments
      */
-    public function update(AbstractMessage $message, int $id): EmailAccountMessage
+    public function update(AbstractMessage $message, EmailAccountMessage|int $dbMessage): EmailAccountMessage
     {
         $data = $message->toArray();
 
-        $dbMessage = EmailAccountMessage::find($id);
+        $dbMessage = is_int($dbMessage) ? EmailAccountMessage::find($dbMessage) : $dbMessage;
 
-        $dbMessage->fill($data)->save();
+        try {
+            $dbMessage->fill($data)->save();
+        } catch (PDOException $e) {
+            // In most cases this may happen when the message has invalid subject or body
+            // Confirmed with subject that contains binary string
+            // https://stackoverflow.com/questions/1734005/in-php-what-is-a-binary-string-bxxxx
+            if ($this->isPDOExceptionInvalidSubjectString($e)) {
+                $dbMessage->fill(['subject' => '[Invalid Subject]'])->save();
+            } elseif ($this->isPDOExceptionInvalidMessageString($e)) {
+                $dbMessage->fill([
+                    'html_body' => '[Invalid Message]',
+                    'text_body' => '[Invalid Message]',
+                ])->save();
+            } else {
+                throw $e;
+            }
+        }
 
         $this->persistAddresses($data, $dbMessage);
         $this->persistHeaders($message, $dbMessage);
@@ -201,7 +217,7 @@ class EmailAccountMessageSyncService
     /**
      * Create message addresses
      *
-     * @param  \Modules\Core\Mail\Headers\AddressHeader  $addresses
+     * @param  \Modules\Core\Support\Mail\Headers\AddressHeader  $addresses
      */
     protected function createAddresses(EmailAccountMessage $message, $addresses, string $type): void
     {
@@ -354,9 +370,9 @@ class EmailAccountMessageSyncService
             );
 
             try {
-                $storedMedia[] = $media = MediaUploader::fromSource($tmpFile)
+                $media = MediaUploader::fromSource($tmpFile)
                     ->toDirectory($message->getMediaDirectory())
-                    ->onDuplicateUpdate()
+                    ->onDuplicateIncrement()
                     ->useFilename($filename = pathinfo($attachment->getFileName(), PATHINFO_FILENAME))
                     // Allow any extension
                     ->setAllowedExtensions(array_unique(
@@ -366,6 +382,7 @@ class EmailAccountMessageSyncService
 
                 $message->attachMedia($media, [$tag]);
 
+                $storedMedia[] = $media;
             } catch (MediaUploadException $e) {
                 Log::debug(
                     sprintf(

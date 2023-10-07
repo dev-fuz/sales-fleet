@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,19 +16,21 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Arr;
 use Modules\Brands\Database\Factories\BrandFactory;
 use Modules\Brands\Services\BrandLogoService;
 use Modules\Core\Concerns\HasInitialAttributes;
-use Modules\Core\Media\HasMedia;
-use Modules\Core\Models\Model;
-use Modules\Core\VisibilityGroup\HasVisibilityGroups;
-use Modules\Core\VisibilityGroup\RestrictsModelVisibility;
+use Modules\Core\Models\CacheModel;
+use Modules\Core\Support\Media\HasMedia;
+use Modules\Core\Support\VisibilityGroup\HasVisibilityGroups;
+use Modules\Core\Support\VisibilityGroup\RestrictsModelVisibility;
+use Modules\Documents\Content\FontsExtractor;
 
-class Brand extends Model implements HasVisibilityGroups
+class Brand extends CacheModel implements HasVisibilityGroups
 {
     use HasFactory,
-        HasMedia,
         HasInitialAttributes,
+        HasMedia,
         RestrictsModelVisibility;
 
     /**
@@ -75,7 +77,9 @@ class Brand extends Model implements HasVisibilityGroups
      */
     public function logoViewUrl(): Attribute
     {
-        return Attribute::get(fn () => $this->logo_view ? url('storage/'.$this->logo_view) : null);
+        return Attribute::get(
+            fn () => $this->logo_view ? url('storage/'.$this->logo_view) : null
+        );
     }
 
     /**
@@ -83,7 +87,9 @@ class Brand extends Model implements HasVisibilityGroups
      */
     public function logoMailUrl(): Attribute
     {
-        return Attribute::get(fn () => $this->logo_mail ? url('storage/'.$this->logo_mail) : null);
+        return Attribute::get(
+            fn () => $this->logo_mail ? url('storage/'.$this->logo_mail) : null
+        );
     }
 
     /**
@@ -91,15 +97,29 @@ class Brand extends Model implements HasVisibilityGroups
      */
     public function pdfFont(): array
     {
-        $fonts = collect(config('contentbuilder.fonts'));
+        $fontsExtractor = new FontsExtractor;
+        $family = $fontsExtractor->cleanUpFontName($this->config['pdf']['font']);
+        $fonts = $fontsExtractor->getFontsFromConfig();
 
-        // If the font contains quotes e.q. 'Exo 2', serif
-        $family = str_replace(['"', '\''], '', html_entity_decode($this->config['pdf']['font']));
-        $font = $fonts->where('font-family', $family)->first();
-
-        $font['name'] = trim(explode(',', $family)[0]);
+        $font = array_merge($fonts->where('font-family', $family)->first(), [
+            'name' => trim(explode(',', $family)[0]),
+        ]);
 
         return $font;
+    }
+
+    /**
+     * Get localized config value from the brand configuration.
+     */
+    public function getLocalizedConfig(string $key, string $locale): ?string
+    {
+        $value = Arr::get($this->config, $key.'.'.$locale);
+
+        if (! $value) {
+            return Arr::get($this->config, $key.'.'.config('app.fallback_locale'));
+        }
+
+        return $value;
     }
 
     /**
@@ -112,14 +132,15 @@ class Brand extends Model implements HasVisibilityGroups
             'config.pdf.size' => 'a4',
             'config.pdf.orientation' => 'portrait',
             'config.navigation.background_color' => '#f3f4f6',
-            'config.document.mail_subject' => 'Your document is ready',
-            'config.document.mail_message' => '',
-            'config.document.mail_button_text' => 'Read Your Document',
-            'config.document.signed_mail_subject' => 'Thank you for signing our document.',
-            'config.document.signed_mail_message' => 'You can view the document at any time by clicking the button below. You can also download it as a PDF to save it.',
-            'config.document.signed_thankyou_message' => 'Thank you for signing our document. We will be in touch shortly so that we can get started.',
-            'config.document.accepted_thankyou_message' => 'Thank you for accepting our document. We will be in touch shortly so that we can get started.',
-            'config.signature.bound_text' => 'I, {{ signerName }}, agree to the terms of this agreement and I agree that my typed name below can be used as a digital representation of my signature to that fact',
+
+            'config.document.mail_subject.en' => 'Your document is ready',
+            'config.document.mail_message.en' => 'Your document is ready',
+            'config.document.mail_button_text.en' => 'Read Your Document',
+            'config.document.signed_mail_subject.en' => 'Thank you for signing our document.',
+            'config.document.signed_mail_message.en' => 'You can view the document at any time by clicking the button below. You can also download it as a PDF to save it.',
+            'config.document.signed_thankyou_message.en' => 'Thank you for signing our document. We will be in touch shortly so that we can get started.',
+            'config.document.accepted_thankyou_message.en' => 'Thank you for accepting our document. We will be in touch shortly so that we can get started.',
+            'config.signature.bound_text.en' => 'I, {{ signerName }}, agree to the terms of this agreement and I agree that my typed name below can be used as a digital representation of my signature to that fact',
         ];
     }
 

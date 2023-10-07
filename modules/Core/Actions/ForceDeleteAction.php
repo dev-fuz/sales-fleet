@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,11 @@
 namespace Modules\Core\Actions;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Modules\Core\Facades\Innoclapps;
+use Modules\Core\Http\Requests\ActionRequest;
 
 class ForceDeleteAction extends Action
 {
@@ -24,9 +28,17 @@ class ForceDeleteAction extends Action
      */
     public function handle(Collection $models, ActionFields $fields)
     {
-        foreach ($models as $model) {
-            $model->forceDelete();
-        }
+        $resource = Innoclapps::resourceByModel($models[0]);
+
+        DB::transaction(function () use ($models, $resource) {
+            foreach ($models as $model) {
+                if ($resource) {
+                    $resource->forceDelete($model);
+                } else {
+                    $model->forceDelete();
+                }
+            }
+        });
     }
 
     /**
@@ -39,11 +51,8 @@ class ForceDeleteAction extends Action
 
     /**
      * Query the models for execution.
-     *
-     * @param  array  $ids
-     * @return \Illuminate\Database\Eloquent\Collection
      */
-    protected function findModelsForExecution($ids, Builder $query)
+    protected function findModelsForExecution(array $ids, Builder $query): EloquentCollection
     {
         return $query->withTrashed()->findMany($ids);
     }

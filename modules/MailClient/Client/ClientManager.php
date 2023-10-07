@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,7 @@
 namespace Modules\MailClient\Client;
 
 use Exception;
-use Modules\Core\OAuth\AccessTokenProvider;
+use Modules\Core\Support\OAuth\AccessTokenProvider;
 use Modules\MailClient\Client\Contracts\Connectable;
 use Modules\MailClient\Client\Exceptions\ConnectionErrorException;
 use Modules\MailClient\Client\Gmail\ImapClient as GmailImapClient;
@@ -37,9 +37,6 @@ class ClientManager
 
     /**
      * Create mail client instance
-     *
-     * @param  \Modules\MailClient\Client\ConnectionType  $connectionType
-     * @return \Modules\MailClient\Client\Client
      */
     public static function createClient(
         ConnectionType $connectionType,

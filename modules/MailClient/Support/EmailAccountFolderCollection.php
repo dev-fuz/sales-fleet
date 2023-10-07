@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,7 +14,7 @@ namespace Modules\MailClient\Support;
 
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
-use Modules\Core\TreeBuilder;
+use Modules\Core\Support\TreeBuilder;
 use Modules\MailClient\Client\FolderIdentifier;
 use Modules\MailClient\Client\FolderType;
 use Modules\MailClient\Http\Resources\EmailAccountFolderResource;

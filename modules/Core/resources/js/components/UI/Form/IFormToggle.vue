@@ -29,6 +29,7 @@
     </Switch>
   </SwitchGroup>
 </template>
+
 <script setup>
 import { ref, watch } from 'vue'
 import { Switch, SwitchGroup, SwitchLabel } from '@headlessui/vue'
@@ -39,10 +40,9 @@ const props = defineProps({
   label: String,
   modelValue: {},
   labelClass: [Array, String, Object],
-  disabled: { type: Boolean, default: false },
+  disabled: Boolean,
   value: { default: true },
   uncheckedValue: { default: false },
-  disabled: Boolean,
 })
 
 const enabled = ref(false)

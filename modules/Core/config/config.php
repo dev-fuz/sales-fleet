@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -135,7 +135,7 @@ return [
     |
     */
     'actions' => [
-        'disable_notifications_when_records_are_more_than' => env('DISABLE_ACTIONS_NOTIFICATIONS_WHEN_RECORDS_ARE_MORE_THAN', 5),
+        'disable_notifications_more_than' => env('DISABLE_ACTIONS_NOTIFICATIONS_WHEN_MORE_THAN', 5),
     ],
 
     /*
@@ -268,41 +268,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Define default VoIP Client
-    |--------------------------------------------------------------------------
-    |
-    | Currently only "Twilio" is supported.
-    |
-    */
-
-    'voip' => [
-        'client' => env('VOIP_CLIENT'),
-        // Route names
-        'endpoints' => [
-            'call' => 'voip.call',
-            'events' => 'voip.events',
-        ],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | The application available services
-    |--------------------------------------------------------------------------
-    |
-    | Here may be defined available services for the core module.
-    |
-    */
-    'services' => [
-        'twilio' => [
-            'applicationSid' => env('TWILIO_APP_SID'),
-            'accountSid' => env('TWILIO_ACCOUNT_SID'),
-            'authToken' => env('TWILIO_AUTH_TOKEN'),
-            'number' => env('TWILIO_NUMBER'),
-        ],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
     | The application import configuration
     |--------------------------------------------------------------------------
     |
@@ -310,6 +275,7 @@ return [
     |
     */
     'import' => [
+        'revertable_hours' => env('IMPORT_REVERTABLE_HOURS', 24),
         'max_rows' => env('MAX_IMPORT_ROWS', 4000),
     ],
 
@@ -378,4 +344,8 @@ return [
     |
     */
     'favicon_enabled' => env('ENABLE_FAVICON', false),
+
+    'defaults' => [
+        'reminder_minutes' => env('PREFERRED_DEFAULT_REMINDER_MINUTES', 30),
+    ],
 ];

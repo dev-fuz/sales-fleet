@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -17,6 +17,7 @@ use Modules\Billable\Enums\TaxType;
 use Modules\Billable\Models\Billable;
 use Modules\Billable\Models\BillableProduct;
 use Modules\Billable\Models\Product;
+use Modules\Core\Facades\ChangeLogger;
 
 class BillableService
 {
@@ -180,16 +181,16 @@ class BillableService
             return $billable;
         }
 
-        if ((int) $billableable->{$totalColumn} === 0 && (int) $billable->total === 0) {
+        if ((int) $billableable->{$totalColumn} == 0 && $billable->rawTotal() == 0) {
             return $billable;
         }
 
-        $billableable->{$totalColumn} = $billable->total;
+        $billableable->{$totalColumn} = $billable->rawTotal();
 
         if (! $billableable->wasRecentlyCreated) {
             $billableable->save();
         } else {
-            \Modules\Core\Facades\ChangeLogger::disabled(function () use ($billableable) {
+            ChangeLogger::disabled(function () use ($billableable) {
                 $billableable->save();
             });
         }

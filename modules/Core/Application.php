@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,10 +12,11 @@
 
 namespace Modules\Core;
 
+use Akaunting\Money\Currency;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
-use Modules\Core\Contracts\Metable;
+use Modules\Core\Contracts\HasNotificationsSettings;
 use Modules\Core\Models\Model;
 use Modules\Core\Resource\Resource;
 use Modules\Core\Updater\Migration;
@@ -29,7 +30,7 @@ class Application
      *
      * @var string
      */
-    const VERSION = '1.2.0';
+    const VERSION = '1.3.1';
 
     /**
      * System name that will be used over the system.
@@ -55,11 +56,6 @@ class Application
      * @var string
      */
     const API_PREFIX = 'api';
-
-    /**
-     * Indicates whether there is import in progress.
-     */
-    protected static bool $importStatus = false;
 
     /**
      * Indicates if the application has "booted".
@@ -270,11 +266,11 @@ class Application
     /**
      * Get all the notifications information for front-end
      */
-    public static function notificationsInformation(?Metable $user = null): array
+    public static function notificationsPreferences(HasNotificationsSettings $notifiable = null): array
     {
         return collect(static::$notifications)->filter(function ($notification) {
             return $notification::configurable();
-        })->map(function ($notification) use ($user) {
+        })->map(function ($notification) use ($notifiable) {
             return array_merge([
                 'key' => $notification::key(),
                 'name' => $notification::name(),
@@ -283,27 +279,11 @@ class Application
                 'channels' => $channels = collect($notification::availableChannels())
                     ->reject(fn ($channel) => $channel === 'broadcast')->values(),
 
-            ], is_null($user) ? [] : ['availability' => array_merge(
+            ], is_null($notifiable) ? [] : ['availability' => array_merge(
                 $channels->mapWithKeys(fn ($channel) => [$channel => true])->all(),
-                static::notificationSettings($notification::key(), $user)
+                $notifiable->getNotificationPreference($notification::key())
             )]);
         })->values()->all();
-    }
-
-    /**
-     * Get notification applied user settings
-     */
-    public static function notificationSettings(string $key, Metable $user): array
-    {
-        return $user->getMeta('notification-settings', [])[$key] ?? [];
-    }
-
-    /**
-     * Update the user notifications settings
-     */
-    public static function updateNotificationSettings(Metable $user, array $data): void
-    {
-        $user->setMeta('notification-settings', $data);
     }
 
     /**
@@ -312,38 +292,6 @@ class Application
     public static function notificationsDisabled(): bool
     {
         return count(static::$disabledNotificationsConfig) > 0;
-    }
-
-    /**
-     * Check whether there is import in progress
-     */
-    public static function isImportInProgress(): bool
-    {
-        return static::$importStatus == 'in-progress';
-    }
-
-    /**
-     * Check whether there is import mapping in progress
-     */
-    public static function isImportMapping(): bool
-    {
-        return static::$importStatus == 'mapping';
-    }
-
-    /**
-     * Change the import status
-     */
-    public static function setImportStatus(bool|string $status = 'mapping'): void
-    {
-        static::$importStatus = $status;
-    }
-
-    /**
-     * Get the import status
-     */
-    public static function importStatus(): bool|string
-    {
-        return static::$importStatus;
     }
 
     /**
@@ -377,7 +325,13 @@ class Application
                 'Installation Date: '.date('Y-m-d H:i:s').PHP_EOL.'Version: '.static::VERSION
             );
 
-            return $bytes !== false ? true : false;
+            $created = $bytes !== false ? true : false;
+
+            if ($created === true) {
+                Environment::setInstallationDate();
+            }
+
+            return $created;
         }
 
         return false;
@@ -527,9 +481,13 @@ class Application
     /**
      * Get the application currency
      */
-    public static function currency(): string
+    public static function currency(string|Currency $currency = null): Currency
     {
-        return config('core.currency');
+        if ($currency instanceof Currency) {
+            return $currency;
+        }
+
+        return new Currency($currency ?: config('core.currency'));
     }
 
     /**
@@ -593,6 +551,14 @@ class Application
                 ->values()
                 ->all();
         });
+    }
+
+    /**
+     * Check whether process can be run.
+     */
+    public static function canRunProcess(): bool
+    {
+        return function_exists('proc_open') && function_exists('proc_close');
     }
 
     /**

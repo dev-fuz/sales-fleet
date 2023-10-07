@@ -1,18 +1,27 @@
 <template>
   <ICard :overlay="isCardLoading">
-    <div class="text-lg sm:flex sm:flex-col sm:items-center md:flex-row">
-      <div class="group truncate md:grow">
+    <div class="group text-lg sm:flex sm:flex-col sm:items-center md:flex-row">
+      <div class="truncate md:grow">
         <div class="flex items-center px-7 pt-4 md:pb-4">
           <ICardHeading class="truncate">{{ card.name }}</ICardHeading>
-          <div
-            v-if="card.helpText"
-            class="ml-2 mt-px"
-            v-i-tooltip.bottom.light="card.helpText"
-          >
-            <Icon
-              icon="QuestionMarkCircle"
-              class="h-4 w-4 cursor-help text-neutral-500 hover:text-neutral-700 dark:text-white dark:hover:text-neutral-300"
-            />
+
+          <div class="ml-2 mt-px flex items-center space-x-2">
+            <div v-if="card.helpText" v-i-tooltip.bottom.light="card.helpText">
+              <Icon
+                icon="QuestionMarkCircle"
+                class="h-4 w-4 cursor-help text-neutral-500 hover:text-neutral-700 dark:text-white dark:hover:text-neutral-300"
+              />
+            </div>
+            <a
+              href="#"
+              class="hidden text-neutral-500 group-hover:block hover:text-neutral-700 dark:text-white dark:hover:text-neutral-300"
+              @click.prevent="fetch(true)"
+            >
+              <Icon
+                icon="Refresh"
+                :class="['h-4 w-4', isCardLoading ? 'animate-spin' : '']"
+              />
+            </a>
           </div>
         </div>
       </div>
@@ -21,21 +30,22 @@
       >
         <slot name="actions"></slot>
 
-        <FormDropdownSelect
+        <DropdownSelectInput
           v-if="card.withUserSelection"
+          v-model="user"
           :items="usersForSelection"
           label-key="name"
           value-key="id"
           placement="bottom-end"
-          @change="fetch"
-          v-model="user"
+          @change="fetch()"
         />
-        <FormDropdownSelect
+
+        <DropdownSelectInput
           v-if="hasRanges"
           v-model="selectedRange"
           placement="bottom-end"
           :items="card.ranges"
-          @change="fetch"
+          @change="fetch()"
         />
       </div>
     </div>
@@ -44,12 +54,13 @@
 </template>
 
 <script setup>
-import { ref, unref, watch, computed } from 'vue'
-import find from 'lodash/find'
+import { computed, ref, unref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useLoader } from '~/Core/resources/js/composables/useLoader'
-import { useApp } from '~/Core/resources/js/composables/useApp'
-import { useGlobalEventListener } from '~/Core/resources/js/composables/useGlobalEventListener'
+import find from 'lodash/find'
+
+import { useApp } from '~/Core/composables/useApp'
+import { useGlobalEventListener } from '~/Core/composables/useGlobalEventListener'
+import { useLoader } from '~/Core/composables/useLoader'
 
 const emit = defineEmits(['retrieved'])
 
@@ -118,12 +129,13 @@ watch(
 /**
  * Fetch the card
  */
-function fetch() {
+function fetch(reloadCache = false) {
   setLoading(true)
 
   let queryString = {
-    range: unref(selectedRange).value,
+    range: unref(selectedRange)?.value,
     ...(props.requestQueryString || {}),
+    reload_cache: reloadCache && typeof reloadCache === 'boolean',
   }
 
   if (props.card.withUserSelection) {

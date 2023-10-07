@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -9,72 +9,71 @@
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
 import { defineAsyncComponent } from 'vue'
-
 import Notifications from 'notiwind'
-import FloatNotifications from '~/Core/resources/js/components/FloatNotifications.vue'
-
-import IButtonPlugin from '~/Core/resources/js/components/UI/Buttons'
-import ICardPlugin from '~/Core/resources/js/components/UI/Card'
-import IDropdownPlugin from '~/Core/resources/js/components/UI/Dropdown'
-import IFormPlugin from '~/Core/resources/js/components/UI/Form'
-import IDialogPlugin from '~/Core/resources/js/components/UI/Dialog'
-import ITabsPlugin from '~/Core/resources/js/components/UI/Tabs'
-import ITooltipPlugin from '~/Core/resources/js/components/UI/Tooltip'
 
 import AuthLogin from '@/views/Auth/AuthLogin.vue'
 import AuthPasswordEmail from '@/views/Auth/AuthPasswordEmail.vue'
 import AuthPasswordReset from '@/views/Auth/AuthPasswordReset.vue'
 
-import ActionPanel from '~/Core/resources/js/views/ActionPanel.vue'
-
-import ISpinner from '~/Core/resources/js/components/UI/ISpinner.vue'
-import IStepsCircle from '~/Core/resources/js/components/UI/Steps/IStepsCircle.vue'
-import IStepCircle from '~/Core/resources/js/components/UI/Steps/IStepCircle.vue'
-import IEmptyState from '~/Core/resources/js/components/UI/IEmptyState.vue'
-import IPopover from '~/Core/resources/js/components/UI/IPopover.vue'
-import ITable from '~/Core/resources/js/components/UI/ITable.vue'
-import ILayout from '~/Core/resources/js/components/Layout.vue'
-import IBadge from '~/Core/resources/js/components/UI/IBadge.vue'
-import IColorSwatches from '~/Core/resources/js/components/UI/IColorSwatches.vue'
-import IVerticalNavigation from '~/Core/resources/js/components/UI/VerticalNavigation/IVerticalNavigation.vue'
-import IVerticalNavigationItem from '~/Core/resources/js/components/UI/VerticalNavigation/IVerticalNavigationItem.vue'
-import ICustomSelect from '~/Core/resources/js/components/UI/CustomSelect/index'
-import IAvatar from '~/Core/resources/js/components/UI/IAvatar.vue'
-import IAlert from '~/Core/resources/js/components/UI/IAlert.vue'
-import IOverlay from '~/Core/resources/js/components/UI/IOverlay.vue'
-import IActionMessage from '~/Core/resources/js/components/UI/IActionMessage.vue'
-import IIconPicker from '~/Core/resources/js/components/UI/IIconPicker.vue'
-
-import Icon from '~/Core/resources/js/components/UI/Icon.vue'
-
-import FieldsGenerator from '~/Core/resources/js/components/Fields/FieldsGenerator.vue'
-import FormDropdownSelect from '~/Core/resources/js/components/FormDropdownSelect.vue'
-import FieldsPlaceholder from '~/Core/resources/js/components/Fields/FieldsPlaceholder.vue'
-import FormInputSearch from '~/Core/resources/js/components/FormInputSearch.vue'
-
-import TheNavbar from '~/Core/resources/js/components/TheNavbar.vue'
-import NavbarSeparator from '~/Core/resources/js/components/NavbarSeparator.vue'
-import TheSidebar from '~/Core/resources/js/components/TheSidebar.vue'
-
-import DatePicker from '~/Core/resources/js/components/DatePicker/DatePicker.vue'
-import DateRangePicker from '~/Core/resources/js/components/DatePicker/DateRangePicker.vue'
-
-import ActionDialog from '~/Core/resources/js/components/Actions/ActionsDialog.vue'
-import ProgressionChart from '~/Core/resources/js/components/Charts/ProgressionChart.vue'
-import PresentationChart from '~/Core/resources/js/components/Charts/PresentationChart.vue'
-
-import Card from '~/Core/resources/js/components/Cards/Card.vue'
-import CardTable from '~/Core/resources/js/components/Cards/CardTable.vue'
-import CardTableAsync from '~/Core/resources/js/components/Cards/CardTableAsync.vue'
-
-import PreviewModal from '~/Core/resources/js/components/PreviewModal.vue'
-import Editor from '~/Core/resources/js/components/Editor'
+import ActionDialog from '~/Core/components/Actions/ActionDialog.vue'
+import ActionBulkEdit from '~/Core/components/Actions/ActionDialogBulkEdit.vue'
+import Card from '~/Core/components/Cards/Card.vue'
+import CardTable from '~/Core/components/Cards/CardTable.vue'
+import CardTableAsync from '~/Core/components/Cards/CardTableAsync.vue'
+import PresentationChart from '~/Core/components/Charts/PresentationChart.vue'
+import ProgressionChart from '~/Core/components/Charts/ProgressionChart.vue'
+import DatePicker from '~/Core/components/DatePicker/DatePicker.vue'
+import DateRangePicker from '~/Core/components/DatePicker/DateRangePicker.vue'
+import DropdownSelectInput from '~/Core/components/DropdownSelectInput.vue'
+import Editor from '~/Core/components/Editor'
+import ILayout from '~/Core/components/Layout.vue'
+import NavbarSeparator from '~/Core/components/NavbarSeparator.vue'
+import SearchInput from '~/Core/components/SearchInput.vue'
+import TheFloatingResourceModal from '~/Core/components/TheFloatingResourceModal.vue'
+import TheFloatNotifications from '~/Core/components/TheFloatNotifications.vue'
+import TheNavbar from '~/Core/components/TheNavbar.vue'
+import TheSidebar from '~/Core/components/TheSidebar.vue'
+import IButtonPlugin from '~/Core/components/UI/Buttons'
+import ICardPlugin from '~/Core/components/UI/Card'
+import ICustomSelect from '~/Core/components/UI/CustomSelect/index'
+import IDialogPlugin from '~/Core/components/UI/Dialog'
+import IDropdownPlugin from '~/Core/components/UI/Dropdown'
+import IFormPlugin from '~/Core/components/UI/Form'
+import IActionMessage from '~/Core/components/UI/IActionMessage.vue'
+import IAlert from '~/Core/components/UI/IAlert.vue'
+import IAvatar from '~/Core/components/UI/IAvatar.vue'
+import IBadge from '~/Core/components/UI/IBadge.vue'
+import IColorSwatch from '~/Core/components/UI/IColorSwatch.vue'
+import Icon from '~/Core/components/UI/Icon.vue'
+import IEmptyState from '~/Core/components/UI/IEmptyState.vue'
+import IIconPicker from '~/Core/components/UI/IIconPicker.vue'
+import IOverlay from '~/Core/components/UI/IOverlay.vue'
+import IPopover from '~/Core/components/UI/IPopover.vue'
+import ISpinner from '~/Core/components/UI/ISpinner.vue'
+import ITable from '~/Core/components/UI/ITable.vue'
+import IStepCircle from '~/Core/components/UI/Steps/IStepCircle.vue'
+import IStepsCircle from '~/Core/components/UI/Steps/IStepsCircle.vue'
+import ITabsPlugin from '~/Core/components/UI/Tabs'
+import ITooltipPlugin from '~/Core/components/UI/Tooltip'
+import IVerticalNavigation from '~/Core/components/UI/VerticalNavigation/IVerticalNavigation.vue'
+import IVerticalNavigationItem from '~/Core/components/UI/VerticalNavigation/IVerticalNavigationItem.vue'
+import DetailFields from '~/Core/fields/DetailFields.vue'
+import DetailFieldsItem from '~/Core/fields/DetailFieldsItem.vue'
+import FieldInlineEdit from '~/Core/fields/FieldInlineEdit.vue'
+import FieldsPlaceholder from '~/Core/fields/FieldsPlaceholder.vue'
+import FormFields from '~/Core/fields/FormFields.vue'
+import IndexFieldsItem from '~/Core/fields/IndexFieldsItem.vue'
+import ActionPanel from '~/Core/views/ActionPanel.vue'
 
 const TextCollapse = defineAsyncComponent(() =>
-  import('~/Core/resources/js/components/TextCollapse.vue')
+  import('~/Core/components/TextCollapse.vue')
 )
 
 export default function (app) {
+  app.component('AuthLogin', AuthLogin)
+  app.component('AuthPasswordEmail', AuthPasswordEmail)
+  app.component('AuthPasswordReset', AuthPasswordReset)
+
   app
     .use(Notifications)
     .use(IButtonPlugin)
@@ -98,7 +97,7 @@ export default function (app) {
     .component('ISpinner', ISpinner)
     .component('IStepsCircle', IStepsCircle)
     .component('IStepCircle', IStepCircle)
-    .component('IColorSwatches', IColorSwatches)
+    .component('IColorSwatch', IColorSwatch)
     .component('IVerticalNavigation', IVerticalNavigation)
     .component('IVerticalNavigationItem', IVerticalNavigationItem)
     .component('IAlert', IAlert)
@@ -108,34 +107,37 @@ export default function (app) {
   app.component('NavbarSeparator', NavbarSeparator)
   app.component('TheSidebar', TheSidebar)
 
-  app.component('FloatNotifications', FloatNotifications)
+  app.component('TheFloatNotifications', TheFloatNotifications)
+  app.component('TheFloatingResourceModal', TheFloatingResourceModal)
 
   app.component('DatePicker', DatePicker)
   app.component('DateRangePicker', DateRangePicker)
-
-  app.component('AuthLogin', AuthLogin)
-  app.component('AuthPasswordEmail', AuthPasswordEmail)
-  app.component('AuthPasswordReset', AuthPasswordReset)
 
   app.component('ActionPanel', ActionPanel)
 
   app.component('Icon', Icon)
 
   app.component('ActionDialog', ActionDialog)
+  app.component('ActionBulkEdit', ActionBulkEdit)
 
   app.component('ProgressionChart', ProgressionChart)
   app.component('PresentationChart', PresentationChart)
   app.component('CardTable', CardTable)
   app.component('CardTableAsync', CardTableAsync)
+
   app.component('Card', Card)
-  app.component('PreviewModal', PreviewModal)
 
   app.component('TextCollapse', TextCollapse)
+
   app.component('Editor', Editor)
 
-  app.component('FieldsGenerator', FieldsGenerator)
+  app.component('FormFields', FormFields)
+  app.component('DetailFields', DetailFields)
+  app.component('DetailFieldsItem', DetailFieldsItem)
+  app.component('IndexFieldsItem', IndexFieldsItem)
   app.component('FieldsPlaceholder', FieldsPlaceholder)
+  app.component('FieldInlineEdit', FieldInlineEdit)
 
-  app.component('FormDropdownSelect', FormDropdownSelect)
-  app.component('FormInputSearch', FormInputSearch)
+  app.component('DropdownSelectInput', DropdownSelectInput)
+  app.component('SearchInput', SearchInput)
 }

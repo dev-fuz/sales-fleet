@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -19,11 +19,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Modules\Core\Models\Model;
+use Modules\Core\Models\CacheModel;
 use Modules\Core\Models\ModelVisibilityGroupDependent;
 use Modules\Users\Database\Factories\TeamFactory;
 
-class Team extends Model
+class Team extends CacheModel
 {
     use HasFactory;
 
@@ -92,8 +92,9 @@ class Team extends Model
     /**
      * Scope a query to include only the teams the user belongs to.
      */
-    public function scopeUserTeams(Builder $query, ?User $user = null): void
+    public function scopeUserTeams(Builder $query, User $user = null): void
     {
+        /** @var \Modules\Users\Models\User */
         $user = $user ?: Auth::user();
 
         if ($user->isSuperAdmin()) {
@@ -102,7 +103,7 @@ class Team extends Model
 
         $query->whereHas('users', function ($query) use ($user) {
             return $query->where('user_id', $user->getKey());
-        })->orWhere('user_id', $user->getKey());
+        })->orWhere('teams.user_id', $user->getKey());
     }
 
     /**

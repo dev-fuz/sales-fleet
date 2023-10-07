@@ -1,14 +1,14 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import { ref, computed, watch, watchEffect, unref } from 'vue'
+import { computed, ref, unref, watch, watchEffect } from 'vue'
 
 export function useTypeAheadPointer(
   options,
@@ -84,16 +84,19 @@ export function useTypeAheadPointer(
    */
   function maybeAdjustScroll() {
     const optionEl =
-      dropdownMenuRef.value?.children[typeAheadPointer.value] || false
+      dropdownMenuRef.value?.targetDomElement.children[
+        typeAheadPointer.value
+      ] || false
 
     if (optionEl) {
       const bounds = getDropdownViewport()
       const { top, bottom, height } = optionEl.getBoundingClientRect()
 
       if (top < bounds.top) {
-        return (dropdownMenuRef.value.scrollTop = optionEl.offsetTop)
+        return (dropdownMenuRef.value.targetDomElement.scrollTop =
+          optionEl.offsetTop)
       } else if (bottom > bounds.bottom) {
-        return (dropdownMenuRef.value.scrollTop =
+        return (dropdownMenuRef.value.targetDomElement.scrollTop =
           optionEl.offsetTop - (bounds.height - height))
       }
     }
@@ -104,7 +107,7 @@ export function useTypeAheadPointer(
    */
   function getDropdownViewport() {
     return dropdownMenuRef.value
-      ? dropdownMenuRef.value.getBoundingClientRect()
+      ? dropdownMenuRef.value.targetDomElement.getBoundingClientRect()
       : {
           height: 0,
           top: 0,

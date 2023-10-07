@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -22,47 +22,49 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use Modules\Activities\Concerns\HasActivities;
 use Modules\Activities\Contracts\Attendeeable;
+use Modules\Calls\Concerns\HasCalls;
 use Modules\Contacts\Concerns\HasPhones;
 use Modules\Contacts\Concerns\HasSource;
 use Modules\Contacts\Database\Factories\ContactFactory;
-use Modules\Core\Changelog\LogsModelChanges;
 use Modules\Core\Concerns\HasAvatar;
 use Modules\Core\Concerns\HasCountry;
 use Modules\Core\Concerns\HasCreator;
+use Modules\Core\Concerns\HasTags;
 use Modules\Core\Concerns\HasUuid;
+use Modules\Core\Concerns\LazyTouchesViaPivot;
 use Modules\Core\Concerns\Prunable;
-use Modules\Core\Contracts\Fields\HandlesChangedMorphManyAttributes;
 use Modules\Core\Contracts\Presentable;
-use Modules\Core\Facades\ChangeLogger;
-use Modules\Core\Media\HasMedia;
 use Modules\Core\Models\Model;
 use Modules\Core\Resource\Resourceable;
-use Modules\Core\Timeline\HasTimeline;
+use Modules\Core\Support\Media\HasMedia;
+use Modules\Core\Support\Timeline\HasTimeline;
 use Modules\Core\Workflow\HasWorkflowTriggers;
 use Modules\Deals\Concerns\HasDeals;
 use Modules\Documents\Concerns\HasDocuments;
 use Modules\MailClient\Concerns\HasEmails;
 
-class Contact extends Model implements Presentable, HandlesChangedMorphManyAttributes, Attendeeable
+class Contact extends Model implements Attendeeable, Presentable
 {
-    use HasAvatar,
+    use HasActivities,
+        HasAvatar,
+        HasCalls,
         HasCountry,
         HasCreator,
-        HasSource,
-        LogsModelChanges,
-        HasUuid,
-        HasMedia,
-        Resourceable,
-        HasWorkflowTriggers,
-        HasTimeline,
-        HasEmails,
         HasDeals,
-        HasActivities,
         HasDocuments,
+        HasEmails,
         HasFactory,
+        HasMedia,
         HasPhones,
-        SoftDeletes,
-        Prunable;
+        HasSource,
+        HasTags,
+        HasTimeline,
+        HasUuid,
+        HasWorkflowTriggers,
+        LazyTouchesViaPivot,
+        Prunable,
+        Resourceable,
+        SoftDeletes;
 
     /**
      * The attributes that aren't mass assignable.
@@ -88,7 +90,6 @@ class Contact extends Model implements Presentable, HandlesChangedMorphManyAttri
         'user.name',
         'country.name',
         'source.name',
-        'list.name',
     ];
 
     /**
@@ -118,9 +119,16 @@ class Contact extends Model implements Presentable, HandlesChangedMorphManyAttri
     ];
 
     /**
-     * The fields for the model that are searchable.
+     * The columns for the model that are searchable.
      */
-    protected static array $searchableFields = [
+    protected static array $searchableColumns = [
+        'user_id',
+        'source_id',
+        'created_by',
+        'country_id',
+        'postal_code',
+        'city',
+        'state',
         'email' => 'like',
         'phones.number',
     ];
@@ -136,34 +144,9 @@ class Contact extends Model implements Presentable, HandlesChangedMorphManyAttri
         'created_by' => 'int',
         'source_id' => 'int',
         'country_id' => 'int',
-        'list_id' => 'int',
         'next_activity_id' => 'int',
+        'next_activity_date' => 'datetime',
     ];
-
-    /**
-     * Boot the model.
-     */
-    protected static function boot(): void
-    {
-        parent::boot();
-
-        static::restoring(function ($model) {
-            $model->logToAssociatedRelationsThatRelatedInstanceIsRestored(['companies', 'deals']);
-        });
-
-        static::deleting(function ($model) {
-            if ($model->isForceDeleting()) {
-                $model->purge();
-            } else {
-                $model->logRelatedIsTrashed(['companies', 'deals'], [
-                    'key' => 'core::timeline.associate_trashed',
-                    'attrs' => ['displayName' => $model->display_name],
-                ]);
-
-                $model->guests()->delete();
-            }
-        });
-    }
 
     /**
      * Get all of the companies that are associated with the contact
@@ -184,14 +167,6 @@ class Contact extends Model implements Presentable, HandlesChangedMorphManyAttri
     }
 
     /**
-     * Get all of the calls for the contact
-     */
-    public function calls(): MorphToMany
-    {
-        return $this->morphToMany(\Modules\Calls\Models\Call::class, 'callable');
-    }
-
-    /**
      * Get all of the contact guests models
      */
     public function guests(): MorphMany
@@ -208,19 +183,13 @@ class Contact extends Model implements Presentable, HandlesChangedMorphManyAttri
     }
 
     /**
-     * Get the contact list
-     */
-    public function list(): BelongsTo
-    {
-        return $this->belongsTo(\Modules\Lists\Models\ListModel::class);
-    }
-
-    /**
      * Get the model display name
      */
     public function displayName(): Attribute
     {
-        return Attribute::get(fn () => trim("$this->first_name $this->last_name"));
+        return Attribute::get(
+            fn () => trim("$this->first_name $this->last_name")
+        );
     }
 
     /**
@@ -228,7 +197,9 @@ class Contact extends Model implements Presentable, HandlesChangedMorphManyAttri
      */
     public function path(): Attribute
     {
-        return Attribute::get(fn () => "/contacts/{$this->id}");
+        return Attribute::get(
+            fn () => "/contacts/{$this->id}"
+        );
     }
 
     /**
@@ -266,37 +237,14 @@ class Contact extends Model implements Presentable, HandlesChangedMorphManyAttri
     }
 
     /**
-     * Associate the contact to companies by email domail.
-     */
-    public function associateToCompaniesByEmailDomain(): void
-    {
-        if (! $this->email) {
-            return;
-        }
-
-        $emailDomain = substr($this->email, strpos($this->email, '@') + 1);
-        $companies = Company::where('domain', $emailDomain)->get('id');
-
-        if (count($companies) > 0) {
-            ChangeLogger::asSystem();
-            $this->companies()->syncWithoutDetaching($companies);
-            ChangeLogger::asSystem(false);
-        }
-    }
-
-    /**
      * Eager load the relations that are required for the front end response.
      */
     public function scopeWithCommon(Builder $query): void
     {
         $query->withCount(['calls', 'notes'])->with([
             'media',
-            'changelog',
-            'changelog.pinnedTimelineSubjects',
             'companies.phones', // for calling
-            'deals.stage', 'deals.pipeline', 'deals.pipeline.stages' => function ($query) {
-                return $query->orderBy('display_order');
-            },
+            'deals.stage', 'deals.pipeline', 'deals.pipeline.stages',
         ]);
     }
 
@@ -317,8 +265,8 @@ class Contact extends Model implements Presentable, HandlesChangedMorphManyAttri
 
         $this->guests()->forceDelete();
 
-        $this->notes->each->delete();
-        $this->calls->each->delete();
+        $this->loadMissing('notes')->notes->each->delete();
+        $this->loadMissing('calls')->calls->each->delete();
     }
 
     /**
@@ -344,6 +292,14 @@ class Contact extends Model implements Presentable, HandlesChangedMorphManyAttri
 
                 break;
         }
+    }
+
+    /**
+     * Provide the related pivot relationships to touch.
+     */
+    protected function relatedPivotRelationsToTouch(): array
+    {
+        return ['companies', 'deals'];
     }
 
     /**

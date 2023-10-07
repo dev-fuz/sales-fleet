@@ -2,41 +2,46 @@
   <IOverlay :show="!visible">
     <Editor
       v-if="visible"
+      ref="tinymceRef"
       v-model="internalContent"
       :disabled="disabled"
       :init="editorConfig"
-      ref="tinymceRef"
     />
   </IOverlay>
 </template>
+
 <script setup>
-import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
-import Editor from '@tinymce/tinymce-vue'
-import map from 'lodash/map'
-import reject from 'lodash/reject'
-import pick from 'lodash/pick'
-import find from 'lodash/find'
-import castArray from 'lodash/castArray'
-import { randomString, getLocale, isDarkMode } from '@/utils'
-import localeMaps from './localeMaps'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useApp } from '~/Core/resources/js/composables/useApp'
-const locale = getLocale()
+import Editor from '@tinymce/tinymce-vue'
+import castArray from 'lodash/castArray'
+import find from 'lodash/find'
+import map from 'lodash/map'
+import pick from 'lodash/pick'
+import reject from 'lodash/reject'
+
+import { getLocale, isDarkMode, randomString } from '@/utils'
+
+import { useApp } from '~/Core/composables/useApp'
+
+import localeMaps from './localeMaps'
 
 const emit = defineEmits(['update:modelValue', 'input', 'init'])
 
 const props = defineProps({
   modelValue: {},
   placeholder: { type: String, default: '' },
-  disabled: { type: Boolean, default: false },
+  disabled: Boolean,
   defaultTag: { type: String, default: 'p' },
   withImage: { default: true, type: Boolean },
-  withMention: { default: false, type: Boolean },
+  withMention: Boolean,
   autoCompleter: [Array, Object],
   toolbar: String,
   config: Object,
   plugins: [Array, String],
 })
+
+const locale = getLocale()
 
 const { t } = useI18n()
 const { users, currentUser } = useApp()
@@ -87,7 +92,7 @@ const defaultConfig = ref({
   branding: false,
   forced_root_block: props.defaultTag,
   images_upload_handler: handleImageUpload,
-  language: localeMaps.hasOwnProperty(locale) ? localeMaps[locale] : locale,
+  language: Object.hasOwn(localeMaps, locale) ? localeMaps[locale] : locale,
   automatic_uploads: true,
   images_reuse_filename: true,
   paste_data_images: props.withImage,
@@ -113,11 +118,13 @@ const defaultConfig = ref({
     link${props.withImage ? ' image' : ''} |
     alignment | bullist numlist | removeformat
     `,
+  // eslint-disable-next-line no-unused-vars
   init_instance_callback: editor => {
     //
   },
   setup: instance => {
     instance.concordCommands = {}
+
     if (props.withMention) {
       initializeMentions(instance)
     }
@@ -184,6 +191,7 @@ const usersAvailableForMentioning = computed(() =>
     user => user.id == currentUser.value.id
   )
 )
+
 function initializeCustomAutoCompleter(completers, editor) {
   let arrayOfCompleters = castArray(completers)
 
@@ -194,6 +202,7 @@ function initializeCustomAutoCompleter(completers, editor) {
           trigger: completer.trigger, // the trigger character to open the autocompleter
           minChars: completer.minChars || 0, // 0 to open the dropdown immediately after the char is typed
           columns: 1, // must be 1 for text-based results
+          // eslint-disable-next-line no-unused-vars
           fetch: function (pattern) {
             return new Promise(resolve => resolve(completer.list))
           },
@@ -227,6 +236,7 @@ function initializeMentions(editor) {
     minChars: 0, // 0 to open the dropdown immediately after the @ is typed
     columns: 1, // must be 1 for text-based results
     // Retrieve the available users
+    // eslint-disable-next-line no-unused-vars
     fetch: function (pattern) {
       return new Promise(resolve =>
         resolve(
@@ -253,23 +263,22 @@ function initializeMentions(editor) {
   })
 }
 
+// eslint-disable-next-line no-unused-vars
 function handleImageUpload(blobInfo, progress) {
   const file = blobInfo.blob()
 
-  // file type is only image.
-  if (!/^image\//.test(file.type)) {
-    failure(
-      t('validation.image', {
-        attribute: file.name,
-      }),
-      {
-        remove: true,
-      }
-    )
-    return
-  }
-
   return new Promise((resolve, reject) => {
+    if (!/^image\//.test(file.type)) {
+      reject({
+        message: t('validation.image', {
+          attribute: file.name,
+        }),
+        remove: true,
+      })
+
+      return
+    }
+
     const fd = new FormData()
     fd.append('file', file)
 

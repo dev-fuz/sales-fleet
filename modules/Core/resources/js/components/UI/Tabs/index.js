@@ -1,18 +1,18 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
+import ITabComponent from './ITab.vue'
 import ITabGroupComponent from './ITabGroup.vue'
 import ITabListComponent from './ITabList.vue'
-import ITabComponent from './ITab.vue'
-import ITabPanelsComponent from './ITabPanels.vue'
 import ITabPanelComponent from './ITabPanel.vue'
+import ITabPanelsComponent from './ITabPanels.vue'
 
 const ITabsPlugin = {
   install(app) {

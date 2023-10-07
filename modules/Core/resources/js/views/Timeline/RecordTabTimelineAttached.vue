@@ -1,10 +1,12 @@
 <template>
   <TimelineEntry
     :resource-name="resourceName"
+    :resource-id="resourceId"
     :created-at="log.created_at"
     :is-pinned="log.is_pinned"
     :timelineable-id="log.id"
     :timeline-relationship="log.timeline_relation"
+    :timeline-subject-key="resource.timeline_subject_key"
     :timelineable-key="log.timeline_key"
     icon="Plus"
   >
@@ -27,7 +29,8 @@
 </template>
 
 <script setup>
-import TimelineEntry from './RecordTabTimelineTemplate.vue'
 import propsDefinition from './props'
+import TimelineEntry from './RecordTabTimelineTemplate.vue'
+
 defineProps(propsDefinition)
 </script>

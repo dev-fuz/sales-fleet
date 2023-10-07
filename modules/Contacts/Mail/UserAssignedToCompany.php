@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,9 +16,9 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Modules\Contacts\Models\Company;
 use Modules\Contacts\Resource\Company\Company as ResourceCompany;
 use Modules\Core\MailableTemplate\DefaultMailable;
-use Modules\Core\Placeholders\ActionButtonPlaceholder;
-use Modules\Core\Placeholders\PrivacyPolicyPlaceholder;
-use Modules\Core\Resource\Placeholders;
+use Modules\Core\Support\Placeholders\ActionButtonPlaceholder;
+use Modules\Core\Support\Placeholders\PrivacyPolicyPlaceholder;
+use Modules\Core\Resource\ResourcePlaceholders;
 use Modules\MailClient\Mail\MailableTemplate;
 use Modules\Users\Models\User;
 use Modules\Users\Placeholders\UserPlaceholder;
@@ -35,9 +35,9 @@ class UserAssignedToCompany extends MailableTemplate implements ShouldQueue
     /**
      * Provide the defined mailable template placeholders
      */
-    public function placeholders(): Placeholders
+    public function placeholders(): ResourcePlaceholders
     {
-        return (new Placeholders(new ResourceCompany, $this->company ?? null))->push([
+        return (new ResourcePlaceholders(new ResourceCompany, $this->company ?? null))->push([
             ActionButtonPlaceholder::make(fn () => $this->company),
             PrivacyPolicyPlaceholder::make(),
             UserPlaceholder::make(fn () => $this->assigneer->name, 'assigneer')

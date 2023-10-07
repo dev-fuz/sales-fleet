@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,7 +12,10 @@
 
 namespace Modules\Deals\Cards;
 
-use Illuminate\Support\Facades\Request;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Request as RequestFacade;
+use Modules\Core\Charts\ChartResult;
 use Modules\Core\Charts\Presentation;
 use Modules\Deals\Models\Pipeline;
 use Modules\Deals\Models\Stage;
@@ -20,17 +23,14 @@ use Modules\Deals\Models\Stage;
 abstract class DealPresentationCard extends Presentation
 {
     /**
-     * @var \Illuminate\Database\Eloquent\Collection
+     * Stages cache.
      */
-    protected $stages;
+    protected ?Collection $stages = null;
 
     /**
-     * Add stages labels to the result
-     *
-     * @param  \Modules\Core\Charts\ChartResult  $result
-     * @return \Modules\Core\Charts\ChartResult
+     * Add stages labels to the result.
      */
-    protected function withStageLabels($result)
+    protected function withStageLabels(ChartResult $result): ChartResult
     {
         return $result->label(
             fn ($value) => $this->stages()->find($value)->name
@@ -38,11 +38,9 @@ abstract class DealPresentationCard extends Presentation
     }
 
     /**
-     * Get the deals pipeline for the card
-     *
-     * @param  \Illuminate\Http\Request  $request
+     * Get the deals pipeline for the card.
      */
-    protected function getPipeline($request): int
+    protected function getPipelineId(Request $request): int
     {
         return ! $request->filled('pipeline_id') ?
                 Pipeline::visible()->userOrdered()->first()->getKey() :
@@ -50,11 +48,9 @@ abstract class DealPresentationCard extends Presentation
     }
 
     /**
-     * Get all available stages
-     *
-     * @return \Illuminate\Database\Eloquent\Collection
+     * Get all available stages.
      */
-    protected function stages()
+    protected function stages(): Collection
     {
         return $this->stages ??= Stage::select(['id', 'name'])->get();
     }
@@ -68,12 +64,23 @@ abstract class DealPresentationCard extends Presentation
     }
 
     /**
+     * Get the cache key for the card.
+     */
+    public function getCacheKey(Request $request): string
+    {
+        return sprintf(
+            parent::getCacheKey($request).'.%s',
+            $this->getPipelineId($request),
+        );
+    }
+
+    /**
      * jsonSerialize
      */
     public function jsonSerialize(): array
     {
         return array_merge(parent::jsonSerialize(), [
-            'pipeline_id' => $this->getPipeline(Request::instance()),
+            'pipeline_id' => $this->getPipelineId(RequestFacade::instance()),
         ]);
     }
 }

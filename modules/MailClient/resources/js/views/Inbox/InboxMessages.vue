@@ -32,8 +32,8 @@
           class="ml-3 lg:ml-6"
           :disabled="syncInProgress"
           :loading="syncInProgress"
-          @click="performCurrentAccountManualSync"
           icon="Refresh"
+          @click="performCurrentAccountManualSync"
         />
       </div>
     </template>
@@ -44,21 +44,21 @@
       >
         <div class="col-span-12 lg:col-span-3">
           <div class="sm:sticky sm:top-2">
-            <FormDropdownSelect
-              @change="handleAccountSelected"
+            <DropdownSelectInput
               adaptive-width
               :items="accounts"
-              :modelValue="account"
+              :model-value="account"
               class="w-full"
-              label-key="email"
+              label-key="display_email"
+              @change="handleAccountSelected"
             >
-              <template v-slot="{ label, toggle }">
+              <template #default="{ label, toggle }">
                 <IButton
-                  @click="toggle"
                   variant="white"
                   class="justify-between py-2.5"
                   :loading="syncInProgress"
                   block
+                  @click="toggle"
                 >
                   <span class="truncate font-medium">{{ label }}</span>
                   <Icon
@@ -67,7 +67,7 @@
                   />
                 </IButton>
               </template>
-            </FormDropdownSelect>
+            </DropdownSelectInput>
 
             <IButton
               variant="primary"
@@ -75,8 +75,8 @@
               block
               icon="Mail"
               :disabled="!account.can_send_mails"
-              @click="compose(true)"
               :text="$t('mailclient::mail.compose')"
+              @click="compose(true)"
             />
 
             <FoldersMenu :folders="account && account.active_folders_tree" />
@@ -89,6 +89,22 @@
             variant="warning"
           >
             <p v-text="account.sync_state_comment" />
+
+            <router-link
+              :to="{ name: 'email-accounts-index' }"
+              class="font-medium text-warning-700 hover:text-warning-600"
+            >
+              {{ $t('mailclient::mail.account.manage') }}
+              <span aria-hidden="true">&rarr;</span>
+            </router-link>
+          </IAlert>
+
+          <IAlert
+            v-if="!hasPrimaryAccount && accounts.length > 1"
+            class="mb-4 border border-warning-200"
+            variant="warning"
+          >
+            <p v-t="'mailclient::mail.account.missing_primary_account'" />
 
             <router-link
               :to="{ name: 'email-accounts-index' }"
@@ -142,35 +158,40 @@
 
           <router-view
             v-if="hasActiveFolders"
+            ref="messages"
             name="messages"
             :account="account"
-            ref="messages"
           />
-          <ICard v-else class="h-60">
-            <div class="m-auto mt-8 block max-w-2xl text-center">
+
+          <div v-else class="h-60">
+            <div class="mx-auto mt-8 block max-w-2xl text-center">
               <Icon icon="Folder" class="mx-auto h-12 w-12 text-neutral-400" />
               <p
-                class="mt-1 text-sm text-neutral-500"
                 v-t="'mailclient.mail.account.no_active_folders'"
+                class="mt-1 text-sm text-neutral-600 dark:text-neutral-200"
               />
-              <div class="mt-6 space-x-2">
-                <IButton
+              <div class="mt-6 space-x-6">
+                <router-link
                   v-if="account.authorizations.update"
-                  variant="primary"
+                  class="link text-sm"
                   :to="{
                     name: 'edit-email-account',
                     params: { id: account.id },
                   }"
-                  :text="$t('mailclient::mail.account.activate_folders')"
-                />
-                <IButton
+                >
+                  {{ $t('mailclient::mail.account.activate_folders') }}
+                  <span aria-hidden="true">&rarr;</span>
+                </router-link>
+                <router-link
                   :to="{ name: 'email-accounts-index' }"
-                  variant="secondary"
-                  :text="$t('mailclient::mail.account.manage')"
-                />
+                  class="link text-sm"
+                >
+                  {{ $t('mailclient::mail.account.manage') }}
+                  <span aria-hidden="true">&rarr;</span>
+                </router-link>
               </div>
             </div>
-          </ICard>
+          </div>
         </div>
       </div>
     </div>
@@ -181,13 +202,17 @@
     />
   </ILayout>
 </template>
+
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
-import FoldersMenu from './InboxMessagesFoldersMenu.vue'
-import Compose from '../Emails/ComposeMessage.vue'
 import { useStore } from 'vuex'
-import { useGlobalEventListener } from '~/Core/resources/js/composables/useGlobalEventListener'
+
+import { useGlobalEventListener } from '~/Core/composables/useGlobalEventListener'
+
+import Compose from '../Emails/ComposeMessage.vue'
+
+import FoldersMenu from './InboxMessagesFoldersMenu.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -217,6 +242,10 @@ onBeforeRouteUpdate((to, from, next) => {
 })
 
 const accounts = computed(() => store.getters['emailAccounts/accounts'])
+
+const hasPrimaryAccount = computed(
+  () => store.getters['emailAccounts/hasPrimary']
+)
 
 const hasAccounts = computed(() => accounts.value.length > 0)
 
@@ -266,7 +295,7 @@ function handleAccountSelected(account) {
 function handleActionExecutedEvent(action) {
   // Makes sure to update the account after an action is executed
   // This will be update data like the folders unread count
-  if (action.response.hasOwnProperty('account')) {
+  if (Object.hasOwn(action.response, 'account')) {
     store.commit('emailAccounts/UPDATE', {
       id: action.response.account.id,
       item: action.response.account,
@@ -274,7 +303,7 @@ function handleActionExecutedEvent(action) {
   }
 
   // Update global unread messages count
-  if (action.response.hasOwnProperty('unread_count')) {
+  if (Object.hasOwn(action.response, 'unread_count')) {
     store.dispatch(
       'emailAccounts/updateUnreadCountUI',
       action.response.unread_count

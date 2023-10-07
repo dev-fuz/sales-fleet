@@ -1,11 +1,8 @@
 <template>
   <IModal
-    size="xl"
     id="replyMessageModal"
+    size="xl"
     static-backdrop
-    @hide="handleModalHide"
-    @hidden="handleModalHidden"
-    @shown="handleModalShown"
     :hide-footer="showTemplates"
     :visible="visible"
     :title="
@@ -17,6 +14,8 @@
         }
       )
     "
+    @hidden="handleModalHidden"
+    @shown="handleModalShown"
   >
     <div
       class="-mx-6 mb-4 border-y border-neutral-200 px-6 py-3 dark:border-neutral-700"
@@ -24,26 +23,64 @@
       <div class="flex">
         <div class="mr-4">
           <a
-            href="#"
-            @click.prevent="showTemplates = true"
             v-show="!showTemplates"
-            class="link text-sm font-medium"
             v-t="'mailclient.mail.templates.templates'"
+            href="#"
+            class="link text-sm font-medium"
+            @click.prevent="showTemplates = true"
           />
           <a
+            v-show="showTemplates"
+            v-t="'mailclient.mail.compose'"
             href="#"
             class="link text-sm font-medium"
-            v-show="showTemplates"
             @click.prevent="showTemplates = false"
-            v-t="'mailclient.mail.compose'"
           />
         </div>
         <div v-show="!showTemplates" class="font-medium">
           <AssociationsPopover
             v-model="form.associations"
-            :custom-selected-records="customAssociationsValue"
-            :associated="message.associations"
-          />
+            :primary-resource-name="resourceName"
+            :initial-associateables="resourceName ? relatedResource : undefined"
+            :associateables="[customAssociationsValue, message.associations]"
+            @change="
+              parsePlaceholdersForMessage(), parsePlaceholdersForSubject()
+            "
+          >
+            <template
+              #after-record="{
+                title,
+                resource: associatedResourceName,
+                record,
+                isSelected,
+                isSearching,
+                selectedRecords,
+              }"
+            >
+              <span
+                v-i-tooltip.top="
+                  $t('mailclient::inbox.will_use_placeholders_from_record', {
+                    resourceName: title,
+                  })
+                "
+                class="ml-1.5 self-start"
+              >
+                <Icon
+                  v-if="
+                    showWillUsePlaceholdersIconToAssociateResourceRecord(
+                      record,
+                      selectedRecords,
+                      associatedResourceName,
+                      isSelected,
+                      isSearching
+                    )
+                  "
+                  icon="CodeBracket"
+                  class="h-5 w-5 text-neutral-500 dark:text-neutral-400"
+                />
+              </span>
+            </template>
+          </AssociationsPopover>
         </div>
       </div>
     </div>
@@ -53,28 +90,28 @@
         {{ $t('mailclient::mail.validation.invalid_recipients') }}
       </IAlert>
       <MailRecipient
+        ref="toRef"
         :form="form"
         type="to"
-        ref="toRef"
+        :label="$t('mailclient::inbox.to')"
         @recipient-removed="handleToRecipientRemovedEvent"
         @recipient-selected="handleRecipientSelectedEvent"
-        :label="$t('mailclient::inbox.to')"
       >
         <template #after>
           <div class="-mt-2 ml-2 space-x-2">
             <a
               v-if="!wantsCc"
-              href="#"
-              @click.prevent="setWantsCC"
               v-t="'mailclient.inbox.cc'"
+              href="#"
               class="link"
+              @click.prevent="setWantsCC"
             />
             <a
               v-if="!wantsBcc"
-              href="#"
-              @click.prevent="setWantsBCC"
               v-t="'mailclient.inbox.bcc'"
+              href="#"
               class="link"
+              @click.prevent="setWantsBCC"
             />
           </div>
         </template>
@@ -84,9 +121,9 @@
         <MailRecipient
           :form="form"
           type="cc"
+          :label="$t('mailclient::inbox.cc')"
           @recipient-removed="dissociateRemovedRecipients"
           @recipient-selected="associateSelectedRecipients"
-          :label="$t('mailclient::inbox.cc')"
         />
         <hr class="my-3 border-t border-neutral-200 dark:border-neutral-700" />
       </div>
@@ -110,16 +147,22 @@
                 'border-danger-600':
                   !subjectPlaceholdersSyntaxIsValid ||
                   hasInvalidSubjectPlaceholders,
+                'border-dashed !border-neutral-400': subjectDragover,
               }"
-              :modelValue="showParsedSubject ? parsedSubject : subject"
-              @update:modelValue="subject = $event"
+              :model-value="showParsedSubject ? parsedSubject : subject"
               :disabled="showParsedSubject"
+              @update:model-value="subject = $event"
+              @dragover="
+                !showParsedSubject ? (subjectDragover = true) : undefined
+              "
+              @dragleave="subjectDragover = false"
+              @drop="subjectDragover = false"
             />
             <a
               v-show="showParsedSubject"
-              @click.prevent="showParsedSubject = false"
               href="#"
               tabindex="-1"
+              @click.prevent="showParsedSubject = false"
             >
               <Icon
                 icon="CodeBracket"
@@ -137,7 +180,7 @@
               @click.prevent="showParsedSubject = true"
             >
               <Icon
-                icon="ArrowDownLeft"
+                icon="ViewfinderCircle"
                 class="absolute bottom-0 right-4 top-0 m-auto h-5 w-5 text-neutral-500"
               />
             </a>
@@ -147,17 +190,17 @@
       </div>
       <hr class="my-3 border-t border-neutral-200 dark:border-neutral-700" />
       <MailEditor
-        @placeholder-inserted="parsePlaceholdersForMessage"
-        :placeholders="placeholders"
         ref="editorRef"
-        :with-drop="true"
         v-model="form.message"
+        :placeholders="placeholders"
+        :with-drop="true"
+        @placeholder-inserted="parsePlaceholdersForMessage"
       />
       <div class="relative mt-3">
         <MediaUpload
-          @file-uploaded="handleAttachmentUploaded"
           :action-url="`${$store.state.apiURL}/media/pending/${attachmentsDraftId}`"
           :select-file-text="$t('core::app.attach_files')"
+          @file-uploaded="handleAttachmentUploaded"
         >
           <MediaItemsList
             :class="{
@@ -176,11 +219,22 @@
           />
         </MediaUpload>
       </div>
+      <IAlert
+        v-if="showEmptyPlaceholdersMessage"
+        variant="warning"
+        class="mt-4"
+      >
+        {{ $t('mailclient::inbox.pre_send_empty_placeholders_found') }}
+      </IAlert>
     </div>
+
     <template #modal-footer="{ cancel }">
       <div class="flex flex-col sm:flex-row sm:items-center">
         <div class="grow">
-          <CreateFollowUpTask :form="form" v-show="Boolean(resourceName)" />
+          <CreateFollowUpTask
+            v-show="Boolean(resourceName)"
+            v-model="form.task_date"
+          />
         </div>
         <div
           class="mt-2 space-y-2 sm:mt-0 sm:flex sm:items-center sm:space-x-2 sm:space-y-0"
@@ -188,42 +242,74 @@
           <IButton
             class="w-full sm:w-auto"
             variant="white"
-            @click="cancel"
             :text="$t('core::app.cancel')"
+            @click="cancel"
           />
+
           <IButton
             class="w-full sm:w-auto"
+            :variant="showEmptyPlaceholdersMessage ? 'danger' : 'primary'"
             :loading="sending"
             :disabled="sendButtonIsDisabled"
             :text="
-              !forward
+              showEmptyPlaceholdersMessage
+                ? $t('core::app.confirm')
+                : !forward
                 ? $t('mailclient::inbox.reply')
                 : $t('mailclient::inbox.forward')
             "
-            @click="send"
+            @click="send(showEmptyPlaceholdersMessage)"
           />
         </div>
       </div>
     </template>
-    <MailTemplates v-if="showTemplates" @selected="handleTemplateSelected" />
+
+    <PredefinedMailTemplatesList
+      v-if="showTemplates"
+      @selected="handleTemplateSelected"
+      @created="scrollToTop"
+      @updated="scrollToTop"
+      @will-create="scrollToTop"
+      @will-edit="scrollToTop"
+    />
   </IModal>
 </template>
+
 <script setup>
-import { ref, computed, nextTick } from 'vue'
-import CreateFollowUpTask from '~/Activities/resources/js/components/CreateFollowUpTask.vue'
-import MailRecipient from './RecipientSelectorField.vue'
-import MailEditor from '../../components/MailEditor'
-import AssociationsPopover from '~/Core/resources/js/components/AssociationsPopover.vue'
-import MediaUpload from '~/Core/resources/js/components/Media/MediaUpload.vue'
-import MediaItemsList from '~/Core/resources/js/components/Media/MediaItemsList.vue'
-import MailTemplates from '../Templates/MailTemplateList.vue'
-import findIndex from 'lodash/findIndex'
-import cloneDeep from 'lodash/cloneDeep'
-import { randomString } from '@/utils'
-import { useDates } from '~/Core/resources/js/composables/useDates'
-import { useMessageComposer } from '../../composables/useMessageComposer'
+import { computed, inject, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useSignature } from './useSignature'
+import cloneDeep from 'lodash/cloneDeep'
+import findIndex from 'lodash/findIndex'
+
+import { randomString } from '@/utils'
+
+import AssociationsPopover from '~/Core/components/AssociationsPopover.vue'
+import MediaItemsList from '~/Core/components/Media/MediaItemsList.vue'
+import MediaUpload from '~/Core/components/Media/MediaUpload.vue'
+import { useDates } from '~/Core/composables/useDates'
+
+import CreateFollowUpTask from '~/Activities/components/CreateFollowUpTask.vue'
+
+import MailEditor from '../../components/MailEditor'
+import { useMessageComposer } from '../../composables/useMessageComposer'
+import { useSignature } from '../../composables/useSignature'
+import PredefinedMailTemplatesList from '../Templates/PredefinedMailTemplatesList.vue'
+
+import MailRecipient from './RecipientSelectorField.vue'
+
+const emit = defineEmits(['modal-hidden'])
+
+const props = defineProps({
+  resourceName: String,
+  resourceId: [String, Number], // Needs to be provided if resourceName is provided
+  relatedResource: Object, // Needs to be provided if resourceName is provided
+  visible: Boolean,
+  toAll: Boolean,
+  forward: Boolean,
+  message: { type: Object, required: true },
+})
+
+const synchronizeResource = inject('synchronizeResource', null)
 
 const cleanSubjectSearch = [
   // Re
@@ -263,17 +349,6 @@ const cleanSubjectSearch = [
   'YML:',
 ]
 
-const emit = defineEmits(['modal-hidden'])
-
-const props = defineProps({
-  resourceName: String,
-  resourceRecord: Object, // Needs to be provided if resourceName is provided
-  visible: { type: Boolean, default: false },
-  toAll: { type: Boolean, default: false },
-  forward: { type: Boolean, default: false },
-  message: { type: Object, required: true },
-})
-
 const { t } = useI18n()
 
 const { dateFromAppTimezone } = useDates()
@@ -294,6 +369,9 @@ const {
   hasInvalidSubjectPlaceholders,
   subjectContainsPlaceholders,
   parsePlaceholdersForMessage,
+  parsePlaceholdersForSubject,
+  showWillUsePlaceholdersIconToAssociateResourceRecord,
+  hasEmptyPlaceholders,
   sending,
   sendRequest,
   hasInvalidAddresses,
@@ -305,7 +383,20 @@ const {
   setWantsBCC,
   wantsBcc,
   wantsCc,
-} = useMessageComposer(props.resourceName, props.resourceRecord)
+} = useMessageComposer(
+  props.resourceName,
+  props.relatedResource,
+  synchronizeResource
+)
+
+const showEmptyPlaceholdersMessage = ref(false)
+const subjectDragover = ref(false)
+
+watch(hasEmptyPlaceholders, (newVal, oldVal) => {
+  if (oldVal && !newVal) {
+    showEmptyPlaceholdersMessage.value = false
+  }
+})
 
 form.set('associations', props.message.associations)
 
@@ -326,6 +417,10 @@ const hasReplyTo = computed(
   () => props.message.reply_to && props.message.reply_to.length > 0
 )
 
+function scrollToTop() {
+  document.querySelector('.dialog').scrollTo({ top: 0, behavior: 'instant' })
+}
+
 function removeAttachmentBeingForwarded(media) {
   const index = findIndex(attachmentsBeingForwarded.value, ['id', media.id])
   attachmentsBeingForwarded.value.splice(index, 1)
@@ -335,6 +430,8 @@ function handleTemplateSelected(template) {
   form.message = template.body + form.message
   showTemplates.value = false
   parsePlaceholdersForMessage()
+  parsePlaceholdersForSubject()
+  scrollToTop()
   nextTick(() => editorRef.value.focus())
 }
 
@@ -359,6 +456,7 @@ function handleModalShown() {
         to: props.message.to
           .reduce((carry, to) => {
             carry.push((to.name ? to.name + ' ' : '') + `&lt;${to.address}&gt;`)
+
             return carry
           }, [])
           .join(', '),
@@ -427,7 +525,7 @@ function createQuoteOfPreviousMessage() {
 }
 
 /**
- * Handle modal hide event
+ * Handle modal "hidden" event
  *
  * Reset the state, we need to reset the form and the
  * attachments because when the modal is hidden each time
@@ -435,13 +533,13 @@ function createQuoteOfPreviousMessage() {
  *
  * @return {Void}
  */
-function handleModalHide() {
+function handleModalHidden() {
   form.reset()
+  subject.value = null
+  parsedSubject.value = null
   attachments.value = []
   customAssociationsValue.value = {}
-}
 
-function handleModalHidden() {
   emit('modal-hidden')
 }
 
@@ -450,7 +548,15 @@ function handleModalHidden() {
  *
  * @return {Void}
  */
-function send() {
+function send(skipEmptyPlaceholdersCheck = false) {
+  if (skipEmptyPlaceholdersCheck === false && hasEmptyPlaceholders.value) {
+    showEmptyPlaceholdersMessage.value = true
+
+    return
+  } else if (showEmptyPlaceholdersMessage.value) {
+    showEmptyPlaceholdersMessage.value = false
+  }
+
   if (!props.forward) {
     sendRequest(`/emails/${props.message.id}/reply`).then(() =>
       Innoclapps.modal().hide('replyMessageModal')
@@ -489,6 +595,7 @@ function setReplyToAll() {
         })
       }
     })
+
     if (cc.length > 0) {
       form.set('cc', cc)
     }

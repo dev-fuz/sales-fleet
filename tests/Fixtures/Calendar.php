@@ -9,7 +9,7 @@ use Modules\Core\Workflow\HasWorkflowTriggers;
 
 class Calendar extends Model
 {
-    use HasFactory, Resourceable, HasWorkflowTriggers;
+    use HasFactory, HasWorkflowTriggers, Resourceable;
 
     protected $fillable = ['name', 'user_id'];
 

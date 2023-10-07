@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -24,7 +24,7 @@ class UserInvitation extends Model
     use HasUuid;
 
     /**
-     * The appended attributes
+     * The appended attributes.
      *
      * @var array
      */
@@ -50,17 +50,19 @@ class UserInvitation extends Model
     ];
 
     /**
-     * Get the invitation link
+     * Get the invitation link.
      */
     public function link(): Attribute
     {
-        return Attribute::get(fn () => route('invitation.show', ['token' => $this->token]));
+        return Attribute::get(
+            fn () => route('invitation.show', $this->token)
+        );
     }
 
     /**
-     * Get the model uuid column name
+     * Get the model uuid column name.
      */
-    protected static function getUuidColumnName(): string
+    public function uuidColumn(): string
     {
         return 'token';
     }

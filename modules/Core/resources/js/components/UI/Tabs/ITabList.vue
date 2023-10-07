@@ -16,16 +16,16 @@
     >
       <a
         href="#"
-        @click.prevent="scrollLeft"
         :class="{ 'pointer-events-none opacity-50': scrolledToFirstTab }"
         class="block px-1 text-neutral-500 dark:text-neutral-200 sm:hidden"
+        @click.prevent="scrollLeft"
       >
         <Icon icon="ChevronLeft" class="h-6 w-6" />
       </a>
       <TabList
         ref="listRef"
         :class="[
-          'overlow-y-hidden -mb-px flex grow snap-x snap-mandatory overflow-x-auto px-4 scrollbar-thin scrollbar-track-neutral-200 scrollbar-thumb-neutral-300 sm:space-x-4',
+          'overlow-y-hidden -mb-px flex grow snap-x snap-mandatory overflow-x-auto scrollbar-thin scrollbar-track-neutral-200 scrollbar-thumb-neutral-300 sm:space-x-4 sm:px-4',
           { 'justify-around': fill, 'sm:grow-0': !fill },
         ]"
       >
@@ -34,8 +34,8 @@
       <a
         href="#"
         class="block px-1 text-neutral-500 dark:text-neutral-200 sm:hidden"
-        @click.prevent="scrollRight"
         :class="{ 'pointer-events-none opacity-50': scrolledToLastTab }"
+        @click.prevent="scrollRight"
       >
         <Icon icon="ChevronRight" class="h-6 w-6" />
       </a>
@@ -44,10 +44,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, onBeforeUnmount } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { TabList } from '@headlessui/vue'
 
-const props = defineProps({
+defineProps({
   responsive: { type: Boolean, default: true },
   bordered: { type: [String, Boolean], default: 'bottom' },
   listWrapperClass: [String, Array, Object],

@@ -3,8 +3,8 @@
     :card="card"
     no-body
     :request-query-string="tableRequestLastQueryString"
-    @retrieved="handleCardRetrievedEvent"
     :reload-on-query-string-change="false"
+    @retrieved="handleCardRetrievedEvent"
   >
     <template #actions>
       <slot name="actions"></slot>
@@ -13,36 +13,38 @@
       <TableSimple
         ref="tableRef"
         stackable
+        :searchable="card.searchable"
         :table-id="card.uriKey"
         :table-props="{
           sticky: true,
           maxHeight: '450px',
         }"
         :fields="fields"
-        :initial-data="card.items"
+        :initial-data="card.value"
         :request-query-string="cardRequestLastQueryString"
         :request-uri="`cards/${card.uriKey}`"
         @data-loaded="tableRequestLastQueryString = $event.requestQueryString"
       >
-        <template v-for="(_, name) in $slots" v-slot:[name]="slotData">
+        <template v-for="(_, name) in $slots" #[name]="slotData">
           <slot :name="name" v-bind="slotData" />
         </template>
       </TableSimple>
     </div>
   </Card>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
-import TableSimple from '~/Core/resources/js/components/Table/Simple/TableSimple.vue'
+import { computed, ref } from 'vue'
 import get from 'lodash/get'
-import { isISODate, isDate } from '@/utils'
-import { useDates } from '~/Core/resources/js/composables/useDates'
+
+import TableSimple from '~/Core/components/Table/Simple/TableSimple.vue'
+import { useDates } from '~/Core/composables/useDates'
 
 const props = defineProps({
   card: Object,
 })
 
-const { localizedDate, localizedDateTime } = useDates()
+const { maybeFormatDateValue } = useDates()
 
 const tableRequestLastQueryString = ref({})
 const cardRequestLastQueryString = ref({})
@@ -56,14 +58,7 @@ const tableRef = ref(null)
 const fields = computed(() => {
   return props.card.fields.map(field => {
     field.formatter = (value, key, item) => {
-      if (isDate(value)) {
-        return localizedDate(value)
-      } else if (isISODate(value)) {
-        return localizedDateTime(value)
-      } else {
-        // Dot notation formatting and getting values
-        return get(item, key)
-      }
+      return maybeFormatDateValue(value, get(item, key))
     }
 
     return field
@@ -83,7 +78,7 @@ function handleCardRetrievedEvent(payload) {
   // parameter which may cause the table data to change but because
   // the request is not performed via the table class, the data will remain the same as before the
   // request and this will make sure that the data is updated
-  tableRef.value.replaceCollection(payload.card.items)
+  tableRef.value.replaceCollection(payload.card.value)
 }
 
 /**

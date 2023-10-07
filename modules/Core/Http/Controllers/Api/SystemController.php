@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,49 +12,45 @@
 
 namespace Modules\Core\Http\Controllers\Api;
 
-use Illuminate\Support\Facades\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use Modules\Core\Http\Controllers\ApiController;
 use Modules\Core\LogReader;
 use Modules\Core\SystemInfo;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SystemController extends ApiController
 {
     /**
      * Get the system info
-     *
-     * @return \Illuminate\Http\JsonResponse
      */
-    public function info()
+    public function info(Request $request): JsonResponse
     {
         // System info flag
 
-        return $this->response(new SystemInfo(Request::instance()));
+        return $this->response(new SystemInfo($request));
     }
 
     /**
      * Download the system info
-     *
-     * @return mixed
      */
-    public function downloadInfo()
+    public function downloadInfo(Request $request): BinaryFileResponse
     {
         // System info download flag
 
-        return Excel::download(new SystemInfo(Request::instance()), 'system-info.xlsx');
+        return Excel::download(new SystemInfo($request), 'system-info.xlsx');
     }
 
     /**
      * Get the application/Laravel logs
-     *
-     * @return \Illuminate\Http\JsonResponse
      */
-    public function logs()
+    public function logs(Request $request): JsonResponse
     {
         // System logs flag
 
         return $this->response(
-            (new LogReader(['date' => Request::instance()->date]))->get()
+            new LogReader(['date' => $request->date])
         );
     }
 }

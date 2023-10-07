@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -105,11 +105,7 @@ abstract class AbstractImapClient implements ImapInterface
      */
     public function getFolders()
     {
-        if ($this->folders) {
-            return $this->folders;
-        }
-
-        return $this->folders = $this->retrieveFolders();
+        return $this->folders ??= $this->retrieveFolders();
     }
 
     /**

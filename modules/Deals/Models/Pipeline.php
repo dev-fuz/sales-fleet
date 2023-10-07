@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -19,14 +19,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Lang;
 use Modules\Core\Concerns\UserOrderable;
 use Modules\Core\Contracts\Primaryable;
-use Modules\Core\Models\Model;
-use Modules\Core\VisibilityGroup\HasVisibilityGroups;
-use Modules\Core\VisibilityGroup\RestrictsModelVisibility;
+use Modules\Core\Models\CacheModel;
+use Modules\Core\Support\VisibilityGroup\HasVisibilityGroups;
+use Modules\Core\Support\VisibilityGroup\RestrictsModelVisibility;
 use Modules\Deals\Database\Factories\PipelineFactory;
 
-class Pipeline extends Model implements Primaryable, HasVisibilityGroups
+class Pipeline extends CacheModel implements HasVisibilityGroups, Primaryable
 {
-    use HasFactory, RestrictsModelVisibility, UserOrderable;
+    use HasFactory,
+        RestrictsModelVisibility,
+        UserOrderable;
 
     /**
      * The flag that indicates it's the primary pipeline
@@ -45,7 +47,7 @@ class Pipeline extends Model implements Primaryable, HasVisibilityGroups
     /**
      * Boot the model.
      */
-    protected static function boot()
+    protected static function boot(): void
     {
         parent::boot();
 
@@ -127,9 +129,7 @@ class Pipeline extends Model implements Primaryable, HasVisibilityGroups
     public function scopeWithCommon(Builder $query): void
     {
         $query->with([
-            'stages' => function ($query) {
-                $query->orderByDisplayOrder();
-            },
+            'stages',
             'visibilityGroup',
             'userOrder',
         ]);

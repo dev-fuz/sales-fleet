@@ -1,22 +1,21 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import i18n from '~/Core/resources/js/i18n'
-import { useDocumentTypes } from './composables/useDocumentTypes'
-import SettingsDocuments from './components/SettingsDocuments.vue'
+import i18n from '~/Core/i18n'
 
 import DocumentsTab from './components/RecordTabDocument.vue'
 import DocumentsTabPanel from './components/RecordTabDocumentPanel.vue'
 import RecordTabTimelineDocument from './components/RecordTabTimelineDocument.vue'
-
-import DocumentPublicView from './views/DocumentPublicView.vue'
+import SettingsDocuments from './components/SettingsDocuments.vue'
+import { useDocumentTypes } from './composables/useDocumentTypes'
+import DocumentPublicView from './views/DocumentsPublicView.vue'
 import routes from './routes'
 
 const { setDocumentTypes } = useDocumentTypes()

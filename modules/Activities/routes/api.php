@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,14 +12,11 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Activities\Http\Controllers\Api\ActivityController;
-use Modules\Activities\Http\Controllers\Api\ActivityStateController;
 use Modules\Activities\Http\Controllers\Api\CalendarOAuthController;
 
 Route::middleware('auth:sanctum')->group(function () {
     // Activity routes
     Route::get('/activities/{activity}/ics', [ActivityController::class, 'downloadICS']);
-    Route::post('/activities/{activity}/complete', [ActivityStateController::class, 'complete']);
-    Route::post('/activities/{activity}/incomplete', [ActivityStateController::class, 'incomplete']);
 
     // Calendar routes
     Route::prefix('calendar')->group(function () {

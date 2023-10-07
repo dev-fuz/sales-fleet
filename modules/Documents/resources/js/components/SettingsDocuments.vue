@@ -14,29 +14,33 @@
             label-for="default_document_type"
           >
             <ICustomSelect
-              input-id="default_document_type"
               v-model="defaultType"
+              input-id="default_document_type"
               class="xl:w-1/3"
               :clearable="false"
-              @option:selected="handleDocumentTypeInputEvent"
               label="name"
               :options="documentTypes"
+              @option:selected="handleDocumentTypeInputEvent"
             >
             </ICustomSelect>
           </IFormGroup>
         </li>
       </ul>
     </ICard>
-    <DocumentTypeIndex></DocumentTypeIndex>
+    <DocumentsTypeIndex></DocumentsTypeIndex>
   </div>
 </template>
+
 <script setup>
 import { ref } from 'vue'
 import { watchOnce } from '@vueuse/core'
-import DocumentTypeIndex from '../views/DocumentTypeIndex.vue'
-import { useSettings } from '~/Core/resources/js/views/Settings/useSettings'
-import { useApp } from '~/Core/resources/js/composables/useApp'
+
+import { useApp } from '~/Core/composables/useApp'
+import { useSettings } from '~/Core/composables/useSettings'
+
 import { useDocumentTypes } from '../composables/useDocumentTypes'
+import DocumentsTypeIndex from '../views/DocumentsTypeIndex.vue'
+
 const { resetStoreState } = useApp()
 const { form, submit, isReady: componentReady } = useSettings()
 
@@ -49,7 +53,7 @@ function handleDocumentTypeInputEvent(e) {
   submit(resetStoreState)
 }
 
-watchOnce(componentReady, function (newVal, oldVal) {
+watchOnce(componentReady, () => {
   defaultType.value = documentTypes.value.find(
     type => type.id == form.default_document_type
   )

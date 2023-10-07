@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -21,10 +21,10 @@ const mutations = {
    * Set the given fields and group in store
    *
    * @param {Object} state
-   * @param {Object} payload
+   * @param {Object} data
    */
-  SET(state, payload) {
-    state.fields[payload.group] = payload.fields
+  SET(state, data) {
+    state.fields[data.group] = data.fields
   },
 
   /**
@@ -64,33 +64,6 @@ const actions = {
    *
    * @param  {Function} options.commit
    * @param  {Object} options.state
-   * @param  {String} options.group
-   * @param  {String} options.view
-   *
-   * @return {Array}
-   */
-  async get({ commit, state }, { group, view }) {
-    let storeGroup = group + '-' + view
-
-    if (state.fields[storeGroup] !== undefined) {
-      return state.fields[storeGroup]
-    }
-
-    let { data: fields } = await Innoclapps.request().get(
-      '/fields/' + group + '/' + view,
-      { params: { intent: view } }
-    )
-
-    commit('SET', { group: storeGroup, fields: fields })
-
-    return fields
-  },
-
-  /**
-   * Get fields for given group/resource and view
-   *
-   * @param  {Function} options.commit
-   * @param  {Object} options.state
    * @param  {String} options.resourceName
    * @param  {String} options.view
    * @param  {Number} options.resourceId
@@ -99,30 +72,43 @@ const actions = {
    */
   async getForResource(
     { commit, state },
-    { resourceName, view, resourceId, viaResource, viaResourceId }
+    {
+      resourceName,
+      view,
+      resourceId,
+      viaResource,
+      viaResourceId,
+      intent,
+      params = {},
+    }
   ) {
-    let storeGroup =
+    let cacheKey =
       resourceName + '-' + view + (viaResource ? '-' + viaResource : '')
 
     // We don't cache the fields when resourceId/update fields are requested
     // Because the resource may implement different strategies based on the model
     // e.q. readonly if specific model condition is met
-    if (state.fields[storeGroup] !== undefined && !resourceId) {
-      return state.fields[storeGroup]
+    if (
+      state.fields[cacheKey] !== undefined &&
+      !resourceId &&
+      !params.resourceId
+    ) {
+      return state.fields[cacheKey]
     }
 
     let { data: fields } = await Innoclapps.request().get(
       `/${resourceName}${resourceId ? '/' + resourceId : ''}/${view}-fields`,
       {
         params: {
-          intent: view,
+          intent: intent || view,
           via_resource: viaResource,
           via_resource_id: viaResourceId,
+          ...params,
         },
       }
     )
 
-    commit('SET', { group: storeGroup, fields: fields })
+    commit('SET', { group: cacheKey, fields: fields })
 
     return fields
   },

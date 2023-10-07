@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,14 +15,15 @@ namespace Modules\Deals\Actions;
 use Illuminate\Support\Collection;
 use Modules\Core\Actions\Action;
 use Modules\Core\Actions\ActionFields;
-use Modules\Core\Actions\ActionRequest;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Http\Requests\ActionRequest;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Deals\Fields\LostReasonField;
+use Modules\Deals\Models\Deal;
 
 class MarkAsLost extends Action
 {
     /**
-     * Indicates that the action will be hidden on the view/update view.
+     * Indicates that the action will be hidden on the update view.
      */
     public bool $hideOnUpdate = true;
 
@@ -33,9 +34,7 @@ class MarkAsLost extends Action
      */
     public function handle(Collection $models, ActionFields $fields)
     {
-        foreach ($models as $model) {
-            $model->markAsLost($fields->lost_reason);
-        }
+        $models->reject(fn (Deal $model) => $model->isLost())->each->markAsLost($fields->lost_reason);
     }
 
     /**
@@ -45,7 +44,7 @@ class MarkAsLost extends Action
     {
         return [
             LostReasonField::make('lost_reason', __('deals::deal.lost_reasons.lost_reason'))->rules(
-                settings('lost_reason_is_required') ? 'required' : 'nullable',
+                (bool) settings('lost_reason_is_required') ? 'required' : 'nullable',
                 'string',
                 'max:191'
             ),

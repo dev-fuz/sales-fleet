@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -66,7 +66,7 @@ interface MessageInterface
      * @param  \Closure  $replacer Provide a replace callback
      * @return string|null
      */
-    public function getPreviewBody(?Closure $replacer = null);
+    public function getPreviewBody(Closure $replacer = null);
 
     /**
      * Get the messsage attachments
@@ -78,42 +78,42 @@ interface MessageInterface
     /**
      * Get message FROM header
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getFrom();
 
     /**
      * Get message TO header
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getTo();
 
     /**
      * Get message CC header
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getCc();
 
     /**
      * Get message BCC header
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getBcc();
 
     /**
      * Get message Reply-to header
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getReplyTo();
 
     /**
      * Get message SENDER header
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getSender();
 
@@ -155,7 +155,7 @@ interface MessageInterface
     /**
      * Get message headers
      *
-     * @return \Modules\Core\Mail\Headers\HeadersCollection
+     * @return \Modules\Core\Support\Mail\Headers\HeadersCollection
      */
     public function getHeaders();
 
@@ -163,7 +163,7 @@ interface MessageInterface
      * Get message header
      *
      * @param  string  $name
-     * @return \Modules\Core\Mail\Headers\Header|\Modules\Core\Mail\Headers\AddressHeader|\Modules\Core\Mail\Headers\IdHeader|\Modules\Core\Mail\Headers\DateHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\Header|\Modules\Core\Support\Mail\Headers\AddressHeader|\Modules\Core\Support\Mail\Headers\IdHeader|\Modules\Core\Support\Mail\Headers\DateHeader|null
      */
     public function getHeader($name);
 

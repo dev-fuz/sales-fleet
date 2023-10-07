@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -24,23 +24,24 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use Modules\Billable\Concerns\HasProducts;
-use Modules\Core\Changelog\LogsModelChanges;
 use Modules\Core\Concerns\HasCreator;
 use Modules\Core\Concerns\HasUuid;
 use Modules\Core\Concerns\Prunable;
 use Modules\Core\Contracts\Presentable;
-use Modules\Core\Date\Carbon;
 use Modules\Core\Facades\ChangeLogger;
-use Modules\Core\Media\HasAttributesWithPendingMedia;
 use Modules\Core\Models\Model;
-use Modules\Core\Placeholders\Collection as BasePlaceholders;
-use Modules\Core\Placeholders\DatePlaceholder;
-use Modules\Core\Placeholders\GenericPlaceholder;
-use Modules\Core\Resource\Placeholders as ResourcePlaceholders;
 use Modules\Core\Resource\Resourceable;
-use Modules\Core\Timeline\Timelineable;
+use Modules\Core\Resource\ResourcePlaceholders;
+use Modules\Core\Support\Changelog\LogsModelChanges;
+use Modules\Core\Support\Date\Carbon;
+use Modules\Core\Support\Media\HasAttributesWithPendingMedia;
+use Modules\Core\Support\Placeholders\DatePlaceholder;
+use Modules\Core\Support\Placeholders\GenericPlaceholder;
+use Modules\Core\Support\Placeholders\Placeholders as BasePlaceholders;
+use Modules\Core\Support\Timeline\Timelineable;
 use Modules\Core\Workflow\HasWorkflowTriggers;
 use Modules\Documents\Content\DocumentContent;
+use Modules\Documents\Content\FontsExtractor;
 use Modules\Documents\Database\Factories\DocumentFactory;
 use Modules\Documents\Enums\DocumentStatus;
 use Modules\Documents\Enums\DocumentViewType;
@@ -51,17 +52,17 @@ use Modules\Users\Models\User;
  */
 class Document extends Model implements Presentable, Viewable
 {
-    use Resourceable,
-        HasFactory,
+    use HasAttributesWithPendingMedia,
         HasCreator,
+        HasFactory,
         HasProducts,
-        InteractsWithViews,
-        SoftDeletes,
-        HasWorkflowTriggers,
-        Prunable,
         HasUuid,
-        HasAttributesWithPendingMedia,
+        HasWorkflowTriggers,
+        InteractsWithViews,
         LogsModelChanges,
+        Prunable,
+        Resourceable,
+        SoftDeletes,
         Timelineable;
 
     /**
@@ -79,6 +80,7 @@ class Document extends Model implements Presentable, Viewable
         'document_type_id',
         'send_at',
         'view_type',
+        'locale',
     ];
 
     /**
@@ -104,37 +106,18 @@ class Document extends Model implements Presentable, Viewable
     ];
 
     /**
-     * The fields for the model that are searchable.
+     * The columns for the model that are searchable.
      */
-    protected static array $searchableFields = [
+    protected static array $searchableColumns = [
         'title' => 'like',
+        'document_type_id',
+        'status',
+        'amount',
+        'brand_id',
+        'sent_by',
+        'user_id',
+        'created_by',
     ];
-
-    /**
-     * Boot the model
-     */
-    protected static function boot(): void
-    {
-        parent::boot();
-
-        static::created(function ($model) {
-            $model->addActivity([
-                'lang' => [
-                    'key' => 'documents::document.activity.created',
-                    'attrs' => [
-                        // for unit tests
-                        'user' => auth()->user()?->name,
-                    ],
-                ],
-            ]);
-        });
-
-        static::deleting(function ($model) {
-            if ($model->isForceDeleting()) {
-                $model->purge();
-            }
-        });
-    }
 
     /**
      * Add new activity
@@ -207,6 +190,43 @@ class Document extends Model implements Presentable, Viewable
     }
 
     /**
+     * Get the document PDF font.
+     */
+    public function pdfFont(): array
+    {
+        $family = $this->data['pdf']['font'] ?? null;
+
+        if (! $family) {
+            return $this->brand->pdfFont();
+        }
+
+        $fontsExtractor = new FontsExtractor;
+        $fonts = $fontsExtractor->getFontsFromConfig();
+
+        $font = array_merge($fonts->where('font-family', $family)->first(), [
+            'name' => trim(explode(',', $family)[0]),
+        ]);
+
+        return $font;
+    }
+
+    /**
+     * Get the document PDF size.
+     */
+    public function pdfSize()
+    {
+        return $this->data['pdf']['size'] ?? $this->brand->config['pdf']['size'] ?? 'a4';
+    }
+
+    /**
+     * Get the document PDF orientation.
+     */
+    public function pdfOrientation()
+    {
+        return $this->data['pdf']['orientation'] ?? $this->brand->config['pdf']['orientation'] ?? 'landscape';
+    }
+
+    /**
      * Check whether all signers has signed the document
      */
     public function everyoneSigned(): bool
@@ -235,7 +255,9 @@ class Document extends Model implements Presentable, Viewable
      */
     public function publicUrl(): Attribute
     {
-        return Attribute::get(fn () => route('document.public', $this->uuid));
+        return Attribute::get(
+            fn () => route('document.public', $this->uuid)
+        );
     }
 
     /**
@@ -243,7 +265,9 @@ class Document extends Model implements Presentable, Viewable
      */
     public function path(): Attribute
     {
-        return Attribute::get(fn () => "/documents/{$this->id}");
+        return Attribute::get(
+            fn () => "/documents/{$this->id}"
+        );
     }
 
     /**
@@ -329,7 +353,7 @@ class Document extends Model implements Presentable, Viewable
      */
     public function pdfFilename(): string
     {
-        return Str::slug($this->type->name).'.pdf';
+        return (Str::slug($this->type->name) ?: $this->type->name).'.pdf';
     }
 
     /**
@@ -340,10 +364,7 @@ class Document extends Model implements Presentable, Viewable
     public function pdf()
     {
         return Pdf::loadView('documents::pdf', ['document' => $this])
-            ->setPaper(
-                $this->brand->config['pdf']['size'] ?? 'a4',
-                $this->brand->config['pdf']['orientation'] ?? 'landscape'
-            )
+            ->setPaper($this->pdfSize(), $this->pdfOrientation())
             ->setWarnings(false);
     }
 
@@ -366,7 +387,7 @@ class Document extends Model implements Presentable, Viewable
     /**
      * Mark the given document as lost
      */
-    public function markAsLost(User $user): Document|bool
+    public function markAsLost(User $user): self|bool
     {
         if ($this->status === DocumentStatus::LOST || $this->status === DocumentStatus::ACCEPTED) {
             return false;
@@ -390,7 +411,7 @@ class Document extends Model implements Presentable, Viewable
     /**
      * Mark the given document as accepted
      */
-    public function markAsAccepted(User $user): Document|bool
+    public function markAsAccepted(User $user): self|bool
     {
         if ($this->status === DocumentStatus::ACCEPTED) {
             return false;
@@ -418,7 +439,7 @@ class Document extends Model implements Presentable, Viewable
     /**
      * Mark the given document as draft
      */
-    public function markAsDraft(User $user): Document|bool
+    public function markAsDraft(User $user): self|bool
     {
         if ($this->status !== DocumentStatus::LOST &&
             $this->status === DocumentStatus::ACCEPTED && ! $this->marked_accepted_by) {
@@ -443,6 +464,14 @@ class Document extends Model implements Presentable, Viewable
     }
 
     /**
+     * Get localized config from the document brand.
+     */
+    public function localizedBrandConfig(string $key)
+    {
+        return $this->brand->getLocalizedConfig($key, $this->locale);
+    }
+
+    /**
      * Purge the document data.
      */
     public function purge(): void
@@ -464,7 +493,9 @@ class Document extends Model implements Presentable, Viewable
     {
         $query->with([
             'brand',
+            'type',
             'signers',
+            'user',
             'billable',
             'billable.products',
             'billable.products.originalProduct',

@@ -5,9 +5,9 @@
       :arrow="arrow"
       :offset="10"
       :z-index="1250"
-      placement="bottom"
+      :placement="placement"
       portal
-      :show="visible"
+      :show="localVisible"
       enter="transition ease-out duration-100"
       enter-from="transform opacity-0 scale-95"
       enter-to="transform opacity-100 scale-100"
@@ -52,7 +52,7 @@
             v-if="title || $slots.title || closeable"
             :class="[
               colorMaps[variant].backgroundColorClasses,
-              'px-4 py-3',
+              'px-4 py-2.5',
               bordered
                 ? 'border-b ' + colorMaps[variant].borderColorClasses
                 : '',
@@ -60,14 +60,14 @@
           >
             <div class="flex justify-between">
               <h4
-                v-text="title"
                 class="text-[0.9rem] font-medium text-neutral-800 dark:text-neutral-100"
+                v-text="title"
               />
               <a
                 v-if="closeable"
                 href="#"
+                class="mt-0.5 text-neutral-500 hover:text-neutral-700 focus:outline-none dark:text-neutral-300 dark:hover:text-neutral-100"
                 @click.prevent="hide"
-                class="mt-0.5 text-neutral-500 focus:outline-none hover:text-neutral-700 dark:text-neutral-300 dark:hover:text-neutral-100"
               >
                 <Icon icon="X" class="h-5 w-5" />
               </a>
@@ -79,16 +79,27 @@
     </Float>
   </Popover>
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
-import { ref, onMounted } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/vue'
 import { Float, FloatArrow } from '@headlessui-float/vue'
 import { onClickOutside } from '@vueuse/core'
+
+const emit = defineEmits(['show', 'hide', 'update:visible'])
+
+const props = defineProps({
+  busy: Boolean,
+  variant: { type: String, default: 'white' },
+  placement: { type: String, default: 'bottom' },
+  bordered: { type: Boolean, default: true },
+  arrow: { type: Boolean, default: true },
+  shadow: { type: Boolean, default: true },
+  visible: Boolean,
+  title: String,
+  closeable: Boolean,
+  disabled: Boolean,
+})
 
 const colorMaps = {
   white: {
@@ -97,49 +108,56 @@ const colorMaps = {
   },
 }
 
-const emit = defineEmits(['show', 'hide'])
-
-const props = defineProps({
-  busy: Boolean,
-  variant: { type: String, default: 'white' },
-  bordered: { type: Boolean, default: true },
-  arrow: { type: Boolean, default: true },
-  shadow: { type: Boolean, default: true },
-  title: String,
-  closeable: Boolean,
-  disabled: Boolean,
+defineOptions({
+  inheritAttrs: false,
 })
 
-const visible = ref(false)
+const localVisible = ref(false)
 
 const panelRef = ref(null)
 const popperRef = ref(null)
 
 onMounted(() => {
   onClickOutside(panelRef, hide, {
-    ignore: ['.c-popper', popperRef.value.$el],
+    ignore: ['.c-popper', '.c-dropdown', popperRef.value.$el],
   })
 })
 
 function toggle() {
-  visible.value ? hide() : show()
+  localVisible.value ? hide() : show()
 }
 
 function show() {
   if (props.disabled === true) {
     return
   }
-  visible.value = true
+  localVisible.value = true
   emit('show')
+  emit('update:visible', true)
 }
 
 function hide() {
   if (props.disabled === true) {
     return
   }
-  visible.value = false
+  localVisible.value = false
   emit('hide')
+  emit('update:visible', false)
 }
+
+watch(
+  () => props.visible,
+  (newVal, oldVal) => {
+    if (newVal) {
+      show()
+    } else if (oldVal) {
+      hide()
+    }
+  },
+  {
+    // immediate: true,
+  }
+)
 
 defineExpose({
   show,

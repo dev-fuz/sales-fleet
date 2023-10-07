@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,6 @@
 namespace Modules\Billable\Tests\Feature\Actions;
 
 use Modules\Billable\Actions\MarkProductAsActive;
-use Modules\Core\Database\Seeders\PermissionsSeeder;
 use Modules\Core\Tests\ResourceTestCase;
 
 class MarkProductAsActiveTest extends ResourceTestCase
@@ -49,7 +48,6 @@ class MarkProductAsActiveTest extends ResourceTestCase
 
     public function test_authorized_user_can_run_mark_as_active_action()
     {
-        $this->seed(PermissionsSeeder::class);
         $this->asRegularUser()->withPermissionsTo('edit all products')->signIn();
 
         $user = $this->createUser();
@@ -64,7 +62,6 @@ class MarkProductAsActiveTest extends ResourceTestCase
 
     public function test_unauthorized_user_can_run_mark_as_active_action_on_own_deal()
     {
-        $this->seed(PermissionsSeeder::class);
         $signedInUser = $this->asRegularUser()->withPermissionsTo('edit own products')->signIn();
         $this->createUser();
 

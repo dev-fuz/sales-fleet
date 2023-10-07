@@ -1,16 +1,21 @@
 <template>
   <ITab
+    v-memo="[countIncomplete]"
     :badge="countIncomplete"
     badge-variant="danger"
     :title="$t('activities::activity.activities')"
     icon="Calendar"
   />
 </template>
+
 <script setup>
-import { useRecordStore } from '~/Core/resources/js/composables/useRecordStore'
 import { computed } from 'vue'
 
-const { record } = useRecordStore()
+const props = defineProps({
+  resourceName: { required: true, type: String },
+  resourceId: { required: true, type: [String, Number] },
+  resource: { required: true, type: Object },
+})
 
 /**
  * Record incomplete activities count
@@ -23,11 +28,11 @@ const { record } = useRecordStore()
  * is already retrieved before termination and the incomplete_activities_for_user_count will be 0
  */
 const countIncomplete = computed(() => {
-  const incomplete = (record.value.activities || []).filter(
+  const incomplete = (props.resource.activities || []).filter(
     activity => !activity.is_completed
   )
 
-  let count = record.value.incomplete_activities_for_user_count
+  let count = props.resource.incomplete_activities_for_user_count
 
   if (count === 0 && incomplete.length > 0) {
     return incomplete.length

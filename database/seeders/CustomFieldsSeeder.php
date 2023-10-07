@@ -113,5 +113,19 @@ class CustomFieldsSeeder extends Seeder
             'field_type' => 'Timezone',
             'label' => 'Timezone',
         ]);
+
+        $service->create([
+            'resource_name' => static::$resourceName,
+            'field_id' => 'cf_custom_field_url',
+            'field_type' => 'Url',
+            'label' => 'Url',
+        ]);
+
+        $service->create([
+            'resource_name' => static::$resourceName,
+            'field_id' => 'cf_custom_field_color_swatch',
+            'field_type' => 'ColorSwatch',
+            'label' => 'Color',
+        ]);
     }
 }

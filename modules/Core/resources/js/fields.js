@@ -1,58 +1,50 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import { defineAsyncComponent } from 'vue'
+const formFields = import.meta.glob('./fields/Form/*.vue', { eager: true })
+const detailFields = import.meta.glob('./fields/Detail/*.vue', { eager: true })
+const indexFields = import.meta.glob('./fields/Index/*.vue', { eager: true })
 
-import TextField from '~/Core/resources/js/components/Fields/TextField.vue'
-import TextareaField from '~/Core/resources/js/components/Fields/TextareaField.vue'
-import IconPickerField from '~/Core/resources/js/components/Fields/IconPickerField.vue'
-const DomainField = defineAsyncComponent(() =>
-  import('~/Core/resources/js/components/Fields/DomainField.vue')
-)
-import BooleanField from '~/Core/resources/js/components/Fields/BooleanField.vue'
-import CheckboxField from '~/Core/resources/js/components/Fields/CheckboxField.vue'
-import RadioField from '~/Core/resources/js/components/Fields/RadioField.vue'
-import DateField from '~/Core/resources/js/components/Fields/DateField.vue'
-import DateTimeField from '~/Core/resources/js/components/Fields/DateTimeField.vue'
-import SelectField from '~/Core/resources/js/components/Fields/SelectField.vue'
-import SelectMultipleField from '~/Core/resources/js/components/Fields/SelectMultipleField.vue'
-import DropdownSelectField from '~/Core/resources/js/components/Fields/DropdownSelectField.vue'
-import EditorField from '~/Core/resources/js/components/Fields/EditorField.vue'
-import NumericField from '~/Core/resources/js/components/Fields/NumericField.vue'
-import BelongsToField from '~/Core/resources/js/components/Fields/BelongsToField.vue'
-import TimezoneField from '~/Core/resources/js/components/Fields/TimezoneField.vue'
-import IntroductionField from '~/Core/resources/js/components/Fields/IntroductionField.vue'
-import ColorSwatchesField from '~/Core/resources/js/components/Fields/ColorSwatchesField.vue'
-import ReminderField from '~/Core/resources/js/components/Fields/ReminderField.vue'
-import VisibilityGroupField from '~/Core/resources/js/components/Fields/VisibilityGroupField.vue'
+function componentNameFromPath(path) {
+  return path.split('/').at(-1).split('.')[0]
+}
+
+function registerFormFields(app) {
+  for (const path in formFields) {
+    app.component(
+      `Form${componentNameFromPath(path)}`,
+      formFields[path].default
+    )
+  }
+}
+
+function registerDetailFields(app) {
+  for (const path in detailFields) {
+    app.component(
+      `Detail${componentNameFromPath(path)}`,
+      detailFields[path].default
+    )
+  }
+}
+
+function registerIndexFields(app) {
+  for (const path in indexFields) {
+    app.component(
+      `Index${componentNameFromPath(path)}`,
+      indexFields[path].default
+    )
+  }
+}
 
 export default function (app) {
-  app
-    .component('TextField', TextField)
-    .component('TextareaField', TextareaField)
-    .component('IconPickerField', IconPickerField)
-    .component('DomainField', DomainField)
-    .component('BooleanField', BooleanField)
-    .component('CheckboxField', CheckboxField)
-    .component('RadioField', RadioField)
-    .component('DateField', DateField)
-    .component('DateTimeField', DateTimeField)
-    .component('SelectField', SelectField)
-    .component('SelectMultipleField', SelectMultipleField)
-    .component('DropdownSelectField', DropdownSelectField)
-    .component('EditorField', EditorField)
-    .component('NumericField', NumericField)
-    .component('BelongsToField', BelongsToField)
-    .component('TimezoneField', TimezoneField)
-    .component('IntroductionField', IntroductionField)
-    .component('ColorSwatchesField', ColorSwatchesField)
-    .component('ReminderField', ReminderField)
-    .component('VisibilityGroupField', VisibilityGroupField)
+  registerFormFields(app)
+  registerDetailFields(app)
+  registerIndexFields(app)
 }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -27,11 +27,11 @@ class RelatedCriteria implements QueryCriteria
 
             foreach ($resource->availableAssociations() as $key => $resource) {
                 if ($criteria = $resource->viewAuthorizedRecordsCriteria()) {
-                    $whereCallback = function ($query) use ($criteria) {
-                        (new $criteria)->apply($query);
-                    };
+                    $relation = $resource->associateableName();
 
-                    $query->{$key === 0 ? 'whereHas' : 'orWhereHas'}($resource->associateableName(), $whereCallback);
+                    $query->{$key === 0 ? 'whereHas' : 'orWhereHas'}($relation, function ($query) use ($criteria) {
+                        (new $criteria)->apply($query);
+                    });
                 }
             }
 

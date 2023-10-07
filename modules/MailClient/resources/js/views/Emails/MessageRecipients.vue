@@ -14,32 +14,34 @@
     </p>
   </div>
 </template>
+
 <script setup>
-import { computed } from "vue";
-import castArray from "lodash/castArray";
-import MailRecipient from "./MessageRecipient.vue";
+import { computed } from 'vue'
+import castArray from 'lodash/castArray'
+
+import MailRecipient from './MessageRecipient.vue'
 
 const props = defineProps({
   showWhenEmpty: { default: true, type: Boolean },
   label: String,
   recipients: {},
-});
+})
 
-const wrappedRecipients = computed(() => castArray(props.recipients));
+const wrappedRecipients = computed(() => castArray(props.recipients))
 
 const hasRecipients = computed(
   () => !props.recipients || wrappedRecipients.value.length > 0
-);
+)
 
 const showRecipients = computed(() => {
   if (props.showWhenEmpty) {
-    return true;
+    return true
   }
 
   if (!hasRecipients.value && props.showWhenEmpty === false) {
-    return false;
+    return false
   }
 
-  return true;
-});
+  return true
+})
 </script>

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -17,7 +17,8 @@ use Modules\Contacts\Models\Contact;
 use Modules\Core\Facades\Fields;
 use Modules\Core\Fields\Text;
 use Modules\Core\Fields\User;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Http\Requests\ResourceRequest;
+use Modules\Core\Table\Column;
 use Tests\Fixtures\SampleDatabaseNotification;
 use Tests\Fixtures\SampleTableColumn;
 use Tests\TestCase;
@@ -40,7 +41,7 @@ class ManagerTest extends TestCase
             'test_field_2' => ['order' => 1],
         ], 'testing', Fields::UPDATE_VIEW);
 
-        $fields = Fields::resolve('testing', Fields::UPDATE_VIEW);
+        $fields = Fields::get('testing', Fields::UPDATE_VIEW);
 
         $this->assertEquals($fields[0]->attribute, 'test_field_2');
         $this->assertEquals($fields[1]->attribute, 'test_field_1');
@@ -62,13 +63,13 @@ class ManagerTest extends TestCase
             'test_field_2' => ['order' => 1],
         ], 'testing', Fields::CREATE_VIEW);
 
-        $fields = Fields::resolve('testing', Fields::CREATE_VIEW);
+        $fields = Fields::get('testing', Fields::CREATE_VIEW);
 
         $this->assertEquals($fields[0]->attribute, 'test_field_2');
         $this->assertEquals($fields[1]->attribute, 'test_field_1');
     }
 
-    public function test_it_ensures_that_user_cannot_modify_the_primary_fields_attributes_on_creation_view()
+    public function test_it_ensures_that_user_cannot_modify_the_primary_fields_on_creation_view()
     {
         $this->signIn();
 
@@ -80,9 +81,12 @@ class ManagerTest extends TestCase
 
         Fields::customize([
             'test_field_1' => ['collapsed' => true, 'showOnCreation' => false],
-        ], 'testing', Fields::CREATE_VIEW);
+        ],
+            'testing',
+            'view'
+        );
 
-        $fields = Fields::resolveCreateFields('testing');
+        $fields = Fields::get('testing', 'view');
 
         $this->assertFalse($fields->first()->collapsed);
         $this->assertTrue($fields->first()->showOnCreation);
@@ -99,7 +103,7 @@ class ManagerTest extends TestCase
         // Update to detail
         Fields::customize(['test_field_1' => ['isRequired' => true]], 'testing', Fields::UPDATE_VIEW);
 
-        $fields = Fields::resolveDetailFields('testing');
+        $fields = Fields::get('testing', Fields::DETAIL_VIEW);
 
         $this->assertTrue($fields->first()->isRequired(app(ResourceRequest::class)));
     }
@@ -114,7 +118,7 @@ class ManagerTest extends TestCase
 
         Fields::customize(['test_field_1' => ['isRequired' => true]], 'testing', Fields::DETAIL_VIEW);
 
-        $fields = Fields::resolveUpdateFields('testing');
+        $fields = Fields::get('testing', Fields::DETAIL_VIEW);
 
         $this->assertTrue($fields->first()->isRequired(app(ResourceRequest::class)));
     }
@@ -142,7 +146,7 @@ class ManagerTest extends TestCase
             ],
         ], 'testing', Fields::UPDATE_VIEW);
 
-        $fields = Fields::resolveUpdateFields('testing');
+        $fields = Fields::get('testing', Fields::DETAIL_VIEW);
 
         foreach ($notAllowedAttributes as $attribute) {
             if ($attribute === 'isRequired') {
@@ -164,10 +168,10 @@ class ManagerTest extends TestCase
             ];
         });
 
-        $fields = Fields::resolveForSettings('testing', Fields::UPDATE_VIEW);
+        $fields = Fields::getForSettings('testing', Fields::UPDATE_VIEW);
         $this->assertCount(1, $fields);
 
-        $fields = Fields::resolveForSettings('testing', Fields::CREATE_VIEW);
+        $fields = Fields::getForSettings('testing', Fields::CREATE_VIEW);
         $this->assertCount(1, $fields);
     }
 
@@ -199,22 +203,10 @@ class ManagerTest extends TestCase
         $this->assertEquals($field->resolve($contact), 'custom-value');
     }
 
-    public function test_field_can_have_custom_import_resolver()
-    {
-        $field = Text::make('test')->importUsing(function ($value, $row, $original, $field) {
-            return [$field->attribute => 'custom-value'];
-        });
-
-        $this->assertEquals(
-            $field->resolveForImport('original-value', [], []),
-            [$field->attribute => 'custom-value']
-        );
-    }
-
     public function test_field_index_column_can_be_swapped()
     {
         $field = Text::make('test')->swapIndexColumn(function ($value) {
-            return new SampleTableColumn;
+            return new SampleTableColumn('test');
         });
 
         $this->assertInstanceOf(SampleTableColumn::class, $field->resolveIndexColumn());
@@ -223,8 +215,8 @@ class ManagerTest extends TestCase
     public function test_field_index_column_can_be_tapped()
     {
         $field = Text::make('test')->swapIndexColumn(function ($value) {
-            return (new SampleTableColumn)->primary(true);
-        })->tapIndexColumn(function ($column) {
+            return (new SampleTableColumn('test'))->primary(true);
+        })->tapIndexColumn(function (Column $column) {
             $column->primary(false);
         });
 
@@ -235,18 +227,19 @@ class ManagerTest extends TestCase
     {
         Notification::fake();
 
-        $user = $this->signIn();
+        $this->signIn();
 
-        Fields::replace('contacts', [
+        Fields::replace('events', [
             Text::make('title'),
-            User::make('User')
-                ->notification(SampleDatabaseNotification::class),
+            User::make('User')->notification(SampleDatabaseNotification::class),
         ]);
 
-        $event = Contact::factory()->for($user)->create();
         $newUser = $this->createUser();
-        $event->user_id = $newUser->id;
-        $event->save();
+
+        $this->postJson('/api/events', [
+            'title' => 'Title',
+            'user_id' => $newUser->getKey(),
+        ]);
 
         Notification::assertSentTo($newUser, SampleDatabaseNotification::class);
     }
@@ -303,7 +296,7 @@ class ManagerTest extends TestCase
             Fields::UPDATE_VIEW
         );
 
-        $fields[Fields::UPDATE_VIEW] = Fields::inGroup('testing', Fields::UPDATE_VIEW);
+        $fields[Fields::UPDATE_VIEW] = Fields::get('testing', Fields::UPDATE_VIEW);
 
         Fields::customize(
             [
@@ -314,7 +307,7 @@ class ManagerTest extends TestCase
             Fields::CREATE_VIEW
         );
 
-        $fields[Fields::CREATE_VIEW] = Fields::inGroup('testing', Fields::CREATE_VIEW);
+        $fields[Fields::CREATE_VIEW] = Fields::get('testing', Fields::CREATE_VIEW);
 
         foreach ([Fields::UPDATE_VIEW, Fields::CREATE_VIEW] as $view) {
             foreach (['test_field_1', 'test_field_2'] as $field) {

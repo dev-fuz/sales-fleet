@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,7 @@
 namespace Modules\Core;
 
 use InvalidArgumentException;
-use Modules\Core\Date\Carbon;
+use Modules\Core\Support\Date\Carbon;
 
 trait ProvidesBetweenArgumentsViaString
 {
@@ -42,7 +42,7 @@ trait ProvidesBetweenArgumentsViaString
                 $now->copy()->startOfMonth()->subMonth()->startOfMonth(),
                 $now->startOfMonth()->subMonth()->endOfMonth(),
             ],
-            'next_month' => [$now->copy()->addMonth()->startOfMonth(), $now->addMonth()->endOfMonth()],
+            'next_month' => [$now->copy()->startOfMonth()->addMonth(), $now->startOfMonth()->addMonth()->endOfMonth()],
             'this_quarter' => [$now->copy()->startOfQuarter(), $now->endOfQuarter()],
             'last_quarter' => [$now->copy()->subQuarter()->startOfQuarter(), $now->subQuarter()->endOfQuarter()],
             'next_quarter' => [$now->copy()->addQuarter()->startOfQuarter(), $now->addQuarter()->endOfQuarter()],

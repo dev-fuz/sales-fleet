@@ -5,8 +5,8 @@
       as="div"
       static
       class="fixed inset-0 z-50 flex md:hidden"
-      @close="setSidebarOpenState(false)"
       :open="isSidebarOpen"
+      @close="setSidebarOpenState(false)"
     >
       <TransitionChild
         as="template"
@@ -64,13 +64,12 @@
               <router-link
                 v-for="item in sidebarNavigation"
                 :key="item.id"
+                v-slot="{ href, navigate, isActive }"
                 :to="item.route"
                 custom
-                v-slot="{ href, navigate, isActive }"
               >
                 <a
                   :href="href"
-                  @click="navigate"
                   :class="[
                     isActive
                       ? 'bg-neutral-700 text-white'
@@ -78,6 +77,7 @@
                     'group relative flex items-center rounded-md px-2 py-2 focus:outline-none',
                   ]"
                   :aria-current="isActive ? 'page' : undefined"
+                  @click="navigate"
                 >
                   <Icon
                     v-if="item.icon"
@@ -123,8 +123,8 @@
 
   <!-- Static sidebar for desktop -->
   <div
-    class="hidden bg-neutral-800 dark:bg-neutral-900 md:flex md:shrink-0"
     v-show="['404', '403', 'not-found'].indexOf($route.name) === -1"
+    class="hidden bg-neutral-800 dark:bg-neutral-900 md:flex md:shrink-0"
   >
     <div class="flex w-56 flex-col">
       <!-- Sidebar component, swap this element with another sidebar if you like -->
@@ -144,8 +144,8 @@
             <template #toggle="{ toggle }">
               <button
                 type="button"
+                class="group mt-3 w-full rounded-md bg-neutral-200 px-3.5 py-2 text-left text-sm font-medium text-neutral-700 hover:bg-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2 focus:ring-offset-neutral-100 dark:border dark:border-neutral-600 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:focus:ring-offset-neutral-300"
                 @click="toggle"
-                class="group mt-3 w-full rounded-md bg-neutral-200 px-3.5 py-2 text-left text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2 focus:ring-offset-neutral-100 hover:bg-neutral-300 dark:border dark:border-neutral-600 dark:bg-neutral-700 dark:focus:ring-offset-neutral-300 dark:hover:bg-neutral-600"
               >
                 <span class="flex w-full items-center justify-between">
                   <span
@@ -176,6 +176,36 @@
               </button>
             </template>
             <div class="divide-y divide-neutral-200 dark:divide-neutral-700">
+              <div v-if="currentUser.teams.length > 0" class="px-4 py-3">
+                <p
+                  class="inline-flex items-center text-sm text-neutral-800 dark:text-neutral-100"
+                >
+                  <Icon
+                    icon="UserGroup"
+                    class="mr-1 h-5 w-5 text-neutral-600 dark:text-neutral-400"
+                  />
+                  <span
+                    v-text="
+                      $t('users::team.your_teams', currentUser.teams.length)
+                    "
+                  />
+                </p>
+                <p
+                  v-for="team in currentUser.teams"
+                  :key="team.id"
+                  class="flex text-sm font-medium text-neutral-900 dark:text-neutral-300"
+                >
+                  <span
+                    :class="[
+                      'truncate',
+                      team.user_id === currentUser.id
+                        ? 'text-primary-600 dark:text-primary-400'
+                        : '',
+                    ]"
+                    v-text="team.name"
+                  />
+                </p>
+              </div>
               <div class="py-1">
                 <IDropdownItem
                   :to="{ name: 'profile' }"
@@ -201,8 +231,8 @@
               <div class="py-1">
                 <IDropdownItem
                   href="#"
-                  @click="$store.dispatch('logout')"
                   :text="$t('auth.logout')"
+                  @click="$store.dispatch('logout')"
                 />
               </div>
             </div>
@@ -215,13 +245,12 @@
             <router-link
               v-for="item in sidebarNavigation"
               :key="item.id"
+              v-slot="{ href, navigate, isActive }"
               :to="item.route"
               custom
-              v-slot="{ href, navigate, isActive }"
             >
               <a
                 :href="href"
-                @click="navigate"
                 :class="[
                   isActive
                     ? 'bg-neutral-700 text-white'
@@ -229,6 +258,7 @@
                   'group relative flex items-center rounded-md px-2 py-2 text-sm focus:outline-none',
                 ]"
                 :aria-current="isActive ? 'page' : undefined"
+                @click="navigate"
               >
                 <Icon
                   v-if="item.icon"
@@ -261,22 +291,26 @@
             </router-link>
           </nav>
         </div>
+
         <SidebarHighlights />
       </div>
     </div>
   </div>
 </template>
+
 <script setup>
 import { computed } from 'vue'
 import { useStore } from 'vuex'
-import { useApp } from '~/Core/resources/js/composables/useApp'
-import SidebarHighlights from './TheSidebarHighlights.vue'
 import {
   Dialog,
   DialogOverlay,
   TransitionChild,
   TransitionRoot,
 } from '@headlessui/vue'
+
+import { useApp } from '~/Core/composables/useApp'
+
+import SidebarHighlights from './TheSidebarHighlights.vue'
 
 const { currentUser, setting } = useApp()
 const store = useStore()

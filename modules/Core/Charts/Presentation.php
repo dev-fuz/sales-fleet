@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,8 +12,9 @@
 
 namespace Modules\Core\Charts;
 
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
-use Modules\Core\Date\Carbon;
+use Modules\Core\Support\Date\Carbon;
 
 abstract class Presentation extends Chart
 {
@@ -232,6 +233,14 @@ abstract class Presentation extends Chart
     public function component(): string
     {
         return 'presentation-chart';
+    }
+
+    /**
+     * Determine for how many minutes the card value should be cached.
+     */
+    public function cacheFor(): DateTimeInterface
+    {
+        return now()->addMinutes(5);
     }
 
     /**

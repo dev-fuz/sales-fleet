@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,6 +12,11 @@
 
 namespace Modules\Core\Card;
 
+use DateInterval;
+use DateTimeInterface;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Request as RequestFacade;
 use Illuminate\Support\Str;
 use JsonSerializable;
 use Modules\Core\Authorizeable;
@@ -24,52 +29,86 @@ use Modules\Core\RangedElement;
 
 abstract class Card extends RangedElement implements JsonSerializable
 {
-    use Makeable, Authorizeable, MetableElement, HasHelpText;
+    use Authorizeable,
+        HasHelpText,
+        Makeable,
+        MetableElement;
 
     /**
-     * The card name/title that will be displayed
+     * The card name/title that will be displayed.
      */
     public ?string $name = null;
 
     /**
-     * Explanation about the card data
+     * Explanation about the card data.
      */
     public ?string $description = null;
 
     /**
-     * The width of the card (Tailwind width class e.q. w-1/2, w-1/3, w-full)
+     * The width of the card (full|half).
      */
-    public string $width = 'w-full lg:w-1/2';
+    public string $width = 'half';
 
     /**
-     * Indicates that the card should be shown only dashboard
+     * Indicates that the card should be shown only dashboard.
      */
     public bool $onlyOnDashboard = false;
 
     /**
-     * Indicates that the card should be shown only on index
+     * Indicates that the card should be shown only on index.
      */
     public bool $onlyOnIndex = false;
 
     /**
-     * Indicates that the card should refreshed when action is executed
+     * Indicates that the card should refreshed when action is executed.
      */
     public bool $refreshOnActionExecuted = false;
 
     /**
-     * Indicates whether user can be selected
+     * Indicates whether user can be selected.
      *
      * @var bool|int|callable
      */
     public mixed $withUserSelection = false;
 
     /**
-     * Define the card component used on front end
+     * Define the card component used on front end.
      */
     abstract public function component(): string;
 
     /**
-     * The card human readable name
+     * Get the card value.
+     */
+    abstract public function value(Request $request): mixed;
+
+    /**
+     * Resolve the card value.
+     */
+    public function resolve(Request $request): mixed
+    {
+        $resolver = function () use ($request) {
+            return $this->value($request);
+        };
+
+        if ($request->boolean('reload_cache')) {
+            Cache::forget($this->getCacheKey($request));
+        }
+
+        if ($cacheFor = $this->cacheFor()) {
+            $cacheFor = is_numeric($cacheFor) ? new DateInterval(sprintf('PT%dM', $cacheFor)) : $cacheFor;
+
+            return Cache::remember(
+                $this->getCacheKey($request),
+                $cacheFor,
+                $resolver
+            );
+        }
+
+        return $resolver();
+    }
+
+    /**
+     * The card human readable name.
      */
     public function name(): ?string
     {
@@ -77,7 +116,7 @@ abstract class Card extends RangedElement implements JsonSerializable
     }
 
     /**
-     * Get the card explanation
+     * Get the card explanation.
      */
     public function description(): ?string
     {
@@ -85,7 +124,7 @@ abstract class Card extends RangedElement implements JsonSerializable
     }
 
     /**
-     * Set that the card should be shown only dashboard
+     * Set that the card should be shown only dashboard.
      */
     public function onlyOnDashboard(): static
     {
@@ -95,7 +134,7 @@ abstract class Card extends RangedElement implements JsonSerializable
     }
 
     /**
-     * Set that the card should be shown only on index
+     * Set that the card should be shown only on index.
      */
     public function onlyOnIndex(): static
     {
@@ -113,7 +152,7 @@ abstract class Card extends RangedElement implements JsonSerializable
     }
 
     /**
-     * Set the card width class
+     * Set the card width class.
      */
     public function width(string $width): static
     {
@@ -123,7 +162,7 @@ abstract class Card extends RangedElement implements JsonSerializable
     }
 
     /**
-     * Set refresh on action executed for the card
+     * Set that the card value should be refreshed when an action is executed.
      */
     public function refreshOnActionExecuted(bool $value = true): static
     {
@@ -133,7 +172,7 @@ abstract class Card extends RangedElement implements JsonSerializable
     }
 
     /**
-     * Set card user selection
+     * Set if the card has user selection dropdown.
      */
     public function withUserSelection(bool|int|callable $value = true): static
     {
@@ -143,13 +182,82 @@ abstract class Card extends RangedElement implements JsonSerializable
     }
 
     /**
-     * Get the users for selection
+     * Get the list of the users.
      *
      * @return array|\Illuminate\Support\Collection
      */
     public function users()
     {
         //
+    }
+
+    /**
+     * Get the card default user id.
+     */
+    public function getDefaultUserId(): ?int
+    {
+        $id = $this->getWithUserSelectionValue();
+
+        return is_int($id) ? $id : null;
+    }
+
+    /**
+     * Get the value from the "withUserSelection" property.
+     *
+     * @return mixed
+     */
+    protected function getWithUserSelectionValue()
+    {
+        return is_callable($this->withUserSelection) ?
+            call_user_func($this->withUserSelection, $this) :
+            $this->withUserSelection;
+    }
+
+    /**
+     * Get the card selected user id.
+     */
+    protected function getUserId(Request $request): ?int
+    {
+        if (! $this->authorizedToFilterByUser()) {
+            return null;
+        }
+
+        // Via user action, allows the "All" users dropdown item to work correctly
+        // if by default the card shows only data for the logged-in user.
+        if ($request->has('range')) {
+            return $request->filled('user_id') ? $request->integer('user_id') : null;
+        } else {
+            return $this->getDefaultUserId();
+        }
+    }
+
+    /**
+     * Check whether the current user can perform user filter.
+     */
+    public function authorizedToFilterByUser(): bool
+    {
+        return true;
+    }
+
+    /**
+     * Determine for how many minutes the card value should be cached.
+     */
+    public function cacheFor(): DateTimeInterface|DateInterval|float|int|null
+    {
+        return null;
+    }
+
+    /**
+     * Get the cache key for the card.
+     */
+    public function getCacheKey(Request $request): string
+    {
+        return sprintf(
+            'card.%s.%s.%s',
+            $this->uriKey(),
+            $this->getCurrentRange($request) ?: 'no-range',
+            $this->getUserId($request) ?: 'no-user',
+        );
     }
 
     /**
@@ -163,13 +271,11 @@ abstract class Card extends RangedElement implements JsonSerializable
             'name' => $this->name(),
             'description' => $this->description(),
             'width' => $this->width,
-            'withUserSelection' => is_callable($this->withUserSelection) ?
-                call_user_func($this->withUserSelection, $this) :
-                $this->withUserSelection,
+            'withUserSelection' => $this->getWithUserSelectionValue(),
             'users' => $this->users(),
             'refreshOnActionExecuted' => $this->refreshOnActionExecuted,
             'helpText' => $this->helpText,
-            'data' => method_exists($this, 'getData') ? $this->getData() : [],
+            'value' => $this->resolve(RequestFacade::instance()),
         ], $this->meta());
     }
 }

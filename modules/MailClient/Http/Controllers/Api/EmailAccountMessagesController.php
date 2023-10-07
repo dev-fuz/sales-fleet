@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,17 +13,16 @@
 namespace Modules\MailClient\Http\Controllers\Api;
 
 use Illuminate\Http\Request;
-use Modules\Activities\Concerns\CreatesFollowUpTask;
-use Modules\Activities\Http\Resources\ActivityResource;
 use Modules\Core\Http\Controllers\ApiController;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Models\PendingMedia;
-use Modules\Core\OAuth\EmptyRefreshTokenException;
 use Modules\Core\Resource\AssociatesResources;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Support\OAuth\EmptyRefreshTokenException;
 use Modules\MailClient\Client\Compose\AbstractComposer;
 use Modules\MailClient\Client\Compose\Message;
 use Modules\MailClient\Client\Compose\MessageForward;
 use Modules\MailClient\Client\Compose\MessageReply;
+use Modules\MailClient\Client\Exceptions\ConnectionErrorException;
 use Modules\MailClient\Client\Exceptions\FolderNotFoundException;
 use Modules\MailClient\Client\Exceptions\MessageNotFoundException;
 use Modules\MailClient\Concerns\InteractsWithEmailMessageAssociations;
@@ -33,13 +32,11 @@ use Modules\MailClient\Http\Resources\EmailAccountMessageResource;
 use Modules\MailClient\Models\EmailAccount;
 use Modules\MailClient\Models\EmailAccountMessage;
 use Modules\MailClient\Services\EmailAccountMessageSyncService;
-use Modules\MailClient\Support\MailTracker;
 
 class EmailAccountMessagesController extends ApiController
 {
-    use InteractsWithEmailMessageAssociations,
-        CreatesFollowUpTask,
-        AssociatesResources;
+    use AssociatesResources,
+        InteractsWithEmailMessageAssociations;
 
     /**
      * Get messages for account folder
@@ -54,7 +51,7 @@ class EmailAccountMessagesController extends ApiController
 
         $messages = EmailAccountMessage::withCommon()
             ->criteria(new EmailAccountMessageCriteria($accountId, $folderId))
-            ->paginate($request->integer('per_page', null));
+            ->paginate($request->integer('per_page') ?: null);
 
         return $this->response(
             EmailAccountMessageResource::collection($messages)
@@ -230,18 +227,18 @@ class EmailAccountMessagesController extends ApiController
     {
         $this->addComposerAssociationsHeaders($composer, $request->input('associations', []));
         $this->addPendingAttachments($composer, $request);
-        $task = $this->handleFollowUpTaskCreation($request);
 
         try {
             $composer->subject($request->subject)
                 ->to($request->to)
                 ->bcc($request->bcc)
                 ->cc($request->cc)
-                ->htmlBody($request->message);
-
-            (new MailTracker)->createTrackers($composer);
+                ->htmlBody($request->message)
+                ->withTrackers();
 
             $message = $composer->send();
+        } catch (ConnectionErrorException $e) {
+            return $this->response(['message' => "A connection error occured, re-authenticate or try again later.{$e->getMessage()}"], 409);
         } catch (MessageNotFoundException) {
             return $this->response(['message' => 'The message does not exist on remote server.'], 409);
         } catch (FolderNotFoundException) {
@@ -267,35 +264,10 @@ class EmailAccountMessagesController extends ApiController
                         app(ResourceRequest::class)->setResource($dbMessage::resource()->name())
                     )
                 ),
-                'createdActivity' => $task ? new ActivityResource($task) : null,
             ], 201);
         }
 
-        return $this->response([
-            'createdActivity' => $task ? new ActivityResource($task) : null,
-        ], 202);
-    }
-
-    /**
-     * Handle the follow up task creation, it's created here
-     * because if the message is not sent immediately we won't be able
-     * to return the activity
-     *
-     * @return null|\Modules\Activities\Models\Activity
-     */
-    protected function handleFollowUpTaskCreation(Request $request)
-    {
-        $task = null;
-        if ($request->via_resource
-                && $this->shouldCreateFollowUpTask($request->all())) {
-            $task = $this->createFollowUpTask(
-                $request->task_date,
-                $request->via_resource,
-                $request->via_resource_id
-            );
-        }
-
-        return $task;
+        return $this->response([], 202);
     }
 
     /**
@@ -303,16 +275,19 @@ class EmailAccountMessagesController extends ApiController
      */
     protected function addPendingAttachments(AbstractComposer $composer, Request $request): void
     {
-        if ($request->attachments_draft_id) {
-            $attachments = PendingMedia::with('attachment')->ofDraftId($request->attachments_draft_id)->get();
+        if (! $request->attachments_draft_id) {
+            return;
+        }
 
-            foreach ($attachments as $pendingMedia) {
+        PendingMedia::with('attachment')
+            ->ofDraftId($request->attachments_draft_id)
+            ->get()
+            ->each(function ($pendingMedia) use ($composer) {
                 $composer->attachFromStorageDisk(
                     $pendingMedia->attachment->disk,
                     $pendingMedia->attachment->getDiskPath(),
                     $pendingMedia->attachment->filename.'.'.$pendingMedia->attachment->extension
                 );
-            }
-        }
+            });
     }
 }

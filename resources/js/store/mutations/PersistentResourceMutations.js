@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -48,13 +48,13 @@ export default {
    * Update resource record
    *
    * @param {Object} state
-   * @param {Object} payload
+   * @param {Object} data
    */
-  UPDATE(state, payload) {
-    const index = findIndex(state.collection, ['id', Number(payload.id)])
+  UPDATE(state, data) {
+    const index = findIndex(state.collection, ['id', Number(data.id)])
 
     if (index !== -1) {
-      state.collection[index] = payload.item
+      state.collection[index] = data.item
     }
   },
 

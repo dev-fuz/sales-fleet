@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,9 +14,9 @@ namespace Modules\Documents\Mail;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Modules\Core\MailableTemplate\DefaultMailable;
-use Modules\Core\Placeholders\ActionButtonPlaceholder;
-use Modules\Core\Placeholders\PrivacyPolicyPlaceholder;
-use Modules\Core\Resource\Placeholders;
+use Modules\Core\Support\Placeholders\ActionButtonPlaceholder;
+use Modules\Core\Support\Placeholders\PrivacyPolicyPlaceholder;
+use Modules\Core\Resource\ResourcePlaceholders;
 use Modules\Documents\Models\Document;
 use Modules\Documents\Resource\Document as ResourceDocument;
 use Modules\MailClient\Mail\MailableTemplate;
@@ -35,9 +35,9 @@ class UserAssignedToDocument extends MailableTemplate implements ShouldQueue
     /**
      * Provide the defined mailable template placeholders
      */
-    public function placeholders(): Placeholders
+    public function placeholders(): ResourcePlaceholders
     {
-        return (new Placeholders(new ResourceDocument, $this->document ?? null))->push([
+        return (new ResourcePlaceholders(new ResourceDocument, $this->document ?? null))->push([
             ActionButtonPlaceholder::make(fn () => $this->document),
             PrivacyPolicyPlaceholder::make(),
             UserPlaceholder::make(fn () => $this->assigneer->name, 'assigneer')

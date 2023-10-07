@@ -10,7 +10,6 @@
         "Modules\\Core\\Providers\\SettingsServiceProvider",
         "Modules\\Core\\Providers\\PurifierServiceProvider",
         "Modules\\Core\\Providers\\OAuthServiceProvider",
-        "Modules\\Core\\Providers\\VoIPServiceProvider",
         "Modules\\Core\\Providers\\ReCaptchaServiceProvider",
         "Webpatser\\Countries\\CountriesServiceProvider"
     ],

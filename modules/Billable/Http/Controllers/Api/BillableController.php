@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -17,17 +17,30 @@ use Illuminate\Validation\Rule;
 use Modules\Billable\Contracts\BillableResource as BillableResourceContract;
 use Modules\Billable\Enums\TaxType;
 use Modules\Billable\Http\Resources\BillableResource;
-use Modules\Billable\Models\Billable;
 use Modules\Billable\Services\BillableService;
 use Modules\Core\Http\Controllers\ApiController;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Http\Requests\ResourceRequest;
 
 class BillableController extends ApiController
 {
     /**
+     * Get the resource billable.
+     */
+    public function show(ResourceRequest $request): JsonResponse
+    {
+        abort_unless($request->resource() instanceof BillableResourceContract, 404);
+
+        $this->authorize('view', $request->record());
+
+        return $this->response(new BillableResource(
+            $request->record()->billable->load('products')
+        ));
+    }
+
+    /**
      * Handle the resource billable request.
      */
-    public function handle(ResourceRequest $request, BillableService $service): JsonResponse
+    public function save(ResourceRequest $request, BillableService $service): JsonResponse
     {
         abort_unless($request->resource() instanceof BillableResourceContract, 404);
 
@@ -46,9 +59,7 @@ class BillableController extends ApiController
             'products.*.product_id' => 'nullable|integer',
         ], [], ['products.*.name' => __('billable::product.product')]);
 
-        $billable = tap($service->save($request->all(), $request->record()), function ($instance) {
-            $instance->load('products');
-        });
+        $billable = $service->save($request->all(), $request->record())->load('products');
 
         return $this->response(new BillableResource($billable));
     }

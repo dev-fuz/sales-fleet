@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -18,14 +18,18 @@ use Illuminate\Support\ServiceProvider;
 use Modules\Calls\Http\Resources\CallOutcomeResource;
 use Modules\Calls\Listeners\TransferCallsUserData;
 use Modules\Calls\Models\CallOutcome;
-use Modules\Contacts\Resource\Company\Frontend\ViewComponent as CompanyViewComponent;
-use Modules\Contacts\Resource\Contact\Frontend\ViewComponent as ContactViewComponent;
+use Modules\Calls\VoIP\VoIP;
+use Modules\Contacts\Fields\Phone;
+use Modules\Contacts\Resource\Company\Pages\DetailComponent as CompanyDetailComponent;
+use Modules\Contacts\Resource\Contact\Pages\DetailComponent as ContactDetailComponent;
 use Modules\Core\DatabaseState;
 use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Facades\Permissions;
-use Modules\Core\Models\Workflow;
+use Modules\Core\Settings\Contracts\Manager as SettingsManagerContract;
+use Modules\Core\Settings\SettingsMenu;
+use Modules\Core\Settings\SettingsMenuItem;
 use Modules\Core\Workflow\Workflows;
-use Modules\Deals\Resource\Frontend\ViewComponent as DealViewComponent;
+use Modules\Deals\Resource\Pages\DetailComponent as DealDetailComponent;
 use Modules\Users\Events\TransferringUserData;
 
 class CallsServiceProvider extends ServiceProvider
@@ -48,8 +52,19 @@ class CallsServiceProvider extends ServiceProvider
 
         $this->app['events']->listen(TransferringUserData::class, TransferCallsUserData::class);
 
+        Phone::useDetailComponent('detail-phone-callable-field');
+        Phone::useIndexComponent('index-phone-callable-field');
+
         $this->app->booted(function () {
+            $this->app[SettingsManagerContract::class]->driver()->override([
+                'twilio.applicationSid' => 'twilio_app_sid',
+                'twilio.accountSid' => 'twilio_account_sid',
+                'twilio.authToken' => 'twilio_auth_token',
+                'twilio.number' => 'twilio_number',
+            ]);
+
             $this->registerResources();
+
             Innoclapps::whenReadyForServing($this->bootModule(...));
         });
     }
@@ -70,6 +85,16 @@ class CallsServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(
             module_path($this->moduleName, 'config/config.php'),
             $this->moduleNameLower
+        );
+
+        $this->mergeConfigFrom(
+            module_path($this->moduleName, 'config/twilio.php'),
+            'twilio'
+        );
+
+        $this->mergeConfigFrom(
+            module_path($this->moduleName, 'config/voip.php'),
+            'voip'
         );
     }
 
@@ -96,11 +121,19 @@ class CallsServiceProvider extends ServiceProvider
      */
     protected function bootModule(): void
     {
-        Innoclapps::booting($this->shareDataToScript(...));
+        Innoclapps::booting(function () {
+            $menuItem = SettingsMenuItem::make('Twilio', '/settings/integrations/twilio')->setId('twilio');
+
+            SettingsMenu::add('integrations', $menuItem);
+        });
 
         $this->configureVoIP();
+
+        Innoclapps::booting($this->shareDataToScript(...));
+
         $this->registerWorkflowTriggers();
         $this->registerRelatedRecordsDetailTab();
+
     }
 
     /**
@@ -108,12 +141,12 @@ class CallsServiceProvider extends ServiceProvider
      */
     protected function configureVoIP(): void
     {
-        $options = $this->app['config']->get('core.services.twilio');
+        $options = $this->app['config']->get('twilio');
 
         $totalFilled = count(array_filter($options));
 
         if ($totalFilled === count($options)) {
-            $this->app['config']->set('core.voip.client', 'twilio');
+            $this->app['config']->set('voip.client', 'twilio');
 
             Permissions::register(function ($manager) {
                 $manager->group(['name' => 'voip', 'as' => __('calls::call.voip_permissions')], function ($manager) {
@@ -156,9 +189,19 @@ class CallsServiceProvider extends ServiceProvider
             return;
         }
 
-        Innoclapps::provideToScript(['calls' => [
-            'outcomes' => CallOutcomeResource::collection(CallOutcome::orderBy('name')->get()),
-        ]]);
+        Innoclapps::provideToScript([
+            'voip' => [
+                'client' => config('voip.client'),
+                'endpoints' => [
+                    'call' => VoIP::callUrl(),
+                    'events' => VoIP::eventsUrl(),
+                ],
+            ],
+
+            'calls' => [
+                'outcomes' => CallOutcomeResource::collection(CallOutcome::orderBy('name')->get()),
+            ],
+        ]);
     }
 
     /**
@@ -168,9 +211,9 @@ class CallsServiceProvider extends ServiceProvider
     {
         $tab = Tab::make('calls', 'calls-tab')->panel('calls-tab-panel')->order(30);
 
-        ContactViewComponent::registerTab($tab);
-        CompanyViewComponent::registerTab($tab);
-        DealViewComponent::registerTab($tab);
+        ContactDetailComponent::registerTab($tab);
+        CompanyDetailComponent::registerTab($tab);
+        DealDetailComponent::registerTab($tab);
     }
 
     /**

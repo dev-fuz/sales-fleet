@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,8 +16,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\Core\Database\Factories\OAuthAccountFactory;
 use Modules\Core\Facades\Google;
-use Modules\Core\OAuth\AccessTokenProvider;
-use Modules\Core\OAuth\Events\OAuthAccountDeleting;
+use Modules\Core\Support\OAuth\AccessTokenProvider;
+use Modules\Core\Support\OAuth\Events\OAuthAccountDeleting;
 
 class OAuthAccount extends Model
 {

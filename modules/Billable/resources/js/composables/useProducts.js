@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -10,7 +10,8 @@
  */
 import { ref } from 'vue'
 import { createGlobalState } from '@vueuse/core'
-import { useLoader } from '~/Core/resources/js/composables/useLoader'
+
+import { useLoader } from '~/Core/composables/useLoader'
 
 export const useProducts = createGlobalState(() => {
   const {
@@ -23,6 +24,7 @@ export const useProducts = createGlobalState(() => {
 
   async function fetchProduct(id, options = {}) {
     const { data } = await Innoclapps.request().get(`/products/${id}`, options)
+
     return data
   }
 

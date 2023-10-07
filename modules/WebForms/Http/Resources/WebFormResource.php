@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -31,10 +31,10 @@ class WebFormResource extends JsonResource
             WebFormSection::INTRODUCTION->value => ['message'],
             WebFormSection::MESSAGE->value => ['message'],
             WebFormSection::FIELD->value => function (&$section) {
-                $section['field']['label'] = clean($section['label']);
+                $section['label'] = clean($section['label']);
             },
             WebFormSection::FILE->value => function (&$section) {
-                $section['field']['label'] = clean($section['label']);
+                $section['label'] = clean($section['label']);
             },
         ];
 
@@ -44,7 +44,7 @@ class WebFormResource extends JsonResource
             'status' => $this->status,
             'uuid' => $this->uuid,
             'sections' => collect($this->sections)
-                ->map(function ($section) use ($cleanSectionsData) {
+                ->map(function (array $section) use ($cleanSectionsData) {
                     if (array_key_exists($section['type'], $cleanSectionsData)) {
                         if (is_callable($cleanSectionsData[$section['type']])) {
                             $cleanSectionsData[$section['type']]($section);

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,23 +12,39 @@
 
 namespace Modules\Core\Fields;
 
-class Email extends Text
+use Modules\Core\Contracts\Fields\Customfieldable;
+
+class Email extends Field implements Customfieldable
 {
-    /**
-     * Input type
-     */
-    public string $inputType = 'email';
+    use ChecksForDuplicates;
 
     /**
-     * Boot the field
+     * Field component.
+     */
+    public static $component = 'email-field';
+
+    /**
+     * Initialize new Email instance class
      *
+     * @param  string  $attribute field attribute
+     * @param  string|null  $label field label
+     */
+    public function __construct($attribute, $label = null)
+    {
+        parent::__construct($attribute, $label);
+
+        $this->rules(['nullable', 'email'])->provideSampleValueUsing(fn () => uniqid().'@example.com');
+    }
+
+    /**
+     * Create the custom field value column in database
+     *
+     * @param  \Illuminate\Database\Schema\Blueprint  $table
+     * @param  string  $fieldId
      * @return void
      */
-    public function boot()
+    public static function createValueColumn($table, $fieldId)
     {
-        $this->rules(['email', 'nullable'])->prependIcon('Mail')
-            ->tapIndexColumn(function ($column) {
-                $column->useComponent('table-data-email-column');
-            })->provideSampleValueUsing(fn () => uniqid().'@example.com');
+        $table->string($fieldId)->nullable();
     }
 }

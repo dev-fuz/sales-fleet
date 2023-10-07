@@ -1,17 +1,18 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import { ref, computed } from 'vue'
-import orderBy from 'lodash/orderBy'
+import { computed, ref } from 'vue'
 import { createGlobalState } from '@vueuse/core'
-import { useLoader } from '~/Core/resources/js/composables/useLoader'
+import orderBy from 'lodash/orderBy'
+
+import { useLoader } from '~/Core/composables/useLoader'
 
 export const useActivityTypes = createGlobalState(() => {
   const { setLoading, isLoading: typesAreBeingFetched } = useLoader()
@@ -26,6 +27,10 @@ export const useActivityTypes = createGlobalState(() => {
 
   function findTypeById(id) {
     return typesByName.value.find(t => t.id == id)
+  }
+
+  function findTypeByFlag(flag) {
+    return typesByName.value.find(t => t.flag == flag)
   }
 
   function formatTypesForIcons(types) {
@@ -60,6 +65,7 @@ export const useActivityTypes = createGlobalState(() => {
     typesForIconPicker,
 
     findTypeById,
+    findTypeByFlag,
     formatTypesForIcons,
     setActivityTypes,
 

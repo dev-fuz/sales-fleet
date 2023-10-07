@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
 use JsonSerializable;
 use Maatwebsite\Excel\Concerns\FromArray;
 
-class SystemInfo implements JsonSerializable, Arrayable, FromArray
+class SystemInfo implements Arrayable, FromArray, JsonSerializable
 {
     protected static array $extra = [];
 
@@ -47,8 +47,8 @@ class SystemInfo implements JsonSerializable, Arrayable, FromArray
     {
         $allowUrlFOpen = ini_get('allow_url_fopen') == '1' || strtolower(ini_get('allow_url_fopen')) == 'on';
 
-        $lastCronRunAt = ! empty(settings('last_cron_run')) ?
-            Carbon::parse(settings('last_cron_run'))->diffForHumans() :
+        $lastCronRunAt = ! empty(settings('_last_cron_run')) ?
+            Carbon::parse(settings('_last_cron_run'))->diffForHumans() :
                 'N/A';
 
         $SQLMode = ! app()->runningUnitTests() ?
@@ -62,6 +62,8 @@ class SystemInfo implements JsonSerializable, Arrayable, FromArray
             'PHP Version' => PHP_VERSION,
 
             'Last Cron Run' => $lastCronRunAt,
+            'Cron Job User' => settings('_cron_job_last_user') ?: 'N/A',
+            'Cron PHP Version' => settings('_cron_php_version') ?: 'N/A',
 
             'PHP IMAP Extension' => extension_loaded('imap'),
             'PHP ZIP Extension' => extension_loaded('zip'),
@@ -85,7 +87,6 @@ class SystemInfo implements JsonSerializable, Arrayable, FromArray
             'Last Updated Date' => settings('_last_updated_date') ?: 'N/A',
 
             'Current Process User' => get_current_process_user(),
-            'Import Status' => \Modules\Core\Application::importStatus(),
             'DB Driver Version' => DB::connection()->getPdo()->getAttribute(\PDO::ATTR_SERVER_VERSION),
             'DB Driver' => DB::connection()->getPdo()->getAttribute(\PDO::ATTR_DRIVER_NAME),
 
@@ -108,11 +109,13 @@ class SystemInfo implements JsonSerializable, Arrayable, FromArray
             'FILESYSTEM_CLOUD' => config('filesystems.cloud'),
             'BROADCAST_DRIVER' => config('broadcasting.default'),
             'ENABLE_FAVICON' => config('core.favicon_enabled'),
-            'HTML_PURIFY' => config('app.security.purify'),
+            'HTML_PURIFY' => config('html_purifier.enabled'),
             'SYNC_INTERVAL' => config('synchronization.interval'),
             'USER_INVITATION_EXPIRES_AFTER' => config('users.invitation.expires_after'),
             'PRUNE_TRASHED_RECORDS_AFTER' => config('core.soft_deletes.prune_after'),
             'MAX_IMPORT_ROWS' => config('core.import.max_rows'),
+            'IMPORT_REVERTABLE_HOURS' => config('core.import.revertable_hours'),
+            'PREFERRED_DEFAULT_REMINDER_MINUTES' => config('core.defaults.reminder_minutes'),
         ], static::$extra);
     }
 

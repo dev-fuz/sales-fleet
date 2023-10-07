@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,15 +12,11 @@
 
 namespace Modules\Core\Http\Resources;
 
-use App\Http\Resources\ProvidesCommonData;
 use Illuminate\Http\Request;
-use Modules\Core\JsonResource;
 
 /** @mixin \Modules\Core\Models\Filter */
 class FilterResource extends JsonResource
 {
-    use ProvidesCommonData;
-
     /**
      * Transform the resource collection into an array.
      */
@@ -34,12 +30,10 @@ class FilterResource extends JsonResource
             'is_shared' => $this->is_shared,
             'is_system_default' => $this->is_system_default,
             'is_readonly' => $this->is_readonly,
-            'defaults' => $this->defaults->map(function ($default) {
-                return [
-                    'user_id' => $default->user_id,
-                    'view' => $default->view,
-                ];
-            })->values(),
+            'defaults' => $this->defaults->map(fn ($default) => [
+                'user_id' => $default->user_id,
+                'view' => $default->view,
+            ])->values(),
         ], $request);
     }
 }

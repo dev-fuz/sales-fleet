@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -51,7 +51,7 @@ class Gate {
       return true
     }
 
-    if (this.user.gate.hasOwnProperty(ability)) {
+    if (Object.hasOwn(this.user.gate, ability)) {
       return this.user.gate[ability]
     }
 
@@ -91,7 +91,7 @@ class Gate {
       return true
     }
 
-    if (this.user && record.hasOwnProperty(this.authorizationProperty)) {
+    if (this.user && Object.hasOwn(record, this.authorizationProperty)) {
       return record[this.authorizationProperty][ability]
     }
 

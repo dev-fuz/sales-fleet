@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -20,17 +20,21 @@ use Modules\Core\Authorizeable;
 use Modules\Core\HasHelpText;
 use Modules\Core\Makeable;
 use Modules\Core\MetableElement;
-use Modules\Core\QueryBuilder\Parser;
-use Modules\Core\QueryBuilder\ParserTrait;
+use Modules\Core\Filters\QueryBuilder\Parser;
+use Modules\Core\Filters\QueryBuilder\ParserTrait;
 
-class Filter implements JsonSerializable, Arrayable
+class Filter implements Arrayable, JsonSerializable
 {
-    use Makeable, Authorizeable, MetableElement, HasHelpText, ParserTrait;
+    use Authorizeable,
+        HasHelpText,
+        Makeable,
+        MetableElement,
+        ParserTrait;
 
     /**
      * Define builder rule custom component
      */
-    public ?string $component = null;
+    public $component = null;
 
     /**
      * Filter field/rule
@@ -45,11 +49,6 @@ class Filter implements JsonSerializable, Arrayable
      * @var string|null
      */
     public $label;
-
-    /**
-     * Whether to include null operators
-     */
-    public bool $withNullOperators = false;
 
     /**
      * Filter operators
@@ -145,6 +144,16 @@ class Filter implements JsonSerializable, Arrayable
     }
 
     /**
+     * Exclude the null operators
+     */
+    public function withoutNullOperators(): static
+    {
+        $this->withoutOperators(['is_null', 'is_not_null']);
+
+        return $this;
+    }
+
+    /**
      * Exclude operators
      */
     public function withoutOperators(string|array $operator): static
@@ -152,24 +161,6 @@ class Filter implements JsonSerializable, Arrayable
         $this->excludeOperators = is_array($operator) ? $operator : func_get_args();
 
         return $this;
-    }
-
-    /**
-     * Whether to include null operators.
-     */
-    public function withNullOperators(bool $bool = true): static
-    {
-        $this->withNullOperators = $bool;
-
-        return $this;
-    }
-
-    /**
-     * Remove the null operators for the filter.
-     */
-    public function withoutNullOperators()
-    {
-        return $this->withNullOperators(false);
     }
 
     /**
@@ -350,15 +341,9 @@ class Filter implements JsonSerializable, Arrayable
      */
     protected function getOperators(): array
     {
-        $operators = array_unique($this->filterOperators);
-
-        if ($this->withNullOperators === false) {
-            $operators = array_diff($operators, ['is_null', 'is_not_null']);
-        }
-
         return array_values(
             array_diff(
-                $operators,
+                array_unique($this->filterOperators),
                 $this->excludeOperators
             )
         );
@@ -370,6 +355,7 @@ class Filter implements JsonSerializable, Arrayable
     protected function operatorsOptions(): array
     {
         $options = [];
+
         foreach ($this->getOperators() as $operator) {
             $method = Str::studly(str_replace('.', '_', $operator)).'OperatorOptions';
 
@@ -403,9 +389,9 @@ class Filter implements JsonSerializable, Arrayable
             'query' => array_filter([
                 'type' => $this->type(),
                 'rule' => $this->field(),
-                'operator' => $this->operator,
+                'operator' => $this->getOperator(),
                 'operand' => $this instanceof OperandFilter ? $this->operand : null,
-                'value' => $this->value,
+                'value' => $this->getValue(),
             ]),
         ];
     }

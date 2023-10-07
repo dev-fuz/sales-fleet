@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,38 +12,29 @@
 
 namespace Modules\Core\Fields;
 
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Http\Requests\ResourceRequest;
 
 class Domain extends Field
 {
     /**
-     * Field component
+     * Field component.
      */
-    public ?string $component = 'domain-field';
+    public static $component = 'domain-field';
 
     /**
-     * This field support input group
+     * Initialize new Domain instance.
      */
-    public bool $supportsInputGroup = true;
-
-    /**
-     * Boot field
-     *
-     * Sets icon
-     *
-     * @return null
-     */
-    public function boot()
+    public function __construct()
     {
-        $this->provideSampleValueUsing(fn () => 'example.com')->prependIcon('Globe');
+        parent::__construct(...func_get_args());
+
+        $this->provideSampleValueUsing(fn () => 'example.com');
     }
 
     /**
      * Get the field value for the given request
-     *
-     * @param  string  $requestAttribute
      */
-    public function attributeFromRequest(ResourceRequest $request, $requestAttribute): mixed
+    public function attributeFromRequest(ResourceRequest $request, string $requestAttribute): mixed
     {
         $value = parent::attributeFromRequest($request, $requestAttribute);
 

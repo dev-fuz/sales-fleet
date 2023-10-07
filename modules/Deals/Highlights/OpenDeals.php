@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,7 +12,7 @@
 
 namespace Modules\Deals\Highlights;
 
-use Modules\Core\Highlights\Highlight;
+use Modules\Core\Menu\Highlights\Highlight;
 use Modules\Core\Models\Filter;
 use Modules\Deals\Criteria\ViewAuthorizedDealsCriteria;
 use Modules\Deals\Models\Deal;
@@ -36,11 +36,11 @@ class OpenDeals extends Highlight
     }
 
     /**
-     * Get the background color class when the highligh count is bigger then zero
+     * Get the background color variant when the highlight count is bigger then zero
      */
-    public function bgColorClass(): string
+    public function backgroundColorVariant(): string
     {
-        return 'bg-info-500';
+        return 'info';
     }
 
     /**

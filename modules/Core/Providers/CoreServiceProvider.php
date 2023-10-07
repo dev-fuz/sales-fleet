@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,11 +12,19 @@
 
 namespace Modules\Core\Providers;
 
+use Akaunting\Money\Currency;
+use Akaunting\Money\Money;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Database\Console\PruneCommand as PruneModelCommand;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Migrations\Migrator;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Foundation\Http\Events\RequestHandled;
+use Illuminate\Queue\Console\FlushFailedCommand;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -27,13 +35,13 @@ use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Facades\MailableTemplates;
 use Modules\Core\Facades\Menu;
 use Modules\Core\Facades\Zapier;
-use Modules\Core\Media\PruneStaleMediaAttachments;
 use Modules\Core\Menu\MenuItem;
 use Modules\Core\Settings\SettingsMenu;
 use Modules\Core\Settings\SettingsMenuItem;
-use Modules\Core\Synchronization\Jobs\PeriodicSynchronizations;
-use Modules\Core\Synchronization\Jobs\RefreshWebhookSynchronizations;
-use Modules\Core\Timeline\Timelineables;
+use Modules\Core\Support\Media\PruneStaleMediaAttachments;
+use Modules\Core\Support\Synchronization\Jobs\PeriodicSynchronizations;
+use Modules\Core\Support\Synchronization\Jobs\RefreshWebhookSynchronizations;
+use Modules\Core\Support\Timeline\Timelineables;
 use Modules\Core\Updater\Migration;
 use Modules\Core\Workflow\WorkflowEventsSubscriber;
 use Modules\Core\Workflow\Workflows;
@@ -54,7 +62,12 @@ class CoreServiceProvider extends ServiceProvider
         $this->registerViews();
         $this->loadMigrationsFrom(module_path($this->moduleName, 'Database/Migrations'));
 
-        $this->app['events']->subscribe(WorkflowEventsSubscriber::class);
+        $this->app->booted(function () {
+            // Must be called before registering the "WorkflowEventsSubscriber" subscriber.
+            Workflows::registerEventOnlyTriggersListeners();
+            $this->app['events']->subscribe(WorkflowEventsSubscriber::class);
+        });
+
         $this->app['events']->listen(RequestHandled::class, Workflows::processQueue(...));
         $this->app['events']->listen(RequestHandled::class, Zapier::processQueue(...));
 
@@ -63,7 +76,12 @@ class CoreServiceProvider extends ServiceProvider
             \Modules\Core\Http\View\Composers\AppComposer::class
         );
 
-        Workflows::registerEventOnlyTriggersListeners();
+        Currency::macro('toMoney', function (string|int|float $value, bool $convert = true) {
+            /** @var \Akaunting\Money\Currency */
+            $currency = $this;
+
+            return new Money(! is_float($value) ? (float) $value : $value, $currency, $convert);
+        });
 
         Innoclapps::whenReadyForServing(Timelineables::discover(...));
         Innoclapps::booting($this->registerMenuItems(...));
@@ -71,7 +89,11 @@ class CoreServiceProvider extends ServiceProvider
 
         $this->registerMacros();
         $this->registerCommands();
-        $this->scheduleTasks();
+
+        $this->app->booted(function () {
+            $this->scheduleTasks();
+            Innoclapps::whenInstalled($this->configureBroadcasting(...));
+        });
     }
 
     /**
@@ -156,7 +178,6 @@ class CoreServiceProvider extends ServiceProvider
                 ->withChild(SettingsMenuItem::make('Pusher', '/settings/integrations/pusher'), 'pusher')
                 ->withChild(SettingsMenuItem::make('Microsoft', '/settings/integrations/microsoft'), 'microsoft')
                 ->withChild(SettingsMenuItem::make('Google', '/settings/integrations/google'), 'google')
-                ->withChild(SettingsMenuItem::make('Twilio', '/settings/integrations/twilio'), 'twilio')
                 ->withChild(SettingsMenuItem::make('Zapier', '/settings/integrations/zapier'), 'zapier'),
             'integrations'
         );
@@ -223,16 +244,43 @@ class CoreServiceProvider extends ServiceProvider
      */
     public function scheduleTasks(): void
     {
+        /** @var \Illuminate\Console\Scheduling\Schedule */
         $schedule = $this->app->make(Schedule::class);
 
         $schedule->call(new PruneStaleMediaAttachments)->name('prune-stale-media-attachments')->daily();
         $schedule->job(PeriodicSynchronizations::class)->cron(config('synchronization.interval'));
         $schedule->job(RefreshWebhookSynchronizations::class)->daily();
 
-        // Not needed?
-        $schedule->call(function () {
-            MailableTemplates::seedIfRequired();
-        })->daily();
+        $schedule
+            ->call(function () {
+                settings()->set([
+                    '_last_cron_run' => now(),
+                    '_cron_job_last_user' => get_current_process_user(),
+                    '_cron_php_version' => PHP_VERSION,
+                ])->save();
+            })
+            ->name('capture-cron-environment')
+            ->everyMinute();
+
+        $schedule
+            ->call(function () {
+                MailableTemplates::seedIfRequired();
+            })
+            ->name('seed-mailable-templates')
+            ->daily();
+
+        if (Innoclapps::canRunProcess()) {
+            $schedule->command(PruneModelCommand::class)->daily();
+            $schedule->command(FlushFailedCommand::class)->weekly();
+        } else {
+            $schedule->call(function () {
+                Artisan::call(PruneModelCommand::class);
+            })->daily();
+
+            $schedule->call(function () {
+                Artisan::call(FlushFailedCommand::class);
+            })->weekly();
+        }
     }
 
     /**
@@ -246,22 +294,54 @@ class CoreServiceProvider extends ServiceProvider
             return Str::of(Request::instance()->get('with', ''))->explode(';')->filter()->all();
         });
 
-        Str::macro('isBase64Encoded', new \Modules\Core\Macros\Str\IsBase64Encoded);
-        Str::macro('clickable', new \Modules\Core\Macros\Str\ClickableUrls);
+        Str::macro('isBase64Encoded', new \Modules\Core\Support\Macros\Str\IsBase64Encoded);
+        Str::macro('clickable', new \Modules\Core\Support\Macros\Str\ClickableUrls);
 
-        Arr::macro('toObject', new \Modules\Core\Macros\Arr\ToObject);
-        Arr::macro('valuesAsString', new \Modules\Core\Macros\Arr\CastValuesAsString);
+        Arr::macro('toObject', new \Modules\Core\Support\Macros\Arr\ToObject);
+        Arr::macro('valuesAsString', new \Modules\Core\Support\Macros\Arr\CastValuesAsString);
 
-        Request::macro('isSearching', new \Modules\Core\Macros\Request\IsSearching);
-        Request::macro('isZapier', new \Modules\Core\Macros\Request\IsZapier);
+        Request::macro('isSearching', new \Modules\Core\Support\Macros\Request\IsSearching);
+        Request::macro('isZapier', new \Modules\Core\Support\Macros\Request\IsZapier);
 
-        Filesystem::macro('deepCleanDirectory', new \Modules\Core\Macros\Filesystem\DeepCleanDirectory);
+        DB::macro('listIndexes', function (string|Model $table, string $column = null) {
+            $tableName = $table instanceof Model ? $table->getTable() : $table;
+            $prefix = $table instanceof Model ? $table->getConnection()->getTablePrefix() : DB::getTablePrefix();
 
-        \Modules\Core\Macros\Criteria\QueryCriteria::register();
+            $query = 'SHOW KEYS FROM '.$prefix.$tableName.'';
+
+            if ($column) {
+                $query .= ' WHERE Column_name=\''.$column.'\'';
+            }
+
+            return DB::select(DB::raw($query)->getValue(DB::connection()->getQueryGrammar()));
+        });
+
+        Filesystem::macro('deepCleanDirectory', new \Modules\Core\Support\Macros\Filesystem\DeepCleanDirectory);
+
+        \Modules\Core\Support\Macros\Criteria\QueryCriteria::register();
+
+        Collection::macro('trim', function ($character_mask = " \t\n\r\0\x0B") {
+            /** @var \Illuminate\Support\Collection */
+            $collection = $this;
+
+            return $collection->map(function ($value) use ($character_mask) {
+                return trim($value, $character_mask);
+            });
+        });
 
         URL::macro('asAppUrl', function ($extra = '') {
             return rtrim(config('app.url'), '/').($extra ? '/'.$extra : '');
         });
+    }
+
+    /**
+     * Set the broadcasting driver
+     */
+    protected function configureBroadcasting(): void
+    {
+        if (Innoclapps::hasBroadcastingConfigured()) {
+            $this->app['config']->set('broadcasting.default', 'pusher');
+        }
     }
 
     /**

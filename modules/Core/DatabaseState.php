@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -23,7 +23,7 @@ class DatabaseState
         static::$seeders = array_merge(static::$seeders, (array) $class);
     }
 
-    public static function flush(): void
+    public static function forgetSeeders(): void
     {
         static::$seeders = [];
     }

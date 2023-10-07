@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -20,6 +20,7 @@ export function createSaturationScale(tweak = 0, stop = DEFAULT_STOP) {
 
   return stops.map(stop => {
     const diff = Math.abs(stops.indexOf(stop) - index)
+
     const tweakValue = tweak
       ? Math.round((diff + 1) * tweak * (1 + diff / 10))
       : 0
@@ -79,6 +80,7 @@ export function createDistributionValues(
     }
 
     const diff = Math.abs((stopValue - stop) / 100)
+
     const totalDiff =
       stopValue < stop
         ? Math.abs(stops.indexOf(stop) - stops.indexOf(DEFAULT_STOPS[0])) - 1

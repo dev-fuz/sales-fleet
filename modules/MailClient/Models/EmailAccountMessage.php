@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -22,10 +22,10 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Arr;
 use Modules\Core\Concerns\HasAvatar;
 use Modules\Core\Contracts\Presentable;
-use Modules\Core\Media\HasMedia;
 use Modules\Core\Models\Model;
 use Modules\Core\Resource\Resourceable;
-use Modules\Core\Timeline\Timelineable;
+use Modules\Core\Support\Media\HasMedia;
+use Modules\Core\Support\Timeline\Timelineable;
 use Modules\MailClient\Support\EmailAccountMessageBody;
 
 class EmailAccountMessage extends Model implements Presentable
@@ -67,14 +67,12 @@ class EmailAccountMessage extends Model implements Presentable
     ];
 
     /**
-     * The fields for the model that are searchable.
+     * The columns for the model that are searchable.
      */
-    protected static array $searchableFields = [
+    protected static array $searchableColumns = [
         'subject' => 'like',
-        'text_body' => 'like',
-        'html_body' => 'like',
-        'from.address' => 'like',
-        'from.name' => 'like',
+        'from.address',
+        'from.name',
     ];
 
     /**
@@ -163,8 +161,10 @@ class EmailAccountMessage extends Model implements Presentable
      */
     public function from(): HasOne
     {
-        return $this->hasOne(\Modules\MailClient\Models\EmailAccountMessageAddress::class, 'message_id')
-            ->where('address_type', 'from');
+        return $this->hasOne(
+            \Modules\MailClient\Models\EmailAccountMessageAddress::class,
+            'message_id'
+        )->where('address_type', 'from');
     }
 
     /**
@@ -172,8 +172,10 @@ class EmailAccountMessage extends Model implements Presentable
      */
     public function sender(): HasOne
     {
-        return $this->hasOne(\Modules\MailClient\Models\EmailAccountMessageAddress::class, 'message_id')
-            ->where('address_type', 'sender');
+        return $this->hasOne(
+            \Modules\MailClient\Models\EmailAccountMessageAddress::class,
+            'message_id'
+        )->where('address_type', 'sender');
     }
 
     /**
@@ -247,6 +249,14 @@ class EmailAccountMessage extends Model implements Presentable
     }
 
     /**
+     * Get the timeline sort column.
+     */
+    public function getTimelineSortColumn(): string
+    {
+        return 'date';
+    }
+
+    /**
      * Get the message attachments excluding the inline
      */
     public function attachments(): MorphToMany
@@ -276,7 +286,9 @@ class EmailAccountMessage extends Model implements Presentable
      */
     public function previewText(): Attribute
     {
-        return Attribute::get(fn () => $this->body()->previewText());
+        return Attribute::get(
+            fn () => $this->body()->previewText()
+        );
     }
 
     /**
@@ -288,7 +300,9 @@ class EmailAccountMessage extends Model implements Presentable
      */
     public function visibleText(): Attribute
     {
-        return Attribute::get(fn () => $this->body()->visibleText());
+        return Attribute::get(
+            fn () => $this->body()->visibleText()
+        );
     }
 
     /**
@@ -296,7 +310,9 @@ class EmailAccountMessage extends Model implements Presentable
      */
     public function hiddenText(): Attribute
     {
-        return Attribute::get(fn () => $this->body()->hiddenText());
+        return Attribute::get(
+            fn () => $this->body()->hiddenText()
+        );
     }
 
     /**
@@ -319,10 +335,8 @@ class EmailAccountMessage extends Model implements Presentable
 
     /**
      * Mark a message as read
-     *
-     * @param  int|null  $folderId
      */
-    public function markAsRead($folderId = null): static
+    public function markAsRead(int $folderId = null): static
     {
         if ($this->is_read) {
             return $this;
@@ -345,10 +359,8 @@ class EmailAccountMessage extends Model implements Presentable
 
     /**
      * Mark a message as unread
-     *
-     * @param  int|null  $folderId
      */
-    public function markAsUnread($folderId): static
+    public function markAsUnread(int $folderId = null): static
     {
         if (! $this->is_read) {
             return $this;
@@ -383,6 +395,24 @@ class EmailAccountMessage extends Model implements Presentable
                 $query->detach();
             });
         }
+    }
+
+    /**
+     * Scope a query to include only unread messages.
+     */
+    public function scopeUnread(Builder $query)
+    {
+        // is_read = 0 causes slow performance, use is_read < 1 for better performance
+        $query->where('is_read', '<', 1);
+    }
+
+    /**
+     * Scope a query to include only read messages.
+     */
+    public function scopeRead(Builder $query)
+    {
+        // is_read = 1 causes slow performance, use is_read > 0 for better performance
+        $query->where('is_read', '>', 0);
     }
 
     /**
@@ -422,11 +452,11 @@ class EmailAccountMessage extends Model implements Presentable
             'folders',
             'account',
             'account.folders' => fn ($query) => $query->withCount([
-                'messages as unread_count' => fn ($query) => $query->where('is_read', false),
+                'messages as unread_count' => fn ($query) => $query->unread(),
             ]),
-            'contacts.nextActivity',
-            'companies.nextActivity',
-            'deals.nextActivity',
+            'contacts',
+            'companies',
+            'deals',
         ]);
     }
 

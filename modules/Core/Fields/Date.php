@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,7 +16,7 @@ use Modules\Core\Contracts\Fields\Customfieldable;
 use Modules\Core\Contracts\Fields\Dateable;
 use Modules\Core\Facades\Format;
 use Modules\Core\Fields\Dateable as DateableTrait;
-use Modules\Core\Placeholders\DatePlaceholder;
+use Modules\Core\Support\Placeholders\DatePlaceholder;
 use Modules\Core\Table\DateColumn;
 
 class Date extends Field implements Customfieldable, Dateable
@@ -24,19 +24,23 @@ class Date extends Field implements Customfieldable, Dateable
     use DateableTrait;
 
     /**
-     * Field component
+     * Field component.
      */
-    public ?string $component = 'date-field';
+    public static $component = 'date-field';
 
     /**
-     * Boot the field
+     * Initialize new Date instance class
      *
-     * @return void
+     * @param  string  $attribute field attribute
+     * @param  string|null  $label field label
      */
-    public function boot()
+    public function __construct($attribute, $label = null)
     {
+        parent::__construct($attribute, $label);
+
         $this->rules(['nullable', 'date'])
-            ->provideSampleValueUsing(fn () => date('Y-m-d'));
+            ->provideSampleValueUsing(fn () => date('Y-m-d'))
+            ->displayUsing(fn ($model, $value) => Format::date($value));
     }
 
     /**
@@ -52,21 +56,10 @@ class Date extends Field implements Customfieldable, Dateable
     }
 
     /**
-     * Resolve the displayable field value
-     *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return string|null
-     */
-    public function resolveForDisplay($model)
-    {
-        return Format::date($model->{$this->attribute});
-    }
-
-    /**
      * Get the mailable template placeholder
      *
      * @param  \Modules\Core\Models\Model|null  $model
-     * @return \Modules\Core\Placeholders\DatePlaceholder
+     * @return \Modules\Core\Support\Placeholders\DatePlaceholder
      */
     public function mailableTemplatePlaceholder($model)
     {

@@ -22,13 +22,14 @@
         we will share the Zapier invite link with you can try it!
       </p>
     </div>
+
     <div class="m-auto max-w-2xl">
       <div class="mt-5 flex justify-center rounded-md shadow-sm">
         <div class="flex grow items-stretch focus-within:z-10">
           <IFormInput
-            :rounded="false"
             id="purchase-key"
             v-model="purchaseKey"
+            :rounded="false"
             class="form-input rounded-l-md border-neutral-300"
             placeholder="Enter your purchase key here"
           />
@@ -43,20 +44,22 @@
         </IButton>
       </div>
     </div>
+
     <div
-      class="mt-6 flex items-center justify-center text-neutral-800 dark:text-neutral-300"
       v-if="link"
+      class="mt-6 flex items-center justify-center text-neutral-800 dark:text-neutral-300"
     >
       <span class="select-all font-medium">{{ link }}</span>
       <IButtonCopy
+        v-i-tooltip="$t('core::app.copy')"
         class="ml-3"
         :text="link"
         :success-message="$t('core::app.copied')"
-        v-i-tooltip="$t('core::app.copy')"
       />
     </div>
   </ICard>
 </template>
+
 <script setup>
 import { ref } from 'vue'
 import axios from 'axios'

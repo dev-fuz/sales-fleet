@@ -3,21 +3,25 @@
     <template #actions>
       <div class="inline-flex">
         <IFormSelect
-          :option="logTypes"
           v-model="logType"
+          :option="logTypes"
           class="mr-2"
           @input="$router.replace({ query: { type: $event, date: date } })"
         >
-          <option v-for="logType in logTypes" :key="logType" :value="logType">
-            {{ logType }}
+          <option
+            v-for="_logType in logTypes"
+            :key="_logType"
+            :value="_logType"
+          >
+            {{ _logType }}
           </option>
         </IFormSelect>
         <IFormSelect
           v-model="date"
           @input="$router.replace({ query: { date: $event, type: logType } })"
         >
-          <option v-for="date in log.log_dates" :key="date" :value="date">
-            {{ date }}
+          <option v-for="_date in log.log_dates" :key="_date" :value="_date">
+            {{ _date }}
           </option>
         </IFormSelect>
       </div>
@@ -25,27 +29,31 @@
     <ITable class="-mt-px">
       <thead>
         <tr>
-          <th class="text-left" width="20%">Date</th>
-          <th class="text-left" width="5%">Env</th>
-          <th class="text-left" width="5%">Type</th>
-          <th class="text-left" width="60%">Message</th>
+          <th class="text-left" width="100%">Log</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="(line, index) in filteredLogs" :key="index">
-          <td width="20%" v-text="line.timestamp"></td>
-          <td width="5%" v-text="line.env"></td>
-          <td width="5%">
-            <IBadge :text="line.type" :variant="logTypesClassMaps[line.type]" />
-          </td>
-          <td width="60%" class="break-all">
-            {{ line.message }}
+          <td width="60%" class="whitespace-pre-line break-all">
+            <div class="mb-3 flex justify-between">
+              <div class="flex space-x-2">
+                <IBadge
+                  :text="line.type"
+                  :variant="logTypesClassMaps[line.type]"
+                />
+                <IButtonCopy :text="line.message" />
+              </div>
+              <p v-text="line.timestamp" />
+            </div>
+            <code>
+              <TextCollapse :text="line.message" :length="500" />
+            </code>
           </td>
         </tr>
         <td
+          v-show="!hasLogs"
           colspan="4"
           class="p-4 text-center text-sm text-neutral-500 dark:text-neutral-300"
-          v-show="!hasLogs"
         >
           {{ log.message || 'No logs to show.' }}
         </td>
@@ -53,8 +61,9 @@
     </ITable>
   </ICard>
 </template>
+
 <script setup>
-import { ref, shallowRef, computed, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()

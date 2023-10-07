@@ -2,8 +2,8 @@
   <div v-show="visible" class="relative">
     <IButtonIcon
       icon="X"
+      class="absolute right-4 top-5 hidden sm:block"
       @click="$emit('update:visible', false)"
-      class="absolute right-0 top-5 hidden sm:block"
     />
     <ITabGroup>
       <ITabList>
@@ -17,12 +17,12 @@
         <ITabPanel v-for="(group, groupName) in placeholders" :key="groupName">
           <PlaceholdersList
             :placeholders="group.placeholders"
-            @insert-requested="insertPlaceholder($event)"
+            @insert-requested="insertPlaceholder($event, group.label)"
           >
             <IButtonIcon
               icon="X"
-              @click="$emit('update:visible', false)"
               class="text-right sm:hidden"
+              @click="$emit('update:visible', false)"
             />
           </PlaceholdersList>
         </ITabPanel>
@@ -30,6 +30,7 @@
     </ITabGroup>
   </div>
 </template>
+
 <script setup>
 import PlaceholdersList from './MailEditorPlacehodersList.vue'
 
@@ -40,15 +41,22 @@ defineProps({
   visible: { type: Boolean, default: true },
 })
 
-function insertPlaceholder(placeholder) {
-  tinymce.activeEditor.execCommand(
-    'mceInsertContent',
-    false,
-    `<input type="text"
+function insertPlaceholder(placeholder, groupLabel) {
+  let html = ''
+
+  if (!placeholder.newlineable) {
+    html = `<input type="text"
                         class="_placeholder"
                         data-tag="${placeholder.tag}"
-                        placeholder="${placeholder.description}" />`
-  )
+                        placeholder="${placeholder.description} (${groupLabel})" /> `
+  } else {
+    html = `<textarea class="_placeholder"
+                        rows="1"
+                        data-tag="${placeholder.tag}"
+                        placeholder="${placeholder.description} (${groupLabel})"></textarea> `
+  }
+
+  tinymce.activeEditor.execCommand('mceInsertContent', false, html)
 
   // Emits before the editor content is changed
   // in this case, add timeout

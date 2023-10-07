@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,9 +15,10 @@ namespace Modules\Core\Fields;
 use Modules\Core\Authorizeable;
 use Modules\Core\MetableElement;
 
-class FieldElement
+abstract class FieldElement
 {
-    use Authorizeable, MetableElement;
+    use Authorizeable,
+        MetableElement;
 
     /**
      * Indicates whether this field is not hidden on index view
@@ -62,7 +63,7 @@ class FieldElement
     /**
      * Indicates whether this field is excluded from setttings
      */
-    public bool|string $excludeFromSettings = false;
+    public bool|string|array $excludeFromSettings = false;
 
     /**
      * Indicates whether to exclude the field from import
@@ -92,7 +93,7 @@ class FieldElement
     /**
      * The field is only for index and cannot be used on other views
      */
-    public function strictlyForIndex(): static
+    public function onlyOnIndex(): static
     {
         $this->excludeFromSettings = true;
         $this->applicableForIndex = true;
@@ -116,25 +117,12 @@ class FieldElement
     /**
      * The field is only for creation and cannot be used on other views
      */
-    public function strictlyForCreation(): static
+    public function onlyOnCreate(): static
     {
         $this->applicableForCreation = true;
         $this->applicableForUpdate = false;
         $this->applicableForDetail = false;
         $this->applicableForIndex = false;
-
-        return $this;
-    }
-
-    /**
-     * The field is only for creation and index and cannot be used on other views
-     */
-    public function strictlyForCreationAndIndex(): static
-    {
-        $this->applicableForCreation = true;
-        $this->applicableForIndex = true;
-        $this->applicableForUpdate = false;
-        $this->applicableForDetail = false;
 
         return $this;
     }
@@ -152,7 +140,7 @@ class FieldElement
     /**
      * The field is only for update and cannot be used on other views
      */
-    public function strictlyForUpdate(): static
+    public function onlyOnUpdate(): static
     {
         $this->applicableForUpdate = true;
         $this->applicableForCreation = false;
@@ -175,13 +163,12 @@ class FieldElement
     /**
      * The field is only for detail and cannot be used on other views
      */
-    public function strictlyForDetail(): static
+    public function onlyOnDetail(): static
     {
         $this->applicableForDetail = true;
         $this->applicableForUpdate = false;
         $this->applicableForCreation = false;
         $this->applicableForIndex = false;
-        $this->applicableForDetail = false;
 
         return $this;
     }
@@ -189,7 +176,7 @@ class FieldElement
     /**
      * The field is only for import and cannot be used on other views
      */
-    public function strictlyForImport(): static
+    public function onlyForImport(): static
     {
         $this->applicableForUpdate = false;
         $this->applicableForDetail = false;
@@ -205,7 +192,7 @@ class FieldElement
     /**
      * The field is only for forms and cannot be used on other views
      */
-    public function strictlyForForms(): static
+    public function onlyOnForms(): static
     {
         $this->applicableForUpdate = true;
         $this->applicableForDetail = true;
@@ -218,8 +205,12 @@ class FieldElement
     /**
      * The field is only usable on views different then forms
      */
-    public function exceptOnForms(bool|callable $applicable = false): static
+    public function exceptOnForms(bool|callable $exclude = true): static
     {
+        $applicable = is_callable($exclude) ? function () use ($exclude) {
+            return call_user_func($exclude) !== true;
+        } : $exclude !== true;
+
         $this->applicableForUpdate = $applicable;
         $this->applicableForDetail = $applicable;
         $this->applicableForCreation = $applicable;
@@ -233,9 +224,11 @@ class FieldElement
     /**
      * Set that the field is excluded from index view
      */
-    public function excludeFromIndex(bool|callable $applicable = false): static
+    public function excludeFromIndex(bool|callable $exclude = true): static
     {
-        $this->applicableForIndex = $applicable;
+        $this->applicableForIndex = is_callable($exclude) ? function () use ($exclude) {
+            return call_user_func($exclude) !== true;
+        } : $exclude !== true;
 
         return $this;
     }
@@ -243,9 +236,11 @@ class FieldElement
     /**
      * Set if the field is excluded from create view
      */
-    public function excludeFromCreate(bool|callable $applicable = false): static
+    public function excludeFromCreate(bool|callable $exclude = true): static
     {
-        $this->applicableForCreation = $applicable;
+        $this->applicableForCreation = is_callable($exclude) ? function () use ($exclude) {
+            return call_user_func($exclude) !== true;
+        } : $exclude !== true;
 
         return $this;
     }
@@ -253,9 +248,11 @@ class FieldElement
     /**
      * Set if the field is excluded from update view
      */
-    public function excludeFromUpdate(bool|callable $applicable = false): static
+    public function excludeFromUpdate(bool|callable $exclude = true): static
     {
-        $this->applicableForUpdate = $applicable;
+        $this->applicableForUpdate = is_callable($exclude) ? function () use ($exclude) {
+            return call_user_func($exclude) !== true;
+        } : $exclude !== true;
 
         return $this;
     }
@@ -263,9 +260,11 @@ class FieldElement
     /**
      * Set if the field is excluded from detail view
      */
-    public function excludeFromDetail(bool|callable $applicable = false): static
+    public function excludeFromDetail(bool|callable $exclude = false): static
     {
-        $this->applicableForDetail = $applicable;
+        $this->applicableForDetail = is_callable($exclude) ? function () use ($exclude) {
+            return call_user_func($exclude) !== true;
+        } : $exclude !== true;
 
         return $this;
     }
@@ -273,7 +272,7 @@ class FieldElement
     /**
      * Indicates that this field should be excluded from the settings
      */
-    public function excludeFromSettings(string|bool $view = true): static
+    public function excludeFromSettings(string|array|bool $view = true): static
     {
         $this->excludeFromSettings = $view;
 
@@ -296,6 +295,7 @@ class FieldElement
     public function excludeFromImport(): static
     {
         $this->excludeFromImport = true;
+        $this->excludeFromImportSample = true;
 
         return $this;
     }
@@ -328,7 +328,9 @@ class FieldElement
      */
     public function isApplicableForCreation(): bool
     {
-        return $this->whenTruthful($this->applicableForCreation);
+        $callback = $this->applicableForCreation;
+
+        return $callback === true || (is_callable($callback) && call_user_func($callback));
     }
 
     /**
@@ -336,7 +338,9 @@ class FieldElement
      */
     public function isApplicableForUpdate(): bool
     {
-        return $this->whenTruthful($this->applicableForUpdate);
+        $callback = $this->applicableForUpdate;
+
+        return $callback === true || (is_callable($callback) && call_user_func($callback));
     }
 
     /**
@@ -344,7 +348,9 @@ class FieldElement
      */
     public function isApplicableForDetail(): bool
     {
-        return $this->whenTruthful($this->applicableForDetail);
+        $callback = $this->applicableForDetail;
+
+        return $callback === true || (is_callable($callback) && call_user_func($callback));
     }
 
     /**
@@ -352,16 +358,20 @@ class FieldElement
      */
     public function isApplicableForIndex(): bool
     {
-        return $this->whenTruthful($this->applicableForIndex);
+        $callback = $this->applicableForIndex;
+
+        return $callback === true || (is_callable($callback) && call_user_func($callback));
     }
 
     /**
-     * Check whether the given value is truthful
-     *
-     * @param  bool|callable  $callback
+     * Determine if the field excluded from settings.
      */
-    private function whenTruthful($callback): bool
+    public function isExcludedFromSettings(string|array $view = null): bool
     {
-        return $callback === true || (is_callable($callback) && call_user_func($callback));
+        if (is_bool($this->excludeFromSettings)) {
+            return $this->excludeFromSettings;
+        }
+
+        return in_array($view, (array) $this->excludeFromSettings);
     }
 }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -17,12 +17,12 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Modules\Activities\Http\Resources\CalendarResource;
 use Modules\Activities\Models\Calendar;
-use Modules\Core\Calendar\CalendarManager;
-use Modules\Core\Calendar\Exceptions\UnauthorizedException;
 use Modules\Core\Http\Controllers\ApiController;
 use Modules\Core\Models\OAuthAccount;
-use Modules\Core\OAuth\EmptyRefreshTokenException;
-use Modules\Core\Synchronization\Exceptions\InvalidSyncNotificationURLException;
+use Modules\Core\Support\Calendar\CalendarManager;
+use Modules\Core\Support\Calendar\Exceptions\UnauthorizedException;
+use Modules\Core\Support\OAuth\EmptyRefreshTokenException;
+use Modules\Core\Support\Synchronization\Exceptions\InvalidSyncNotificationURLException;
 
 class CalendarOAuthController extends ApiController
 {

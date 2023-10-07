@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,45 +12,51 @@
 
 namespace Modules\Activities\Fields;
 
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Modules\Activities\Http\Resources\ActivityTypeResource;
 use Modules\Activities\Models\ActivityType as ActivityTypeModel;
-use Modules\Activities\Models\ActivityType as Model;
+use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Fields\BelongsTo;
+use Modules\Core\Table\Column;
 
 class ActivityType extends BelongsTo
 {
     /**
-     * Field component
+     * Field component.
      */
-    public ?string $component = 'activity-type-field';
+    public static $component = 'activity-type-field';
 
     /**
-     * Create new instance of ActivityType field
+     * Create new instance of ActivityType field.
      */
     public function __construct()
     {
         parent::__construct('type', ActivityTypeModel::class, __('activities::activity.type.type'));
 
-        $this->withDefaultValue(function () {
-            if (is_null($type = Model::getDefaultType())) {
-                return null;
-            }
+        $this
+            ->withDefaultValue(function () {
+                if (is_null($type = ActivityTypeModel::getDefaultType())) {
+                    return null;
+                }
 
-            try {
-                return ActivityTypeModel::select('id')->findOrFail($type)->getKey();
-            } catch (ModelNotFoundException) {
-            }
-        })
-            ->setJsonResource(ActivityTypeResource::class)
-            ->tapIndexColumn(function ($column) {
-                $column->label(__('activities::activity.type.type'))
-                    ->select(['icon', 'swatch_color'])
-                    ->primary(false)
-                    ->width('130px')
-                    ->minWidth('130px')
-                    ->useComponent('table-data-option-column');
+                return ActivityTypeModel::select('id')->find($type)?->getKey();
             })
+            ->inlineEditWith(
+                BelongsTo::make('type', ActivityTypeModel::class, __('activities::activity.type.type'))
+                    ->valueKey('id')
+                    ->labelKey('name')
+                    ->rules('required')
+                    ->withoutClearAction()
+                    ->options(
+                        Innoclapps::resourceByModel(ActivityTypeModel::class)
+                    )
+            )
+            ->setJsonResource(ActivityTypeResource::class)
+            ->tapIndexColumn(function (Column $column) {
+                $column->select(['icon', 'swatch_color'])
+                    ->width('130px')
+                    ->minWidth('130px');
+            })
+            ->options(Innoclapps::resourceByModel(ActivityTypeModel::class))
             ->acceptLabelAsValue(false);
     }
 }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,7 +16,7 @@ use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Modules\Core\Contracts\Criteria\QueryCriteria;
-use Modules\Core\Date\Carbon;
+use Modules\Core\Support\Date\Carbon;
 use Modules\Core\ProvidesBetweenArgumentsViaString;
 
 class ExportRequestCriteria implements QueryCriteria

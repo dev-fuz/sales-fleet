@@ -1,5 +1,6 @@
+<!-- eslint-disable vue/no-v-html -->
 <template>
-  <div class="mb-3" v-if="showIntroductionSection">
+  <div v-if="showIntroductionSection" class="mb-3">
     <h4
       class="text-lg font-medium text-neutral-800 dark:text-neutral-100"
       v-text="section.title"
@@ -10,8 +11,10 @@
     />
   </div>
 </template>
+
 <script setup>
 import { computed } from 'vue'
+
 import propsDefinition from './props'
 
 const props = defineProps(propsDefinition)

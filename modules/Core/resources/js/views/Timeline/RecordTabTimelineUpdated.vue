@@ -1,17 +1,19 @@
 <template>
   <timeline-entry
     :resource-name="resourceName"
+    :resource-id="resourceId"
     :created-at="log.created_at"
     :is-pinned="log.is_pinned"
     :timelineable-id="log.id"
     :timeline-relationship="log.timeline_relation"
+    :timeline-subject-key="resource.timeline_subject_key"
     :timelineable-key="log.timeline_key"
     icon="PencilAlt"
   >
     <template #heading>
       <i18n-t
-        v-once
         v-if="log.causer_name"
+        v-once
         scope="global"
         keypath="core::timeline.updated"
       >
@@ -26,13 +28,13 @@
         <p class="text-sm font-medium text-neutral-700 dark:text-neutral-300">
           {{ $t('core::fields.updated') }} ({{ totalUpdatedAttributes }})
         </p>
-        <div class="mt-2" v-once>
+        <div v-once class="mt-2">
           <ITable class="overflow-hidden rounded-lg" bordered>
             <thead>
               <tr>
-                <th class="text-left" v-t="'core::fields.updated_field'"></th>
-                <th class="text-left" v-t="'core::fields.new_value'"></th>
-                <th class="text-left" v-t="'core::fields.old_value'"></th>
+                <th v-t="'core::fields.updated_field'" class="text-left"></th>
+                <th v-t="'core::fields.new_value'" class="text-left"></th>
+                <th v-t="'core::fields.old_value'" class="text-left"></th>
               </tr>
             </thead>
             <tbody>
@@ -58,20 +60,23 @@
       </div>
       <a
         href="#"
-        @click.prevent="changesVisible = !changesVisible"
         class="link mt-2 block text-sm"
+        @click.prevent="changesVisible = !changesVisible"
         v-text="updatedFieldsText"
       />
     </div>
   </timeline-entry>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
-import pickBy from 'lodash/pickBy'
-import TimelineEntry from './RecordTabTimelineTemplate.vue'
-import propsDefinition from './props'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useDates } from '~/Core/resources/js/composables/useDates'
+import pickBy from 'lodash/pickBy'
+
+import { useDates } from '~/Core/composables/useDates'
+
+import propsDefinition from './props'
+import TimelineEntry from './RecordTabTimelineTemplate.vue'
 
 const props = defineProps(propsDefinition)
 
@@ -122,10 +127,10 @@ function getLabel(attribute, key) {
 }
 
 function determineChangedFieldValue(data, key) {
-  return data && data.hasOwnProperty('value')
-    ? maybeFormatDateValue(data.value)
+  return data && Object.hasOwn(data, 'value')
+    ? maybeFormatDateValue(data.value, data.value)
     : te('core::timeline.' + key + '.' + data)
     ? t('core::timeline.' + key + '.' + data)
-    : maybeFormatDateValue(data)
+    : maybeFormatDateValue(data, data)
 }
 </script>

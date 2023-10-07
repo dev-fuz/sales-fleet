@@ -3,10 +3,12 @@
     <slot>{{ text }}</slot>
   </span>
 </template>
+
 <script setup>
 import { computed } from 'vue'
-import { getContrast, shadeColor } from '@/utils'
 import hexRgb from 'hex-rgb'
+
+import { getContrast, shadeColor } from '@/utils'
 
 const props = defineProps({
   text: String,

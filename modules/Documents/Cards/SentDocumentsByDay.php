@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,8 +14,8 @@ namespace Modules\Documents\Cards;
 
 use Illuminate\Http\Request;
 use Modules\Core\Charts\Progression;
+use Modules\Documents\Criteria\ViewAuthorizedDocumentsCriteria;
 use Modules\Documents\Models\Document;
-use Modules\Users\Criteria\ManagesOwnerTeamCriteria;
 use Modules\Users\Criteria\QueriesByUserCriteria;
 
 class SentDocumentsByDay extends Progression
@@ -27,19 +27,10 @@ class SentDocumentsByDay extends Progression
      */
     public function calculate(Request $request)
     {
-        /** @var \Modules\Users\Models\User */
-        $user = $request->user();
+        $query = Document::criteria(ViewAuthorizedDocumentsCriteria::class);
 
-        $query = (new Document)->newQuery()->when($user->cant('view all documents'), function ($query) use ($user) {
-            if ($user->can('view team documents')) {
-                $query->criteria(new ManagesOwnerTeamCriteria($user));
-            } else {
-                $query->criteria(new QueriesByUserCriteria($user));
-            }
-        });
-
-        if ($filterByUser = $this->getUser()) {
-            $query->criteria(new QueriesByUserCriteria($filterByUser));
+        if ($userId = $this->getUserId($request)) {
+            $query->criteria(new QueriesByUserCriteria($userId));
         }
 
         return $this->countByDays($request, $query, 'original_date_sent');
@@ -67,18 +58,9 @@ class SentDocumentsByDay extends Progression
     }
 
     /**
-     * Get the user for the card query
+     * Check whether the current user can perform user filter.
      */
-    protected function getUser(): ?int
-    {
-        if ($this->canViewOtherUsersCardData()) {
-            return request()->filled('user_id') ? request()->integer('user_id') : null;
-        }
-
-        return null;
-    }
-
-    public function canViewOtherUsersCardData(): bool
+    public function authorizedToFilterByUser(): bool
     {
         return request()->user()->canAny(['view all documents', 'view team documents']);
     }

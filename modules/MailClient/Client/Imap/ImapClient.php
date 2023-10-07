@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -43,8 +43,6 @@ class ImapClient extends AbstractImapClient implements Connectable
 
     /**
      * Create new ImapClient instance.
-     *
-     * @param  \Modules\MailClient\Client\Imap\Config  $config
      */
     public function __construct(protected Config $config)
     {
@@ -161,7 +159,7 @@ class ImapClient extends AbstractImapClient implements Connectable
      * @throws \Modules\MailClient\Client\Exceptions\ConnectionErrorException
      * @throws \Modules\MailClient\Client\Exceptions\FolderNotFoundException
      */
-    public function batchMarkAsRead($messages, ?FolderIdentifier $folder = null)
+    public function batchMarkAsRead($messages, FolderIdentifier $folder = null)
     {
         return $this->getFolder($folder->value)->setFlag('\\Seen', $messages);
     }
@@ -176,7 +174,7 @@ class ImapClient extends AbstractImapClient implements Connectable
      * @throws \Modules\MailClient\Client\Exceptions\ConnectionErrorException
      * @throws \Modules\MailClient\Client\Exceptions\FolderNotFoundException
      */
-    public function batchMarkAsUnread($messages, ?FolderIdentifier $folder = null)
+    public function batchMarkAsUnread($messages, FolderIdentifier $folder = null)
     {
         return $this->getFolder($folder->value)->clearFlag('\\Seen', $messages);
     }
@@ -191,7 +189,7 @@ class ImapClient extends AbstractImapClient implements Connectable
      *
      * @throws \Modules\MailClient\Client\Exceptions\MessageNotFoundException|\Modules\MailClient\Client\Exceptions\FolderNotFoundException
      */
-    public function getMessage($id, ?FolderIdentifier $folder = null)
+    public function getMessage($id, FolderIdentifier $folder = null)
     {
         return $this->getFolder($folder->value)->getMessage($id);
     }
@@ -258,8 +256,6 @@ class ImapClient extends AbstractImapClient implements Connectable
 
     /**
      * Get the IMAP configuration
-     *
-     * @return \Modules\MailClient\Client\Imap\Config
      */
     public function getConfig(): Config
     {

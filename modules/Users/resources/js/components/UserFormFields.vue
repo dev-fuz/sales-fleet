@@ -11,9 +11,9 @@
       <ITabPanel>
         <IFormGroup :label="$t('users::user.name')" label-for="name" required>
           <IFormInput
-            v-model="form.name"
             id="name"
             ref="name"
+            v-model="form.name"
             type="text"
             autocomplete="off"
           >
@@ -22,8 +22,8 @@
         </IFormGroup>
         <IFormGroup :label="$t('users::user.email')" label-for="email" required>
           <IFormInput
-            v-model="form.email"
             id="email"
+            v-model="form.email"
             name="email"
             type="email"
             autocomplete="off"
@@ -33,9 +33,9 @@
         </IFormGroup>
         <IFormGroup :label="$t('core::role.roles')" label-for="roles">
           <ICustomSelect
+            v-model="form.roles"
             input-id="roles"
             :placeholder="$t('users::user.roles')"
-            v-model="form.roles"
             :options="rolesNames"
             :multiple="true"
           />
@@ -48,8 +48,8 @@
           :required="!isEdit"
         >
           <IFormInput
-            v-model="form.password"
             id="password"
+            v-model="form.password"
             name="password"
             type="password"
             autocomplete="new-password"
@@ -63,8 +63,8 @@
           :required="!isEdit || Boolean(form.password)"
         >
           <IFormInput
-            v-model="form.password_confirmation"
             id="password_confirmation"
+            v-model="form.password_confirmation"
             name="password_confirmation"
             autocomplete="new-password"
             type="password"
@@ -77,9 +77,9 @@
       <ITabPanel>
         <LocalizationFields
           :form="form"
-          @update:firstDayOfWeek="form.first_day_of_week = $event"
-          @update:timeFormat="form.time_format = $event"
-          @update:dateFormat="form.date_format = $event"
+          @update:first-day-of-week="form.first_day_of_week = $event"
+          @update:time-format="form.time_format = $event"
+          @update:date-format="form.date_format = $event"
           @update:locale="form.locale = $event"
           @update:timezone="form.timezone = $event"
         />
@@ -87,7 +87,7 @@
     </ITabPanels>
     <ITabPanel>
       <NotificationSettings
-        v-if="form.notifications"
+        v-if="form.notifications_settings"
         class="overflow-hidden rounded-md border-x border-b border-neutral-200 dark:border-neutral-800"
         :form="form"
       />
@@ -103,12 +103,12 @@
       >
         <div class="grow">
           <p
-            class="text-sm text-neutral-900 dark:text-neutral-200"
             v-t="'users::user.super_admin'"
+            class="text-sm text-neutral-900 dark:text-neutral-200"
           />
           <small
-            class="text-neutral-700 dark:text-neutral-400"
             v-t="'users::user.as_super_admin_info'"
+            class="text-neutral-700 dark:text-neutral-400"
           />
         </div>
         <div class="ms-3">
@@ -129,13 +129,13 @@
       >
         <div class="grow">
           <p
-            class="text-sm text-neutral-900 dark:text-neutral-200"
             v-t="'users::user.enable_api'"
+            class="text-sm text-neutral-900 dark:text-neutral-200"
           />
 
           <small
-            class="text-neutral-700 dark:text-neutral-400"
             v-t="'users::user.allow_api_info'"
+            class="text-neutral-700 dark:text-neutral-400"
           />
         </div>
         <div class="ms-3">
@@ -148,17 +148,20 @@
     </ITabPanel>
   </ITabGroup>
 </template>
+
 <script setup>
 import { computed } from 'vue'
-import LocalizationFields from '~/Core/resources/js/views/Settings/LocalizationFields.vue'
-import PasswordGenerator from '~/Core/resources/js/components/PasswordGenerator.vue'
+
+import PasswordGenerator from '~/Core/components/PasswordGenerator.vue'
+import { useApp } from '~/Core/composables/useApp'
+import { useRoles } from '~/Core/composables/useRoles'
+import LocalizationFields from '~/Core/views/Settings/LocalizationFields.vue'
+
 import NotificationSettings from '../components/UserNotificationSettings.vue'
-import { useApp } from '~/Core/resources/js/composables/useApp'
-import { useRoles } from '~/Core/resources/js/views/Roles/useRoles'
 
 const props = defineProps({
-  isEdit: { type: Boolean, default: false },
-  form: { required: true, type: Object, default: () => ({}) },
+  isEdit: Boolean,
+  form: { required: true, type: Object },
 })
 
 const { currentUser } = useApp()

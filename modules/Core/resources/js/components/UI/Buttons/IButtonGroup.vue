@@ -3,6 +3,7 @@
     <slot></slot>
   </span>
 </template>
+
 <style>
 .button-group > button:first-child {
   border-top-right-radius: 0;

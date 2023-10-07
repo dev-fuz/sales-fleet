@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,17 +12,16 @@
 
 namespace Modules\Documents\Resource;
 
-use Illuminate\Http\Request;
-use Modules\Core\Contracts\Resources\Resourceful;
+use Modules\Core\Contracts\Resources\HasOperations;
 use Modules\Core\Criteria\VisibleModelsCriteria;
-use Modules\Core\Fields\ColorSwatches;
+use Modules\Core\Fields\ColorSwatch;
 use Modules\Core\Fields\Text;
 use Modules\Core\Fields\VisibilityGroup;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Resource\Resource;
 use Modules\Documents\Http\Resources\DocumentTypeResource;
-use Modules\Documents\Services\DocumentTypeService;
 
-class DocumentType extends Resource implements Resourceful
+class DocumentType extends Resource implements HasOperations
 {
     /**
      * The column the records should be default ordered by when retrieving
@@ -33,14 +32,6 @@ class DocumentType extends Resource implements Resourceful
      * The model the resource is related to
      */
     public static string $model = 'Modules\Documents\Models\DocumentType';
-
-    /**
-     * Get the resource service for CRUD operations.
-     */
-    public function service(): DocumentTypeService
-    {
-        return new DocumentTypeService();
-    }
 
     /**
      * Provide the criteria that should be used to query only records that the logged-in user is authorized to view
@@ -59,13 +50,17 @@ class DocumentType extends Resource implements Resourceful
     }
 
     /**
-     * Set the available resource fields
+     * Provide the available resource fields
      */
-    public function fields(Request $request): array
+    public function fields(ResourceRequest $request): array
     {
         return [
-            Text::make('name', __('documents::document.type.name'))->rules('required', 'string', 'max:191')->unique(static::$model),
-            ColorSwatches::make('swatch_color', __('core::app.colors.color'))->rules('nullable', 'string', 'max:7'),
+            Text::make('name', __('documents::document.type.name'))
+                ->rules(['required', 'string', 'max:191'])
+                ->unique(static::$model)
+                ->showValueWhenUnauthorizedToView(),
+            ColorSwatch::make('swatch_color', __('core::app.colors.color'))
+                ->showValueWhenUnauthorizedToView(),
             VisibilityGroup::make('visibility_group'),
         ];
     }

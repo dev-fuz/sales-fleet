@@ -15,7 +15,7 @@
       positionFixed: true,
     }"
   >
-    <template v-slot="slotProps">
+    <template #default="slotProps">
       <slot
         v-bind="{
           ...slotProps,
@@ -34,6 +34,7 @@
             />
           </div>
           <input
+            :id="id"
             type="text"
             readonly
             :class="[
@@ -48,16 +49,15 @@
             autocomplete="off"
             :value="localizedValue"
             :placeholder="placeholder"
-            v-on="slotProps.inputEvents"
             :disabled="disabled"
             :name="name"
-            :id="id"
+            v-on="slotProps.inputEvents"
           />
           <Icon
             v-if="clearable"
+            v-show="Boolean(localValue)"
             icon="X"
             class="absolute right-3 top-2.5 h-5 w-5 cursor-pointer text-neutral-400 hover:text-neutral-600 dark:text-neutral-200 dark:hover:text-neutral-400"
-            v-show="Boolean(localValue)"
             @click="clearValues"
           />
         </div>
@@ -65,13 +65,17 @@
     </template>
   </VDatePicker>
 </template>
+
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { DatePicker as VDatePicker } from 'v-calendar'
+
+import { isDarkMode, isValueEmpty } from '@/utils'
+
+import { useApp } from '~/Core/composables/useApp'
+import { useDates } from '~/Core/composables/useDates'
+
 import 'v-calendar/dist/style.css'
-import { isValueEmpty, isDarkMode } from '@/utils'
-import { useApp } from '~/Core/resources/js/composables/useApp'
-import { useDates } from '~/Core/resources/js/composables/useDates'
 
 const emit = defineEmits(['update:modelValue', 'input'])
 
@@ -83,7 +87,7 @@ const props = defineProps({
   placeholder: String,
   disabled: Boolean,
   required: Boolean,
-  clearable: { default: false, type: Boolean },
+  clearable: Boolean,
   rounded: { type: Boolean, default: true },
   mode: {
     type: String,
@@ -115,9 +119,12 @@ const roundedClass = computed(() => {
   if (props.rounded && props.size === 'sm') {
     return 'rounded'
   }
+
   if (props.rounded && props.size !== 'sm' && props.size !== false) {
     return 'rounded-md'
   }
+
+  return ''
 })
 
 const isDateTime = computed(() => {
@@ -208,6 +215,7 @@ function setLocalValueFromModelValue(value) {
     // TODO time, not yet used
     localValue.value = value
   }
+
   return
 }
 
@@ -242,6 +250,7 @@ function emitEmptyValChangeEvent() {
   emitValChangeEvent(null)
 }
 </script>
+
 <style>
 .vc-time-select-group select {
   border: 0;

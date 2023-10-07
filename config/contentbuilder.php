@@ -7,6 +7,9 @@ return [
         ['font-family' => 'Helvetica', 'provider' => ''],
         ['font-family' => 'Times', 'provider' => ''],
 
+        // Custom fonts
+        ['font-family' => "'Nanum Gothic', sans-serif", 'provider' => 'google'], // Korean
+
         // Content editor fonts
         ['font-family' => 'Arial, sans-serif', 'provider' => ''],
         ['font-family' => 'courier', 'provider' => ''],

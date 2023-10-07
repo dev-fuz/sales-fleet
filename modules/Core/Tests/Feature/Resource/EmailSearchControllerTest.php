@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,6 @@
 namespace Modules\Core\Tests\Feature\Resource;
 
 use Modules\Contacts\Models\Contact;
-use Modules\Core\Database\Seeders\PermissionsSeeder;
 use Tests\TestCase;
 
 class EmailSearchControllerTest extends TestCase
@@ -47,7 +46,6 @@ class EmailSearchControllerTest extends TestCase
 
     public function test_own_criteria_is_applied_when_email_searching()
     {
-        $this->seed(PermissionsSeeder::class);
         $user = $this->asRegularUser()->withPermissionsTo('view own contacts')->signIn();
         $user1 = $this->createUser();
 

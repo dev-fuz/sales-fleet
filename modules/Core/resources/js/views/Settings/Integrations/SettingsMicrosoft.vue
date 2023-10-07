@@ -7,6 +7,7 @@
       <template #header>
         <div class="flex items-center">
           <Icon
+            v-if="isConfigured && componentReady"
             :icon="
               maybeClientSecretIsExpired ? 'XCircleSolid' : 'CheckCircleSolid'
             "
@@ -19,7 +20,6 @@
                   maybeClientSecretIsExpired && isConfigured && componentReady,
               },
             ]"
-            v-if="isConfigured && componentReady"
           />
           <ICardHeading>Microsoft</ICardHeading>
         </div>
@@ -47,10 +47,10 @@
           />
         </div>
         <IButtonCopy
+          v-i-tooltip="$t('core::app.copy')"
           class="ml-3"
           :text="redirectUri"
           :success-message="$t('core::app.copied')"
-          v-i-tooltip="$t('core::app.copy')"
         />
       </div>
       <!-- <div
@@ -69,9 +69,9 @@
           label-for="msgraph_client_id"
         >
           <IFormInput
-            autocomplete="off"
-            v-model="form.msgraph_client_id"
             id="msgraph_client_id"
+            v-model="form.msgraph_client_id"
+            autocomplete="off"
             name="msgraph_client_id"
           />
         </IFormGroup>
@@ -81,22 +81,21 @@
           label-for="msgraph_client_secret"
         >
           <IFormInput
+            id="msgraph_client_secret"
+            v-model="form.msgraph_client_secret"
             autocomplete="off"
             type="password"
-            v-model="form.msgraph_client_secret"
-            id="msgraph_client_secret"
             name="msgraph_client_secret"
           />
         </IFormGroup>
       </div>
-
       <IAlert
-        class="mt-4"
         v-if="
           originalSettings.msgraph_client_secret &&
           originalSettings.msgraph_client_secret_configured_at &&
           !maybeClientSecretIsExpired
         "
+        class="mt-4"
         variant="info"
       >
         The client secret was configured at
@@ -159,10 +158,13 @@
     </ICard>
   </form>
 </template>
+
 <script setup>
 import { computed, nextTick } from 'vue'
-import { useSettings } from './../useSettings'
-import { useDates } from '~/Core/resources/js/composables/useDates'
+
+import { useDates } from '~/Core/composables/useDates'
+
+import { useSettings } from '../../../composables/useSettings'
 
 const { localizedDate, appMoment, appDate } = useDates()
 
@@ -181,6 +183,7 @@ const isConfigured = computed(
     originalSettings.value.msgraph_client_secret &&
     originalSettings.value.msgraph_client_id
 )
+
 const maybeClientSecretIsExpired = computed(() => {
   if (
     !originalSettings.value.msgraph_client_secret ||
@@ -218,6 +221,6 @@ function submitMicrosoftIntegrationSettings() {
     form.fill('msgraph_client_secret_configured_at', null)
   }
 
-  nextTick(() => submit(form => window.location.reload()))
+  nextTick(() => submit(() => window.location.reload()))
 }
 </script>

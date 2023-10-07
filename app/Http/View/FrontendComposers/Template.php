@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,17 +16,14 @@ use JsonSerializable;
 
 class Template implements JsonSerializable
 {
-    /**
-     * @var \App\Http\View\FrontendComposers\Component|null
-     */
-    public ?Component $viewComponent = null;
+    public ?Component $detailComponent = null;
 
     /**
      * Set the view component instance.
      */
-    public function viewComponent(Component $component): static
+    public function detailComponent(Component $component): static
     {
-        $this->viewComponent = $component;
+        $this->detailComponent = $component;
 
         return $this;
     }
@@ -37,7 +34,7 @@ class Template implements JsonSerializable
     public function jsonSerialize(): array
     {
         return [
-            'view' => $this->viewComponent,
+            'detail' => $this->detailComponent,
         ];
     }
 }

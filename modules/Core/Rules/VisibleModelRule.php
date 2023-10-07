@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,11 +16,13 @@ use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
-use Modules\Core\VisibilityGroup\HasVisibilityGroups;
+use Modules\Core\Support\VisibilityGroup\HasVisibilityGroups;
 use Modules\Users\Models\User;
 
 class VisibleModelRule implements ValidationRule
 {
+    protected mixed $ignore = null;
+
     /**
      * Create a new rule instance.
      */
@@ -29,17 +31,49 @@ class VisibleModelRule implements ValidationRule
     }
 
     /**
+     * Ignore the given ID from visiblity checks.
+     */
+    public function ignore(mixed $id): static
+    {
+        $this->ignore = $id;
+
+        return $this;
+    }
+
+    /**
      * Run the validation rule.
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        if (empty($value)) {
+        if (empty($value) || $this->isIgnoringValue($value)) {
             return;
         }
 
         if ($this->isNotVisible($value)) {
             $fail('This :attribute value is forbidden.');
         }
+    }
+
+    /**
+     * Check whether is ignoring the current value from visiblity checks.
+     */
+    protected function isIgnoringValue($value): bool
+    {
+        $id = $this->ignore;
+
+        if (! $id) {
+            return false;
+        }
+
+        if ($id instanceof Closure) {
+            $id = $id();
+        }
+
+        if ($id instanceof Model) {
+            $id = $id->getKey();
+        }
+
+        return $id == $value;
     }
 
     /**

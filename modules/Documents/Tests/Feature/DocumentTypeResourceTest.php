@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -308,12 +308,12 @@ class DocumentTypeResourceTest extends TestCase
             '/api/documents',
             ['document_type_id' => $type->id]
         )
-            ->assertJsonValidationErrors(['document_type_id' => 'This Document Type value is forbidden.']);
+            ->assertJsonValidationErrors(['document_type_id' => 'This document type id value is forbidden.']);
     }
 
     public function test_user_cant_update_document_with_restricted_visibility_type()
     {
-        $this->asRegularUser()->signIn();
+        $this->asRegularUser()->withPermissionsTo('edit all documents')->signIn();
         $document = Document::factory()->create();
         $type = $this->newTypeFactoryWithVisibilityGroup('users', User::factory())->create();
 
@@ -321,7 +321,7 @@ class DocumentTypeResourceTest extends TestCase
             "/api/documents/$document->id",
             ['document_type_id' => $type->id]
         )
-            ->assertJsonValidationErrors(['document_type_id' => 'This Document Type value is forbidden.']);
+            ->assertJsonValidationErrors(['document_type_id' => 'This document type id value is forbidden.']);
     }
 
     protected function newTypeFactoryWithVisibilityGroup($group, $attached)

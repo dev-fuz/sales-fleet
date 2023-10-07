@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,10 +13,15 @@
 namespace Modules\Core\Facades;
 
 use Illuminate\Support\Facades\Facade;
-use Modules\Core\Changelog\Logging as BaseLogging;
+use Modules\Core\Support\Changelog\Logging as BaseLogging;
 
 /**
- * @mixin \Modules\Core\Changelog\Logging
+ * @method static static disable()
+ * @method static static enable()
+ * @method static void disabled(\Closure $callback)
+ * @method static \Modules\Core\Models\Changelog onModel(\Modules\Core\Models\Model $model, array $attributes)
+ *
+ * @mixin \Modules\Core\Support\Changelog\Logging
  */
 class ChangeLogger extends Facade
 {

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -42,6 +42,7 @@ class DocumentFactory extends Factory
             'owner_assigned_date' => now(),
             'requires_signature' => false,
             'status' => DocumentStatus::DRAFT->value,
+            'locale' => 'en',
             'data' => [],
         ];
     }

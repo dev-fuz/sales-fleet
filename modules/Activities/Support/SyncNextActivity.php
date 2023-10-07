@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,10 +12,8 @@
 
 namespace Modules\Activities\Support;
 
-use Batch;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
 use Modules\Activities\Concerns\HasActivities;
 use Modules\Activities\Models\Activity;
 use Modules\Core\Facades\Innoclapps;
@@ -31,7 +29,6 @@ class SyncNextActivity
     public function __invoke(): void
     {
         if (Import::isImportInProgress()) {
-            // Avoid error: General error: 1205 Lock wait timeout exceeded; try restarting transaction
             return;
         }
 
@@ -66,19 +63,21 @@ class SyncNextActivity
      */
     protected function syncNextActivity(Model $model): void
     {
-        $records = $this->recordsWithIncompleteActivitiesAndInFuture($model);
+        $attributes = $this->recordsWithIncompleteActivitiesAndInFuture($model)
+            ->map(function ($record) {
+                $nextActivity = $record->activities->first();
 
-        $recordsToUpdate = $records->map(function ($record) {
-            return array_merge([
-                $record->getKeyName() => $record->getKey(),
-                'next_activity_id' => $record->activities->first()->getKey(),
+                return array_merge([
+                    $record->getKeyName() => $record->getKey(),
+                    'next_activity_id' => $nextActivity->getKey(),
+                    'next_activity_date' => $nextActivity->next_activity_date,
 
-            ], $record->usesTimestamps() ? [
-                $record->getUpdatedAtColumn() => $record->updated_at->format($record->getDateFormat()),
-            ] : []);
-        })->all();
+                ], $record->usesTimestamps() ? [
+                    $record->getUpdatedAtColumn() => $record->updated_at->format($record->getDateFormat()),
+                ] : []);
+            })->all();
 
-        $this->performBatchUpdate($recordsToUpdate, $model);
+        $this->performBatchUpdate($attributes, $model);
     }
 
     /**
@@ -86,21 +85,17 @@ class SyncNextActivity
      */
     protected function recordsWithIncompleteActivitiesAndInFuture(Model $model): Collection
     {
-        $columns = array_merge(
-            [$model->getKeyName()],
-            $model->usesTimestamps() ? [$model->getUpdatedAtColumn()] : []
-        );
-
-        return $model->newQuery()->select($columns)
-            ->whereHas(
+        return $model->newQuery()
+            ->select(array_merge(
+                [$model->getKeyName()],
+                $model->usesTimestamps() ? [$model->getUpdatedAtColumn()] : []
+            ))
+            ->withWhereHas(
                 'activities',
-                fn ($query) => $query->incompleteAndInFuture()->orderBy(Activity::dueDateQueryExpression())
+                fn ($query) => $query->incompleteAndInFuture()
+                    ->select(['id', Activity::dueDateQueryExpression('next_activity_date')])
+                    ->orderBy(Activity::dueDateQueryExpression())
             )
-            ->with([
-                'activities' => fn ($query) => $query->incompleteAndInFuture()
-                    ->select(['id', 'due_date', 'due_time'])
-                    ->orderBy(Activity::dueDateQueryExpression()),
-            ])
             ->get();
     }
 
@@ -111,28 +106,27 @@ class SyncNextActivity
      */
     protected function syncFinished(Model $model): void
     {
-        $attributes = ['next_activity_id' => null];
-
-        // Do not update the "updated_at" column, we will pass the actual colum name to use the current value
-        if ($model->usesTimestamps()) {
-            $attributes[$model->getUpdatedAtColumn()] = DB::raw('updated_at');
-        }
-
-        $model->newQuery()->whereDoesntHave('activities', function ($query) {
-            return $query->incomplete()->where(
-                Activity::dueDateQueryExpression(),
-                '>=',
-                now()
-            );
-        })->update($attributes);
+        $model::withoutTimestamps(function () use ($model) {
+            $model->newQuery()->whereDoesntHave(
+                'activities',
+                fn ($query) => $query->incomplete()->where(
+                    Activity::dueDateQueryExpression(),
+                    '>=',
+                    now()
+                )
+            )->update([
+                'next_activity_id' => null,
+                'next_activity_date' => null,
+            ]);
+        });
     }
 
     /**
      * Perform batch next activity date update
      */
-    protected function performBatchUpdate(array $records, Model $model): void
+    protected function performBatchUpdate(array $attributes, Model $model): void
     {
-        $modifiedRecords = Batch::update($model, $records, $model->getKeyName());
+        $modifiedRecords = batch()->update($model, $attributes, $model->getKeyName());
 
         if ($modifiedRecords) {
             // Clear the cache as the Batch updater is using direct connection

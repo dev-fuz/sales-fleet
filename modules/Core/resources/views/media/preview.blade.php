@@ -16,7 +16,8 @@
                     </div>
                     <div class="flex items-center space-x-2">
                         <i-button-copy icon="Share" class="mr-4" text="{{ $media->getViewUrl() }}"
-                            success-message="{{ __('core::media.link_copied') }}" v-i-tooltip.bottom="'{{ __('core::app.copy') }}'">
+                            success-message="{{ __('core::media.link_copied') }}"
+                            v-i-tooltip.bottom="'{{ __('core::app.copy') }}'">
                         </i-button-copy>
                         <a href="{{ $media->getDownloadUrl() }}" class="btn btn-primary btn-sm rounded-md">
                             {{ __('core::app.download') }}
@@ -30,7 +31,7 @@
                 @if ($media->aggregate_type === 'image')
                     <img src="{{ $media->previewPath() }}" class="mx-auto rounded" alt="{{ $media->basename }}">
                 @elseif($media->aggregate_type === 'pdf')
-                    <div class="aspect-w-16 aspect-h-9">
+                    <div class="aspect-h-9 aspect-w-16">
                         <iframe src="{{ $media->previewPath() }}" name="{{ $media->filename }}" allowfullscreen>
                         </iframe>
                     </div>
@@ -39,7 +40,7 @@
                         {{ $media->contents() }}
                     </div>
                 @elseif($media->aggregate_type === 'video' && $media->isHtml5SupportedVideo())
-                    <div class="aspect-w-16 aspect-h-9">
+                    <div class="aspect-h-9 aspect-w-16">
                         <video autoplay controls>
                             <source src="{{ $media->previewPath() }}" type="{{ $media->mime_type }}">
                             Your browser does not support the video tag.

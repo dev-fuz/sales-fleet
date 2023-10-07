@@ -2,17 +2,14 @@
 
 namespace Tests\Fixtures;
 
-use App\Http\Resources\ProvidesCommonData;
-use Modules\Core\Resource\Http\JsonResource;
+use Modules\Core\Resource\JsonResource;
 
 class EventJsonResource extends JsonResource
 {
-    use ProvidesCommonData;
-
     /**
      * Transform the resource collection into an array.
      *
-     * @param  \Modules\Core\Resource\Http\ResourceRequest  $request
+     * @param  \Modules\Core\Http\Requests\ResourceRequest  $request
      * @return array
      */
     public function toArray($request)

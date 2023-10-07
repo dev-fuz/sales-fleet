@@ -28,6 +28,7 @@
       -
       {{ localizedDateTime(endDate.date + ' ' + endDate.time) }}
     </span>
+
     <span v-else-if="isEndDateEqualToDueDate" class="ml-1">
       -
       {{
@@ -39,11 +40,11 @@
     </span>
   </p>
 </template>
+
 <script setup>
 import { computed } from 'vue'
-import { useDates } from '~/Core/resources/js/composables/useDates'
 
-const { localizedDate, localizedDateTime, currentTimeFormat } = useDates()
+import { useDates } from '~/Core/composables/useDates'
 
 const props = defineProps({
   dueDate: { required: true },
@@ -51,6 +52,8 @@ const props = defineProps({
   isDue: { required: true, type: Boolean },
   withIcon: { type: Boolean, default: true },
 })
+
+const { localizedDate, localizedDateTime, currentTimeFormat } = useDates()
 
 const isEndDateBiggerThenDueDate = computed(() => {
   return (

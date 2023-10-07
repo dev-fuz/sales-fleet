@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -29,11 +29,24 @@ class UpdateUserLastActiveDate
     {
         $response = $next($request);
 
-        if (Auth::check()) {
+        if ($this->shouldPerformUpdate($request)) {
             $this->updateLastActiveDate();
         }
 
         return $response;
+    }
+
+    /**
+     * Check whether the last active date update should be performed.
+     */
+    protected function shouldPerformUpdate(Request $request): bool
+    {
+        // We will only update the last_active_at each minute, as it does not
+        // makes sense to update the last_active_at every request.
+
+        return ! $request->isZapier() &&
+            Auth::check() &&
+            (! Auth::user()->last_active_at || Auth::user()->last_active_at->diffInMinutes(now()) >= 1);
     }
 
     /**

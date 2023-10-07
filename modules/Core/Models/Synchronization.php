@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Modules\Core\Concerns\HasUuid;
 use Modules\Core\Contracts\Synchronization\SynchronizesViaWebhook;
-use Modules\Core\Synchronization\SyncState;
+use Modules\Core\Support\Synchronization\SyncState;
 
 class Synchronization extends Model
 {
@@ -114,9 +114,10 @@ class Synchronization extends Model
         $this->stopListeningForChanges();
 
         // Update the UUID since the previous one has
-        // already been associated to watcher
-        $this->{static::getUuidColumnName()} = static::generateUuid();
-        $this->save();
+        // already been associated to watcher.
+        $this->forceFill([
+            $this->uuidColumn() => $this->generateUuid(),
+        ])->save();
 
         $this->startListeningForChanges();
 
@@ -172,9 +173,9 @@ class Synchronization extends Model
     }
 
     /**
-     * Get the model uuid column name
+     * Get the model uuid column name.
      */
-    protected static function getUuidColumnName(): string
+    public function uuidColumn(): string
     {
         return 'id';
     }
@@ -233,7 +234,7 @@ class Synchronization extends Model
     /**
      * Set the sync state.
      */
-    public function setSyncState(SyncState $state, ?string $comment = null): static
+    public function setSyncState(SyncState $state, string $comment = null): static
     {
         $this->fill(['sync_state' => $state, 'sync_state_comment' => $comment])->save();
 
@@ -261,7 +262,7 @@ class Synchronization extends Model
     /**
      * Disable synchronization.
      */
-    public function disableSync(?string $comment = null): static
+    public function disableSync(string $comment = null): static
     {
         if ($this->isSynchronizingViaWebhook()) {
             $this->stopListeningForChanges();
@@ -277,7 +278,7 @@ class Synchronization extends Model
     /**
      * Stop synchronization.
      */
-    public function stopSync(?string $comment = null): static
+    public function stopSync(string $comment = null): static
     {
         if ($this->isSynchronizingViaWebhook()) {
             $this->stopListeningForChanges();

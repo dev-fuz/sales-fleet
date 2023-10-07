@@ -2,8 +2,8 @@
   <ICard class="border border-primary-400">
     <template #header>
       <p
-        class="font-semibold text-neutral-800 dark:text-neutral-200"
         v-t="'webforms::form.sections.new'"
+        class="font-semibold text-neutral-800 dark:text-neutral-200"
       />
     </template>
     <template #actions>
@@ -18,6 +18,7 @@
       label-for="section_type"
     >
       <ICustomSelect
+        v-model="sectionType"
         label="label"
         field-id="section_type"
         :options="sectionTypes"
@@ -27,14 +28,13 @@
           $event.id === 'file' ? (fieldLabel = 'Attachment') : null,
             $event.id !== 'field' ? (field = null) : ''
         "
-        v-model="sectionType"
       />
     </IFormGroup>
     <IFormGroup
       v-if="sectionType === 'message'"
       :label="$t('webforms::form.sections.message.message')"
     >
-      <Editor :with-image="false" v-model="message" />
+      <Editor v-model="message" :with-image="false" />
     </IFormGroup>
     <div v-else>
       <IFormGroup
@@ -42,13 +42,13 @@
         label-for="resourceName"
       >
         <ICustomSelect
+          v-model="resourceName"
           label="label"
           field-id="resourceName"
           :clearable="false"
           :options="availableResources"
-          @option:selected="field = null"
           :reduce="resource => resource.id"
-          v-model="resourceName"
+          @option:selected="field = null"
         />
       </IFormGroup>
       <IFormGroup
@@ -57,13 +57,13 @@
         label-for="field"
       >
         <ICustomSelect
+          v-model="field"
           label="label"
           field-id="field"
           :clearable="false"
           :selectable="field => field.disabled"
           :options="availableFields"
           @option:selected="handleFieldChanged"
-          v-model="field"
         />
       </IFormGroup>
       <IFormGroup
@@ -71,60 +71,59 @@
         :label="$t('core::fields.label')"
       >
         <Editor
+          v-model="fieldLabel"
           :with-image="false"
           default-tag="div"
           toolbar="bold italic underline link removeformat"
-          v-model="fieldLabel"
         />
       </IFormGroup>
       <IFormGroup>
         <IFormCheckbox
-          id="new-is-required"
-          name="new-is-required"
-          v-model:checked="isRequired"
-          :disabled="fieldMustBeRequired"
           v-show="field !== null || sectionType === 'file'"
+          id="new-is-required"
+          v-model:checked="isRequired"
+          name="new-is-required"
+          :disabled="fieldMustBeRequired"
           :label="$t('core::fields.is_required')"
         />
 
         <IFormCheckbox
-          id="new-file-multiple"
-          name="new-file-multiple"
-          v-model:checked="fileAcceptMultiple"
           v-show="sectionType === 'file'"
+          id="new-file-multiple"
+          v-model:checked="fileAcceptMultiple"
+          name="new-file-multiple"
           :label="$t('webforms::form.sections.file.multiple')"
         />
       </IFormGroup>
     </div>
-
     <div class="space-x-2 text-right">
       <IButton
         size="sm"
-        @click="requestSectionRemove"
         variant="white"
         :text="$t('core::app.cancel')"
+        @click="requestSectionRemove"
       />
       <IButton
         size="sm"
-        @click="requestNewSection"
         :disabled="saveIsDisabled"
         :text="$t('core::app.save')"
         variant="secondary"
+        @click="requestNewSection"
       />
     </div>
   </ICard>
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
-<script setup>
-import { ref, toRef, computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useFieldSection } from './useSectionField'
 
-const emit = defineEmits(['create-section-requested'])
+<script setup>
+import { computed, ref, toRef } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+import { useFieldSection } from '../../composables/useSectionField'
+
+const emit = defineEmits([
+  'create-section-requested',
+  'remove-section-requested',
+])
 
 const props = defineProps({
   index: { type: Number },
@@ -134,6 +133,10 @@ const props = defineProps({
   contactsFields: { required: true },
   dealsFields: { required: true },
   availableResources: { required: true },
+})
+
+defineOptions({
+  inheritAttrs: false,
 })
 
 const { t } = useI18n()
@@ -186,6 +189,8 @@ const saveIsDisabled = computed(() => {
   } else if (sectionType.value === 'file') {
     return fieldLabel.value === null || fieldLabel.value == ''
   }
+
+  return false
 })
 
 function requestNewMessageSection() {

@@ -1,7 +1,7 @@
 <x-core::layouts.skin>
     @section('title', (settings('company_name') ?: config('app.name')) . ' - ' . __('core::app.privacy_policy'))
 
-    <div class="h-screen min-h-screen bg-neutral-50 dark:bg-neutral-800">
+    <div class="h-full min-h-screen dark:bg-neutral-800">
         <div class="w-full border-b border-neutral-200 bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900">
             <div class="m-auto max-w-6xl">
                 <div class="p-4">

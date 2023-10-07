@@ -22,11 +22,11 @@
     >
       <IFormRadio
         v-for="period in periods"
+        :id="period.id"
         :key="period.text"
         v-model="form.period"
         :value="period.value"
         name="period"
-        :id="period.id"
         :label="period.text"
       />
     </IFormGroup>
@@ -39,12 +39,43 @@
         />
 
         <DateRangePicker
+          id="custom-period"
           v-model="form.customPeriod"
           name="custom-period"
-          id="custom-period"
         />
       </div>
     </IFormGroup>
+    <IFormGroup class="mt-6 space-y-1">
+      <IFormRadio
+        v-model="userWantsToSelectFields"
+        :label="$t('core::fields.all')"
+        name="select_fields"
+        :value="false"
+      />
+      <IFormRadio
+        v-model="userWantsToSelectFields"
+        :label="$t('core::fields.select')"
+        name="select_fields"
+        :value="true"
+      />
+    </IFormGroup>
+    <div v-if="userWantsToSelectFields">
+      <div class="grid grid-cols-3 gap-x-4 gap-y-2">
+        <div
+          v-for="field in fields"
+          :key="field.attribute"
+          class="flex items-center rounded border border-neutral-200 px-2 py-1.5 dark:border-neutral-700"
+        >
+          <IFormCheckbox
+            :id="field.attribute"
+            v-model:checked="form.fields"
+            :label="field.label"
+            :value="field.attribute"
+            :disabled="field.primary"
+          />
+        </div>
+      </div>
+    </div>
     <div
       v-show="canUseFilterForExport"
       class="mt-5 rounded-md border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-500 dark:bg-neutral-700"
@@ -56,13 +87,16 @@
     </div>
   </IModal>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
-import { useDates } from '~/Core/resources/js/composables/useDates'
-import FileDownload from 'js-file-download'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useQueryBuilder } from '~/Core/resources/js/components/QueryBuilder/useQueryBuilder'
-import { useForm } from '~/Core/resources/js/composables/useForm'
+import { whenever } from '@vueuse/core'
+import FileDownload from 'js-file-download'
+
+import { useDates } from '~/Core/composables/useDates'
+import { useForm } from '~/Core/composables/useForm'
+import { useQueryBuilder } from '~/Core/composables/useQueryBuilder'
 
 const props = defineProps({
   resourceName: String,
@@ -78,11 +112,15 @@ const { appMoment } = useDates()
 const { form } = useForm({
   period: 'last_7_days',
   type: 'csv',
+  fields: [],
   customPeriod: {
     start: appMoment().startOf('month').format('YYYY-MM-DD'),
     end: appMoment().format('YYYY-MM-DD'),
   },
 })
+
+const fields = ref([])
+const userWantsToSelectFields = ref(false)
 
 const periods = [
   {
@@ -137,6 +175,24 @@ function getFileNameFromResponseHeaders(response) {
   return response.headers['content-disposition'].split('filename=')[1]
 }
 
+whenever(userWantsToSelectFields, async () => {
+  fields.value = await retrieveExportFields()
+
+  if (form.fields.length === 0) {
+    fields.value.forEach(field => {
+      form.fields.push(field.attribute)
+    })
+  }
+})
+
+async function retrieveExportFields() {
+  const { data } = await Innoclapps.request().get(
+    `${props.resourceName}/export-fields`
+  )
+
+  return data
+}
+
 function performExport() {
   exportInProgress.value = true
 
@@ -144,6 +200,7 @@ function performExport() {
     .post(
       props.urlPath,
       {
+        fields: userWantsToSelectFields.value ? form.fields : null,
         period: !isCustomOptionSelected.value
           ? form.period === 'all'
             ? null

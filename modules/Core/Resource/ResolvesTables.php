@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,35 +13,45 @@
 namespace Modules\Core\Resource;
 
 use Illuminate\Database\Eloquent\Builder;
-use Modules\Core\Resource\Http\ResourceRequest;
-use Modules\Core\Table\DateTimeColumn;
-use Modules\Core\Table\ID;
+use Illuminate\Support\Collection;
+use Modules\Core\Fields\DateTime;
+use Modules\Core\Fields\Field;
+use Modules\Core\Http\Requests\ResourceRequest;
+use Modules\Core\Table\Column;
 use Modules\Core\Table\Table;
 
+/**
+ * @mixin \Modules\Core\Resource\Resource
+ */
 trait ResolvesTables
 {
+    /**
+     * Create new table instance.
+     */
+    protected function newTable(Builder $query, ResourceRequest $request, string $identifier = null): Table
+    {
+        // Perform count before any where (except authorizations related) queries are performed.
+        $preTotal = with(clone $query)->count();
+
+        return $this->table($query, $request)
+            ->setIdentifier($identifier ?: $this->name())
+            ->setPreTotal($preTotal);
+    }
+
     /**
      * Resolve the resource table class
      */
     public function resolveTable(ResourceRequest $request): Table
     {
-        $query = $this->newTableQuery();
+        $query = $this->tableQuery($request);
 
-        if ($criteria = $this->viewAuthorizedRecordsCriteria()) {
-            $query->criteria($criteria);
-        }
-
-        $table = $this->table($query, $request)->setIdentifier($this->name());
-
-        // If there are no defined columns in the table, we will map
-        // the columns from the actual fields
-        if (count($table->getColumns()) === 0) {
-            $table->setColumns($this->getTableColumnsFromFields());
-
-            $table->getColumns()->push(
-                ID::make(__('core::app.id'), $query->getModel()->getKeyName())->hidden()
+        $table = tap($this->newTable($query, $request), function ($table) {
+            $table->setColumns(
+                $table->getColumns()->push(
+                    ...$this->columnsFromFields($this->fieldsForIndex())
+                )
             );
-        }
+        });
 
         // We will check if the tables has table wide actions and filters defined
         // If there are no table wide actions and filters, in this case, we will
@@ -62,60 +72,47 @@ trait ResolvesTables
      */
     public function resolveTrashedTable(ResourceRequest $request): Table
     {
-        $query = $this->newTableQuery()->onlyTrashed();
+        $query = $this->tableQuery($request)->onlyTrashed();
+        $table = $this->newTable($query, $request, $this->name().'-trashed');
 
-        if ($criteria = $this->viewAuthorizedRecordsCriteria()) {
-            $query->criteria($criteria);
-        }
-
-        $table = $this->table($query, $request)->setIdentifier(
-            $this->name().'-trashed'
-        )->clearOrderBy()->orderBy(
-            $query->getModel()->getDeletedAtColumn()
-        );
-
-        // Trashed tables are no customizeable
-        $table->customizeable = false;
-
-        // OVERWRITE COLUMNS (if any defined)
-        // All columns will be visible on the trashed table so the user can see all
-        // the data, as well we will push the deleted at column to be visible
-        $table->setColumns($this->getTableColumnsFromFields())
-            ->getColumns()
-            ->prepend(
-                DateTimeColumn::make(
-                    $query->getModel()->getDeletedAtColumn(),
-                    __('core::app.deleted_at')
-                )
-            )
-            ->prepend(
-                ID::make(__('core::app.id'), $query->getModel()->getKeyName())->hidden()
-            )
-            ->each->hidden(false)->each->primary(false);
-
-        if (method_exists($table, 'actionsForTrashedTable')) {
-            $table->setActions($table->actionsForTrashedTable());
-        }
-
-        return $table;
+        return $table->clearOrderBy()
+            ->setColumns($this->columnsForTrashedTable($query))
+            ->setActions($table->trashedViewActions())
+            ->orderBy($query->getModel()->getDeletedAtColumn())
+            ->withoutActionsColumn()
+            ->customizeable(false);
     }
 
     /**
-     * Get the table query.
+     * Get the columns for trashed table.
      */
-    public function newTableQuery(): Builder
+    public function columnsForTrashedTable(Builder $query): Collection
     {
-        return $this->newQuery();
+        Column::$trashed = true;
+
+        $columns = $this->columnsFromFields(
+            $this->fieldsForIndex()->prepend(
+                DateTime::make($query->getModel()->getDeletedAtColumn(), __('core::app.deleted_at'))
+                    ->tapIndexColumn(
+                        fn (Column $column) => $column->minWidth('250px')
+                    )
+            )->each->disableInlineEdit()
+        )->each(function (Column $column) {
+            $column->primary(false);
+        });
+
+        Column::$trashed = false;
+
+        return $columns;
     }
 
     /**
      * Get the table columns from fields
      */
-    public function getTableColumnsFromFields(): array
+    public function columnsFromFields(Collection $fields): Collection
     {
-        return $this->resolveFields()->filter->isApplicableForIndex()
-            ->map(fn ($field) => $field->resolveIndexColumn())
-            ->filter()
-            ->all();
+        return $fields->map(function (Field $field) {
+            return $field->resolveIndexColumn();
+        })->filter();
     }
 }

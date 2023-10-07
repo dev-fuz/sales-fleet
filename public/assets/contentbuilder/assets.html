@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <title>Assets</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="">
+    <meta name="description" content=""> 
     <style>
         body {
             font-family:sans-serif;
@@ -30,7 +30,7 @@
             width:50px;height:50px;margin-bottom:8px;
             fill:#111;
         }
-    </style>
+    </style> 
 </head>
 <body>
 
@@ -66,7 +66,7 @@
     <button><img src="uploads/travel.png" /></button>
     <button><img src="uploads/travel2.png" /></button>
     <button><img src="uploads/travel3.png" /></button>
-
+    
     <!-- <button data-href="uploads/file1.pdf">
         <svg><use xlink:href="#ion-document"></use></svg>
         file1.pdf
@@ -94,28 +94,28 @@
 <script>
     var elms = document.querySelectorAll('#files button');
     [].forEach.call(elms, function(elm) {
-
+        
         // Get selected asset Url
         var url = elm.getAttribute('data-href'); //for a video
         if(!url) url = elm.getAttribute('href'); //for a file
         if(!url) {
             var img = elm.querySelector('img'); //for an image
-            if(img) url = img.getAttribute('src');
+            if(img) url = img.getAttribute('src'); 
         }
 
         if(url) {
             elm.addEventListener('click', function(e){
-
-                /*
+                
+                /* 
                 USE selectAsset() method to select an asset and return the url back to ContentBuilder.js
                 */
                 parent.selectAsset(url);
                 parent.focus(); // so that document.click on parent works without have to click to focus
-
+                
                 e.preventDefault();
                 return false;
             });
-        }
+        } 
 
     });
 
@@ -128,13 +128,13 @@
                 color: ${parent._cb.styleModalColor};
                 margin: 0;
             }
-            #files > * > svg {
-                width:50px;height:50px;margin-bottom:8px;
-                fill: ${parent._cb.styleModalColor};
-            }
-            #files a {
+            #files button {
                 text-decoration:none;
                 color: ${parent._cb.styleModalColor};
+            }
+            #files button svg {
+                width:50px;height:50px;margin-bottom:8px;
+                fill: ${parent._cb.styleModalColor};
             }
 
             /* Scrollbar for modal */
@@ -152,7 +152,7 @@
             }
             .dark *::-webkit-scrollbar-thumb {
                 background-color:rgb(78 78 78 / 62%);
-            }
+            } 
 
             .colored-dark * {
                 scrollbar-width: thin;
@@ -166,7 +166,7 @@
             }
             .colored-dark *::-webkit-scrollbar-thumb {
                 background-color:rgb(100, 100, 100);
-            }
+            } 
 
             .colored * {
                 scrollbar-width: thin;
@@ -180,7 +180,7 @@
             }
             .colored *::-webkit-scrollbar-thumb {
                 background-color: rgba(0, 0, 0, 0.4);
-            }
+            } 
 
             .light * {
                 scrollbar-width: thin;
@@ -194,12 +194,12 @@
             }
             .light *::-webkit-scrollbar-thumb {
                 background-color: rgba(0, 0, 0, 0.4);
-            }
+            } 
         `;
-
+        
         let themestyle = document.querySelector('[data-theme-style]');
         if(themestyle) themestyle.parentNode.removeChild(themestyle);
-
+        
         var style = document.createElement("style");
         style.setAttribute('data-theme-style','');
         style.type = "text/css";

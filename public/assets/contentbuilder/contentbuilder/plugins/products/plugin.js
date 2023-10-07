@@ -30,7 +30,7 @@
 
   button.addEventListener('click', function (e) {
     _cb.addSnippet(
-      `<div class="products-section -mx-4" style="min-height:40px;"><span class="text-center w-full inline-block border p-4">${_cb.out(
+      `<div class="products-section -mx-4" style="min-height:40px;"><span class="text-center w-full inline-block p-4 font-medium">${_cb.out(
         'Products will be displayed in this section on document preview and PDF.'
       )}</span></div>`,
       true,

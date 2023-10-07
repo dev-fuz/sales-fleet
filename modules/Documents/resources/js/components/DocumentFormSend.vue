@@ -1,5 +1,5 @@
 <template>
-  <div class="mx-auto max-w-3xl" v-show="visible">
+  <div v-show="visible" class="mx-auto max-w-3xl">
     <IAlert
       v-if="Boolean(form.originalData.send_at)"
       variant="info"
@@ -13,20 +13,20 @@
     </IAlert>
     <div v-if="form.requires_signature" class="mb-6">
       <h3
+        v-t="'documents::document.send.send_to_signers'"
         :class="[
-          'mb-6 text-lg font-medium text-neutral-800 dark:text-neutral-100',
+          'mb-3 text-base font-medium text-neutral-800 dark:text-neutral-100',
           {
             hidden:
               filledSigners.length === 0 && document.status === 'accepted',
           },
         ]"
-        v-t="'documents::document.send.send_to_signers'"
       />
 
       <p
         v-show="filledSigners.length === 0 && document.status !== 'accepted'"
-        class="-mt-5 text-sm text-neutral-500 dark:text-neutral-300"
         v-t="'documents::document.send.send_to_signers_empty'"
+        class="-mt-3 text-sm text-neutral-500 dark:text-neutral-300"
       />
 
       <IFormCheckbox
@@ -49,12 +49,15 @@
         </span>
       </IFormCheckbox>
     </div>
-
-    <h3
-      class="mb-3 text-lg font-medium text-neutral-800 dark:text-neutral-100"
-      v-t="'documents::document.recipients.recipients'"
-    />
-
+    <div class="mb-3 inline-flex items-center">
+      <h3
+        v-t="'documents::document.recipients.recipients'"
+        class="text-base font-medium text-neutral-800 dark:text-neutral-100"
+      />
+      <span class="ml-1 mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+        ({{ $t('documents::document.recipients.additional_recipients') }})
+      </span>
+    </div>
     <div class="table-responsive">
       <div
         class="overflow-auto border border-neutral-200 dark:border-neutral-800 sm:rounded-md"
@@ -68,16 +71,16 @@
                 class="bg-neutral-50 p-2 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
               />
               <th
-                class="bg-neutral-50 p-2 text-left text-xs font-semibold uppercase tracking-wider text-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
                 v-t="'documents::document.recipients.recipient_name'"
-              />
-              <th
                 class="bg-neutral-50 p-2 text-left text-xs font-semibold uppercase tracking-wider text-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
-                v-t="'documents::document.recipients.recipient_email'"
               />
               <th
-                class="bg-neutral-50 p-2 text-center text-xs font-semibold uppercase tracking-wider text-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
+                v-t="'documents::document.recipients.recipient_email'"
+                class="bg-neutral-50 p-2 text-left text-xs font-semibold uppercase tracking-wider text-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
+              />
+              <th
                 v-t="'documents::document.recipients.is_sent'"
+                class="bg-neutral-50 p-2 text-center text-xs font-semibold uppercase tracking-wider text-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
               />
               <th></th>
             </tr>
@@ -87,9 +90,9 @@
           >
             <tr v-if="form.recipients.length === 0">
               <td
+                v-t="'documents::document.recipients.no_recipients'"
                 colspan="5"
                 class="bg-white p-3 align-middle text-sm font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
-                v-t="'documents::document.recipients.no_recipients'"
               />
             </tr>
 
@@ -109,10 +112,10 @@
                 <IFormInput
                   ref="recipientNameInputRef"
                   v-model="recipient.name"
-                  @input="form.errors.clear('recipients.' + index + '.name')"
                   :placeholder="
                     $t('documents::document.recipients.enter_full_name')
                   "
+                  @input="form.errors.clear('recipients.' + index + '.name')"
                 />
                 <IFormError
                   v-text="form.getError('recipients.' + index + '.name')"
@@ -123,12 +126,12 @@
               >
                 <IFormInput
                   v-model="recipient.email"
-                  @keyup.enter="insertEmptyRecipient"
-                  @input="form.errors.clear('recipients.' + index + '.email')"
                   type="email"
                   :placeholder="
                     $t('documents::document.recipients.enter_email')
                   "
+                  @keyup.enter="insertEmptyRecipient"
+                  @input="form.errors.clear('recipients.' + index + '.email')"
                 />
                 <IFormError
                   v-text="form.getError('recipients.' + index + '.email')"
@@ -151,7 +154,6 @@
                   />
                 </span>
               </td>
-
               <td
                 class="bg-white p-2 text-sm font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
               >
@@ -162,27 +164,23 @@
         </table>
       </div>
     </div>
-
     <a
       v-show="!emptyRecipientsExists"
       class="link mt-3 inline-block text-sm font-medium"
       href="#"
       @click.prevent="insertEmptyRecipient"
     >
-      + {{ $t('documents::document.recipients.add') }}
+      &plus; {{ $t('documents::document.recipients.add') }}
     </a>
-
     <h3
-      class="mb-3 mt-6 text-lg font-medium text-neutral-800 dark:text-neutral-100"
       v-t="'documents::document.send.send'"
+      class="mb-3 mt-6 text-base font-medium text-neutral-800 dark:text-neutral-100"
     />
-
     <p
       v-show="!selectedBrand"
-      class="mt-3 text-sm text-neutral-500"
       v-t="'documents::document.send.select_brand'"
+      class="mt-3 text-sm text-neutral-500"
     />
-
     <div v-if="selectedBrand">
       <IFormGroup
         :label="$t('documents::document.send.send_from_account')"
@@ -190,13 +188,13 @@
       >
         <ICustomSelect
           v-if="mailAccounts.length"
-          :modelValue="mailAccount"
+          :model-value="mailAccount"
           input-id="send_mail_account_id"
-          @update:modelValue="form.send_mail_account_id = $event.id"
-          @option:selected="setActiveMailAccount(mailAccounts)"
           :clearable="false"
           :options="mailAccounts"
           label="email"
+          @update:model-value="form.send_mail_account_id = $event.id"
+          @option:selected="setActiveMailAccount(mailAccounts)"
         />
         <IFormText v-else class="mt-2 inline-flex items-center">
           <Icon
@@ -211,55 +209,53 @@
         label-for="send_mail_subject"
         class="mt-4"
       >
-        <IFormInput v-model="form.send_mail_subject" id="send_mail_subject" />
+        <IFormInput id="send_mail_subject" v-model="form.send_mail_subject" />
       </IFormGroup>
       <IFormGroup
         :label="$t('documents::document.send.send_body')"
         label-for="send_mail_body"
       >
         <Editor
-          v-model="form.send_mail_body"
           id="send_mail_body"
+          v-model="form.send_mail_body"
           :with-image="false"
         />
       </IFormGroup>
-
       <div class="mb-4">
         <div class="inline-block">
           <IFormCheckbox
             v-model:checked="scheduleSend"
-            :disabled="!document.id"
             v-i-tooltip="
               !document.id
                 ? $t('documents::document.send.save_to_schedule')
                 : null
             "
-            @update:checked="!$event ? (form.send_at = null) : ''"
+            :disabled="!document.id"
             :label="$t('documents::document.send.send_later')"
+            @update:checked="!$event ? (form.send_at = null) : ''"
           />
         </div>
 
         <DatePicker
           v-if="scheduleSend && document.id"
+          v-model="form.send_at"
           class="mt-3"
           :min-date="appDate()"
           mode="dateTime"
           :placeholder="$t('documents::document.send.select_schedule_date')"
-          v-model="form.send_at"
           :required="true"
         />
       </div>
       <span
-        class="inline-block"
         v-i-tooltip="
           document.authorizations && !document.authorizations.update
             ? $t('core::app.action_not_authorized')
             : ''
         "
+        class="inline-block"
       >
         <IButton
           v-show="!scheduleSend"
-          @click="$emit('send-requested')"
           :loading="sending"
           icon="Mail"
           :text="$t('core::app.send')"
@@ -268,10 +264,10 @@
             !isEligibleForSending ||
             (document.authorizations && !document.authorizations.update)
           "
+          @click="$emit('send-requested')"
         />
         <IButton
           v-show="scheduleSend"
-          @click="$emit('save-requested')"
           :text="$t('documents::document.send.schedule')"
           :disabled="
             form.busy ||
@@ -280,25 +276,30 @@
             (document.authorizations && !document.authorizations.update)
           "
           icon="Clock"
+          @click="$emit('save-requested')"
         />
       </span>
     </div>
   </div>
 </template>
+
 <script setup>
-import { ref, computed, watch, inject, nextTick } from 'vue'
-import propsDefinition from './formSectionProps'
-import { isValueEmpty } from '@/utils'
-import find from 'lodash/find'
+import { computed, inject, nextTick, ref, watch } from 'vue'
 import { useStore } from 'vuex'
-import { useDates } from '~/Core/resources/js/composables/useDates'
+import find from 'lodash/find'
+
+import { isValueEmpty } from '@/utils'
+
+import { useDates } from '~/Core/composables/useDates'
+
+import propsDefinition from './formSectionProps'
+
+defineEmits(['send-requested', 'save-requested'])
 
 const props = defineProps({
   ...propsDefinition,
-  ...{ sending: { type: Boolean, default: false } },
+  ...{ sending: Boolean },
 })
-
-const emit = defineEmits(['send-requested', 'save-requested'])
 
 const store = useStore()
 const { localizedDateTime, appDate } = useDates()
@@ -397,17 +398,21 @@ watch(
     if (
       (newVal && isValueEmpty(props.form.send_mail_body)) ||
       (oldVal &&
-        props.form.send_mail_body === oldVal.config.document.mail_message)
+        props.form.send_mail_body ===
+          oldVal.config.document.mail_message[props.form.locale])
     ) {
-      props.form.send_mail_body = newVal.config.document.mail_message
+      props.form.send_mail_body =
+        newVal.config.document.mail_message[props.form.locale]
     }
 
     if (
       (newVal && isValueEmpty(props.form.send_mail_subject)) ||
       (oldVal &&
-        oldVal.config.document.mail_subject === props.form.send_mail_subject)
+        oldVal.config.document.mail_subject[props.form.locale] ===
+          props.form.send_mail_subject)
     ) {
-      props.form.send_mail_subject = newVal.config.document.mail_subject
+      props.form.send_mail_subject =
+        newVal.config.document.mail_subject[props.form.locale]
     }
   },
   { immediate: true }

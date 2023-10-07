@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,9 +16,9 @@ use Illuminate\Http\JsonResponse;
 use MediaUploader;
 use Modules\Core\Contracts\Resources\Mediable;
 use Modules\Core\Http\Controllers\ApiController;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Http\Resources\MediaResource;
 use Modules\Core\Models\Media;
-use Modules\Core\Resource\Http\ResourceRequest;
 use Plank\Mediable\Exceptions\MediaUploadException;
 use Plank\Mediable\HandlesMediaUploadExceptions;
 

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,8 +13,8 @@
 namespace Modules\MailClient\Client\Imap;
 
 use Illuminate\Support\Carbon;
-use Modules\Core\Mail\Headers\AddressHeader;
-use Modules\Core\Mail\Headers\HeadersCollection;
+use Modules\Core\Support\Mail\Headers\AddressHeader;
+use Modules\Core\Support\Mail\Headers\HeadersCollection;
 use Modules\MailClient\Client\AbstractMessage;
 use Modules\MailClient\Client\FolderIdentifier;
 use ZBateson\MailMimeParser\MailMimeParser;
@@ -24,7 +24,7 @@ class Message extends AbstractMessage
     /**
      * The message headers
      *
-     * @var \Modules\Core\Mail\Headers\HeadersCollection|null
+     * @var \Modules\Core\Support\Mail\Headers\HeadersCollection|null
      */
     protected $headers;
 
@@ -123,7 +123,7 @@ class Message extends AbstractMessage
     /**
      * Get message from
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getFrom()
     {
@@ -139,7 +139,7 @@ class Message extends AbstractMessage
     /**
      * Get message to
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getTo()
     {
@@ -149,7 +149,7 @@ class Message extends AbstractMessage
     /**
      * Get message CC
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getCc()
     {
@@ -159,7 +159,7 @@ class Message extends AbstractMessage
     /**
      * Get message bcc
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getBcc()
     {
@@ -169,7 +169,7 @@ class Message extends AbstractMessage
     /**
      * Get message reply to
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getReplyTo()
     {
@@ -179,7 +179,7 @@ class Message extends AbstractMessage
     /**
      * Get message sender
      *
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     public function getSender()
     {
@@ -249,7 +249,7 @@ class Message extends AbstractMessage
     /**
      * Get message headers
      *
-     * @return \Modules\Core\Mail\Headers\HeadersCollection
+     * @return \Modules\Core\Support\Mail\Headers\HeadersCollection
      */
     public function getHeaders()
     {
@@ -274,7 +274,7 @@ class Message extends AbstractMessage
      * Get message header
      *
      * @param  string  $name
-     * @return \Modules\Core\Mail\Headers\Header|\Modules\Core\Mail\Headers\AddressHeader|\Modules\Core\Mail\Headers\IdHeader|\Modules\Core\Mail\Headers\DateHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\Header|\Modules\Core\Support\Mail\Headers\AddressHeader|\Modules\Core\Support\Mail\Headers\IdHeader|\Modules\Core\Support\Mail\Headers\DateHeader|null
      */
     public function getHeader($name)
     {
@@ -337,7 +337,7 @@ class Message extends AbstractMessage
      *
      * @param  string  $type
      * @param  array  $addresses
-     * @return \Modules\Core\Mail\Headers\AddressHeader|null
+     * @return \Modules\Core\Support\Mail\Headers\AddressHeader|null
      */
     protected function parseAddresses($type, $addresses)
     {

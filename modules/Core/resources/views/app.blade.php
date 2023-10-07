@@ -41,7 +41,7 @@
             }
         }
     </script>
-
+    @includeIf('custom.includes.head')
     {{-- Head Flag --}}
 </head>
 
@@ -63,18 +63,20 @@
                 </i-alert>
             @endif
 
-            @if (auth()->user()->can('use voip') && config('core.voip.client') !== null)
+            @if (auth()->user()->can('use voip') && config('voip.client') !== null)
                 <call-component></call-component>
             @endif
 
             <router-view></router-view>
+
+            <the-floating-resource-modal></the-floating-resource-modal>
 
             <i-confirmation-dialog v-if="confirmationDialog && !confirmationDialog.injectedInDialog"
                 :dialog="confirmationDialog">
             </i-confirmation-dialog>
 
             <teleport to="body">
-                <float-notifications></float-notifications>
+                <the-float-notifications></the-float-notifications>
             </teleport>
         </div>
     </div>

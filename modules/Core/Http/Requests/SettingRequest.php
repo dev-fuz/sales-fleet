@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -70,7 +70,8 @@ class SettingRequest extends FormRequest
      */
     public function processEditorFields(): void
     {
-        $this->collect()->filter(
+        $this->collect()
+            ->filter(
                 fn ($value, $name) => in_array($name, $this->editor)
             )
             ->each(function ($value, $name) {
@@ -78,17 +79,17 @@ class SettingRequest extends FormRequest
                     $value,
                     $this->getOriginalValues($name) ?? ''
                 );
-        });
+            });
     }
 
     /**
      * Get the original settings values.
      */
-    public function getOriginalValues(?string $name = null): array|string|null
+    public function getOriginalValues(string $name = null): array|string|null
     {
-        $settings = $this->originalValues ?? settings()->all();
+        $original = $this->originalValues ?? settings()->all();
 
-        return $name ? ($settings[$name] ?? null) : $settings;
+        return $name ? ($original[$name] ?? null) : $original;
     }
 
     /**

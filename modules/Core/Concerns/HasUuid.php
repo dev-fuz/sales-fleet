@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -22,9 +22,11 @@ trait HasUuid
      */
     public static function bootHasUuid(): void
     {
-        static::creating(function ($model) {
-            if (! $model->{static::getUuidColumnName()}) {
-                $model->{static::getUuidColumnName()} = static::generateUuid();
+        static::creating(function (self $model) {
+            if (is_null($model->{$model->uuidColumn()})) {
+                $model->forceFill([
+                    $model->uuidColumn() => $model->generateUuid(),
+                ]);
             }
         });
     }
@@ -32,22 +34,15 @@ trait HasUuid
     /**
      * Generate model uuid.
      */
-    public static function generateUuid(): string
+    public function generateUuid(): string
     {
-        $uuid = null;
-        do {
-            if (! static::where(static::getUuidColumnName(), $possible = Str::uuid())->first()) {
-                $uuid = $possible;
-            }
-        } while (! $uuid);
-
-        return $uuid;
+        return Str::uuid()->toString();
     }
 
     /**
      * Get the model uuid column name.
      */
-    protected static function getUuidColumnName(): string
+    public function uuidColumn(): string
     {
         return 'uuid';
     }

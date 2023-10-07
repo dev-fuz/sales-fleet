@@ -12,9 +12,9 @@
       <div class="vel-toolbar">
         <div
           role="button"
-          @click="toolbarMethods.zoomIn"
           aria-label="zoom in button"
           class="toolbar-btn toolbar-btn__zoomin"
+          @click="toolbarMethods.zoomIn"
         >
           <svg class="vel-icon icon" aria-hidden="true">
             <use xlink:href="#icon-zoomin"></use>
@@ -22,9 +22,9 @@
         </div>
         <div
           role="button"
-          @click="toolbarMethods.zoomOut"
           aria-label="zoom out button"
           class="toolbar-btn toolbar-btn__zoomout"
+          @click="toolbarMethods.zoomOut"
         >
           <svg class="vel-icon icon" aria-hidden="true">
             <use xlink:href="#icon-zoomout"></use>
@@ -42,9 +42,9 @@
         </div> -->
         <div
           role="button"
-          @click="toolbarMethods.rotateLeft"
           aria-label="image rotate left button"
           class="toolbar-btn toolbar-btn__rotate"
+          @click="toolbarMethods.rotateLeft"
         >
           <svg class="vel-icon icon" aria-hidden="true">
             <use xlink:href="#icon-rotate-left"></use>
@@ -52,9 +52,9 @@
         </div>
         <div
           role="button"
-          @click="toolbarMethods.rotateRight"
           aria-label="image rotate right button"
           class="toolbar-btn toolbar-btn__rotate"
+          @click="toolbarMethods.rotateRight"
         >
           <svg class="vel-icon icon" aria-hidden="true">
             <use xlink:href="#icon-rotate-right"></use>
@@ -65,11 +65,13 @@
     </template>
   </VueEasyLightbox>
 </template>
+
 <script setup>
 import { computed, watch } from 'vue'
 import VueEasyLightbox, {
   useEasyLightbox,
 } from 'vue-easy-lightbox/dist/external-css/vue-easy-lightbox.esm.min.js'
+
 import 'vue-easy-lightbox/dist/external-css/vue-easy-lightbox.css'
 
 const emit = defineEmits(['update:modelValue'])

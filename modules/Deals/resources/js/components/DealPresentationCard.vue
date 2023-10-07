@@ -1,19 +1,21 @@
 <template>
   <PresentationChart :card="card" :request-query-string="requestQueryString">
     <template #actions>
-      <FormDropdownSelect
+      <DropdownSelectInput
+        v-model="pipeline"
         :items="pipelines"
         toggle-class="md:mr-3"
         label-key="name"
         value-key="id"
         placement="bottom-end"
-        v-model="pipeline"
       />
     </template>
   </PresentationChart>
 </template>
+
 <script setup>
-import { shallowRef, computed } from 'vue'
+import { computed, shallowRef } from 'vue'
+
 import { usePipelines } from '../composables/usePipelines'
 
 const props = defineProps({

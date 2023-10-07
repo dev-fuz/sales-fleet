@@ -1,5 +1,5 @@
 <template>
-  <ITabPanel @activated.once="loadData" :lazy="!dataLoadedFirstTime">
+  <ITabPanel :lazy="!dataLoadedFirstTime" @activated.once="loadData">
     <div
       class="-mt-[20px] mb-3 rounded-b-md border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900 sm:mb-7"
     >
@@ -7,8 +7,8 @@
         <div class="sm:flex sm:items-start sm:justify-between">
           <div>
             <h3
-              class="text-base/6 font-medium text-neutral-900 dark:text-white"
               v-t="'mailclient.mail.manage_emails'"
+              class="text-base/6 font-medium text-neutral-900 dark:text-white"
             />
             <div
               class="mt-2 max-w-xl text-sm text-neutral-500 dark:text-neutral-200"
@@ -25,11 +25,11 @@
               "
             >
               <IButton
-                @click="compose(true)"
                 size="sm"
                 icon="Plus"
                 :disabled="!hasAccountsConfigured"
                 :text="$t('mailclient::mail.create')"
+                @click="compose(true)"
               />
             </div>
           </div>
@@ -43,57 +43,75 @@
             <span aria-hidden="true"> &rarr;</span>
           </router-link>
         </div>
-
-        <FormInputSearch
-          class="mt-2"
-          v-model="search"
+        <SearchInput
           v-show="hasEmails || search"
-          @input="performSearch($event, associateable)"
+          v-model="search"
+          class="mt-2"
+          @input="performSearch"
         />
       </div>
     </div>
 
-    <Compose
+    <ComposeMessage
+      ref="composeRef"
       :visible="isComposing"
       :resource-name="resourceName"
-      :resource-record="record"
+      :resource-id="resourceId"
+      :related-resource="resource"
+      :associations="newMessageAdditionalAssociations"
       :to="to"
-      ref="composeRef"
       @modal-hidden="compose(false)"
     />
 
-    <Emails :emails="emails" :via-resource="resourceName" />
+    <div class="space-y-3">
+      <RelatedMessage
+        v-for="email in emails"
+        :key="email.id"
+        :email="email"
+        :via-resource="resourceName"
+        :via-resource-id="resourceId"
+        :related-resource="resource"
+      />
+    </div>
 
     <div
-      class="mt-6 text-center text-neutral-800 dark:text-neutral-200"
-      v-show="isPerformingSearch && !hasSearchResults"
+      v-show="isSearching && !hasSearchResults"
       v-t="'core::app.no_search_results'"
+      class="mt-6 text-center text-neutral-800 dark:text-neutral-200"
     />
 
     <InfinityLoader
-      @handle="infiniteHandler($event, associateable)"
-      :scroll-element="scrollElement"
       ref="infinityRef"
+      :scroll-element="scrollElement"
+      @handle="infiniteHandler($event)"
     />
   </ITabPanel>
 </template>
+
 <script setup>
-import { ref, computed, nextTick } from 'vue'
-import { watchOnce } from '@vueuse/core'
-import Compose from './ComposeMessage.vue'
-import Emails from './RelatedMessageList.vue'
-import InfinityLoader from '~/Core/resources/js/components/InfinityLoader.vue'
-import orderBy from 'lodash/orderBy'
-import { useRecordTab } from '~/Core/resources/js/composables/useRecordTab'
-import { useRecordStore } from '~/Core/resources/js/composables/useRecordStore'
+import { computed, inject, nextTick, ref, toRef } from 'vue'
 import { useRoute } from 'vue-router'
 import { useStore } from 'vuex'
-import { useGlobalEventListener } from '~/Core/resources/js/composables/useGlobalEventListener'
+import { watchOnce } from '@vueuse/core'
+import orderBy from 'lodash/orderBy'
+
+import InfinityLoader from '~/Core/components/InfinityLoader.vue'
+import { useGlobalEventListener } from '~/Core/composables/useGlobalEventListener'
+import { useRecordTab } from '~/Core/composables/useRecordTab'
+
+import { useMessageAssociations } from '../../composables/useMessageAssociations'
+
+import ComposeMessage from './ComposeMessage.vue'
+import RelatedMessage from './RelatedMessage.vue'
 
 const props = defineProps({
   resourceName: { required: true, type: String },
+  resourceId: { required: true, type: [String, Number] },
+  resource: { required: true, type: Object },
   scrollElement: { type: String },
 })
+
+const synchronizeResource = inject('synchronizeResource')
 
 const store = useStore()
 const route = useRoute()
@@ -101,16 +119,13 @@ const route = useRoute()
 const isComposing = ref(false)
 const infinityRef = ref(null)
 const composeRef = ref(null)
-const associateable = 'emails'
-
-const { addResourceRecordHasManyRelationship } = useRecordStore()
+const timelineRelation = 'emails'
 
 const {
   dataLoadedFirstTime,
   focusToAssociateableElement,
   searchResults,
-  record,
-  isPerformingSearch,
+  isSearching,
   hasSearchResults,
   performSearch,
   search,
@@ -119,29 +134,37 @@ const {
   refresh,
 } = useRecordTab({
   resourceName: props.resourceName,
-  infinityRef,
+  resource: toRef(props, 'resource'),
   scrollElement: props.scrollElement,
+  infinityRef,
+  synchronizeResource,
+  timelineRelation,
 })
+
+const { newMessageAdditionalAssociations } = useMessageAssociations(
+  toRef(props, 'resourceName'),
+  toRef(props, 'resource')
+)
 
 const hasAccountsConfigured = computed(
   () => store.getters['emailAccounts/hasConfigured']
 )
 
 const emails = computed(() =>
-  orderBy(searchResults.value || record.value.emails, 'date', 'desc')
+  orderBy(searchResults.value || props.resource.emails, 'date', 'desc')
 )
 
 const hasEmails = computed(() => emails.value.length > 0)
 
 const to = computed(() => {
-  // First check if there is an email property in the resource record data
-  if (record.value.email) {
-    return createToArrayFromRecord(record.value, props.resourceName)
+  // First check if there is an email property in the resource data
+  if (props.resource.email) {
+    return createToArrayFromResource(props.resource, props.resourceName)
   }
 
   // Vue 3, before navigating, it's hitting this computed but there is no data
   // TODO, research more
-  if (Object.keys(record.value).length === 0) {
+  if (Object.keys(props.resource).length === 0) {
     return []
   }
 
@@ -149,32 +172,32 @@ const to = computed(() => {
   // the related resources, e.q. when viewing contact and the contact has no email
   // we will try to provide an email from the contact latest company and so on.
   if (props.resourceName === 'contacts') {
-    if (record.value.companies[0]) {
-      return createToArrayFromRecord(record.value.companies[0], 'companies')
+    if (props.resource.companies[0]) {
+      return createToArrayFromResource(props.resource.companies[0], 'companies')
     }
   } else if (props.resourceName === 'companies') {
-    if (record.value.contacts[0]) {
-      return createToArrayFromRecord(record.value.contacts[0], 'contacts')
+    if (props.resource.contacts[0]) {
+      return createToArrayFromResource(props.resource.contacts[0], 'contacts')
     }
   } else if (props.resourceName === 'deals') {
-    if (record.value.contacts[0]) {
-      return createToArrayFromRecord(record.value.contacts[0], 'contacts')
-    } else if (record.value.companies[0]) {
-      return createToArrayFromRecord(record.value.companies[0], 'companies')
+    if (props.resource.contacts[0]) {
+      return createToArrayFromResource(props.resource.contacts[0], 'contacts')
+    } else if (props.resource.companies[0]) {
+      return createToArrayFromResource(props.resource.companies[0], 'companies')
     }
   }
 
   return []
 })
 
-function createToArrayFromRecord(record, resourceName) {
-  return record.email
+function createToArrayFromResource(resource, resourceName) {
+  return resource.email
     ? [
         {
-          address: record.email,
-          name: record.display_name,
-          resourceName: resourceName,
-          id: record.id,
+          address: resource.email,
+          name: resource.display_name,
+          id: resource.id,
+          resourceName,
         },
       ]
     : []
@@ -189,14 +212,14 @@ function compose(state = true) {
 }
 
 function handleSent(email) {
-  addResourceRecordHasManyRelationship(email, associateable)
+  synchronizeResource({ [timelineRelation]: [email] })
 }
 
-if (route.query.resourceId && route.query.section === associateable) {
+if (route.query.resourceId && route.query.section === timelineRelation) {
   // Wait till the data is loaded for the first time and the
   // elements are added to the document so we can have a proper scroll
   watchOnce(dataLoadedFirstTime, () => {
-    focusToAssociateableElement(associateable, route.query.resourceId, 'email')
+    focusToAssociateableElement(route.query.resourceId, 'email')
   })
 }
 

@@ -15,7 +15,8 @@
     "cyrildewit/eloquent-viewable": "^7.0",
     "ddeboer/imap": "^1.8",
     "doctrine/dbal": "^3.0",
-    "genealabs/laravel-pivot-events": "10.0.0",
+    "genealabs/laravel-model-caching": "^0.13.4",
+    "genealabs/laravel-pivot-events": "^10.0",
     "google/apiclient": "^2.0",
     "google/apiclient-services": "^0.296.0",
     "guzzlehttp/guzzle": "^7.2",
@@ -33,8 +34,8 @@
     "mustache/mustache": "^2.12",
     "nwidart/laravel-modules": "^10.0",
     "pelago/emogrifier": "^7.0",
-    "plank/laravel-mediable": "^5.0",
-    "plank/laravel-metable": "^5.0",
+    "plank/laravel-mediable": "^5.9",
+    "plank/laravel-metable": "^5.4",
     "predis/predis": "^2.0",
     "pusher/pusher-php-server": "^7.0",
     "soundasleep/html2text": "^2.0",
@@ -61,8 +62,7 @@
     "laravel/sail": "^1.21",
     "mockery/mockery": "^1.4.2",
     "nunomaduro/collision": "^7.0",
-    "phpunit/phpunit": "^10.0",
-    "ryoluo/sail-ssl": "^1.2"
+    "phpunit/phpunit": "^10.0"
   },
   "config": {
     "optimize-autoloader": true,

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -25,13 +25,21 @@ return [
     'document_products' => 'Document Products',
     'download_pdf' => 'Download PDF',
     'view_pdf' => 'View PDF in Browser',
-    'add_pdf_padding' => 'Add :px PDF padding',
     'accept' => 'Accept',
     'sign' => 'Sign',
     'sent' => 'Document sent successfully',
     'deal_description' => 'When deal is selected, the deal will be automatically associated with the document, deal contacts will be added as signers, and all deal products will be added to the document.',
 
+    'settings' => [
+        'inherits_setting_from_brand' => 'Inherits from brand',
+    ],
+
+    'products_snippet_missing' => 'To ensure that the products appear in the document preview and PDF, make sure to add them to the content via the :icon icon.',
+
+    'signatures_snippet_missing' => 'To ensure that the signatures appear in the document PDF, make sure to add them to the content via the :icon icon.',
+
     'will_use_placeholders_from_record' => 'The placeholders added in the document content related to the :resourceName resource will be taken form this record',
+
     'placeholders_replacement_info' => 'The placeholders of the document related to resources are replaced based on the first associated record, make sure to add associations to the document.',
 
     'limited_editing' => 'This document is accepted, editing abilities are limited.',
@@ -143,6 +151,7 @@ return [
         'no_recipients' => 'No recipients to send to document to.',
         'is_sent' => 'Sent?',
         'recipients' => 'Recipients',
+        'additional_recipients' => 'Additional recipients',
         'recipient_name' => 'Name',
         'recipient_email' => 'E-Mail Address',
         'name' => 'Recipient Name',

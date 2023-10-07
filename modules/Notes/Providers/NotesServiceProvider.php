@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,10 +14,10 @@ namespace Modules\Notes\Providers;
 
 use App\Http\View\FrontendComposers\Tab;
 use Illuminate\Support\ServiceProvider;
-use Modules\Contacts\Resource\Company\Frontend\ViewComponent as CompanyViewComponent;
-use Modules\Contacts\Resource\Contact\Frontend\ViewComponent as ContactViewComponent;
+use Modules\Contacts\Resource\Company\Pages\DetailComponent as CompanyDetailComponent;
+use Modules\Contacts\Resource\Contact\Pages\DetailComponent as ContactDetailComponent;
 use Modules\Core\Facades\Innoclapps;
-use Modules\Deals\Resource\Frontend\ViewComponent as DealViewComponent;
+use Modules\Deals\Resource\Pages\DetailComponent as DealDetailComponent;
 use Modules\Notes\Listeners\TransferNotesUserData;
 use Modules\Users\Events\TransferringUserData;
 
@@ -107,9 +107,9 @@ class NotesServiceProvider extends ServiceProvider
     {
         $tab = Tab::make('notes', 'notes-tab')->panel('notes-tab-panel')->order(35);
 
-        ContactViewComponent::registerTab($tab);
-        CompanyViewComponent::registerTab($tab);
-        DealViewComponent::registerTab($tab);
+        ContactDetailComponent::registerTab($tab);
+        CompanyDetailComponent::registerTab($tab);
+        DealDetailComponent::registerTab($tab);
     }
 
     /**

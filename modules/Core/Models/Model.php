@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,49 +12,45 @@
 
 namespace Modules\Core\Models;
 
-use GeneaLabs\LaravelPivotEvents\Traits\PivotEventTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Modules\Core\Date\Carbon;
+use Modules\Core\Support\Changelog\LogsModelChanges;
+use Modules\Core\Support\Date\Carbon;
 
-class Model extends EloquentModel
+abstract class Model extends EloquentModel
 {
-    use PivotEventTrait;
+    /**
+     * The columns for the model that are searchable.
+     */
+    protected static array $searchableColumns = [];
 
     /**
-     * The fields for the model that are searchable.
+     * Get the model searchable columns.
      */
-    protected static array $searchableFields = [];
-
-    /**
-     * Get the model searchable fields.
-     */
-    public function getSearchableFields(): array
+    public static function getSearchableColumns(): array
     {
-        return static::$searchableFields;
+        return static::$searchableColumns;
     }
 
     /**
-     * Set the model searchable fields.
+     * Set the model searchable columns.
      */
-    public function setSearchableFields(array $fields): static
+    public static function setSearchableColumns(array $columns): void
     {
-        static::$searchableFields = $fields;
-
-        return $this;
+        static::$searchableColumns = $columns;
     }
 
     /**
-     * Add new searchable field to the model.
+     * Add new searchable column to the model.
      */
-    public static function addSearchableField(string|array $field): void
+    public static function addSearchableColumn(string|array $column): void
     {
-        if (is_array($field)) {
-            $key = array_keys($field)[0];
-            static::$searchableFields[$key] = $field[$key];
+        if (is_array($column)) {
+            $key = array_keys($column)[0];
+            static::$searchableColumns[$key] = $column[$key];
         } else {
-            static::$searchableFields[] = $field;
+            static::$searchableColumns[] = $column;
         }
     }
 
@@ -76,11 +72,19 @@ class Model extends EloquentModel
     }
 
     /**
-     * Check whether the model uses the SoftDeletes trait
+     * Determine if the model uses the SoftDeletes trait
      */
     public function usesSoftDeletes(): bool
     {
         return in_array(SoftDeletes::class, class_uses_recursive($this::class));
+    }
+
+    /**
+     * Determine if the model tracks changes
+     */
+    public function logsModelChanges()
+    {
+        return in_array(LogsModelChanges::class, class_uses_recursive($this::class));
     }
 
     /**
@@ -98,13 +102,23 @@ class Model extends EloquentModel
      *
      * @param  mixed  $value
 
-     * @return \Modules\Core\Date\Carbon
+     * @return \Modules\Core\Support\Date\Carbon
      */
     protected function asDateTime($value)
     {
         $value = parent::asDateTime($value);
 
         return Carbon::instance($value);
+    }
+
+    /**
+     * Prefix the database table columns for the given resource
+     */
+    public function prefixColumns(): array
+    {
+        return $this->qualifyColumns($this->getConnection()
+            ->getSchemaBuilder()
+            ->getColumnListing($this->getTable()));
     }
 
     /**

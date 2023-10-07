@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -208,17 +208,7 @@ if (! function_exists('to_money')) {
      */
     function to_money($value, string|Currency $currency = null)
     {
-        if (is_string($currency)) {
-            $currency = new Currency($currency);
-        } elseif (is_null($currency)) {
-            $currency = new Currency(Innoclapps::currency());
-        }
-
-        if (! is_float($value)) {
-            $value = (float) $value;
-        }
-
-        return new Money($value, $currency, true);
+        return Innoclapps::currency($currency)->toMoney($value);
     }
 }
 

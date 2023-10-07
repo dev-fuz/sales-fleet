@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -22,25 +22,19 @@ namespace Modules\Core\Filters;
 class OperandFilter extends Filter
 {
     /**
-     * Filter current opereand
-     *
-     * @var string|null
+     * Filter current operand.
      */
-    protected $operand;
+    protected ?string $operand = null;
 
     /**
-     * Filter current opereands
-     *
-     * @var array|null
+     * Filter current operands.
      */
-    protected $operands;
+    protected ?array $operands = null;
 
     /**
-     * Set the filter operand
-     *
-     * @param  string  $operand
+     * Set the filter operand.
      */
-    public function setOperand($operand)
+    public function setOperand(string $operand): static
     {
         $this->operand = $operand;
 
@@ -48,21 +42,17 @@ class OperandFilter extends Filter
     }
 
     /**
-     * Get the filter selected operand
-     *
-     * @return string|null
+     * Get the filter selected operand.
      */
-    public function getOperand()
+    public function getOperand(): ?string
     {
         return $this->operand;
     }
 
     /**
-     * Set the filter operands
-     *
-     * @param  array  $operand
+     * Set the filter operands.
      */
-    public function setOperands(array $operands)
+    public function setOperands(array $operands): static
     {
         $this->operands = $operands;
 
@@ -70,43 +60,35 @@ class OperandFilter extends Filter
     }
 
     /**
-     * Get the filter operands
-     *
-     * @return array|null
+     * Get the filter operands.
      */
-    public function getOperands()
+    public function getOperands(): ?array
     {
         return $this->operands;
     }
 
     /**
-     * Check whether the filter has operands
-     *
-     * @return bool
+     * Check whether the filter has operands.
      */
-    public function hasOperands()
+    public function hasOperands(): bool
     {
         return is_array($this->operands) && count($this->operands) > 0;
     }
 
     /**
-     * Find operand filter by given value
-     *
-     * @return \Modules\Core\Filters\Operand|null
+     * Find operand filter by given value.
      */
-    public function findOperand($value)
+    public function findOperand($value): ?Operand
     {
         return collect($this->getOperands())->first(fn ($operand) => $operand->value == $value);
     }
 
     /**
-     * Hide the filter operands
-     * Useful when only 1 opereand is used, which is by default pre-selected
+     * Hide the filter operands.
      *
-     * @param  bool  $bool
-     * @return \Modules\Core\Filters\Operand|null
+     * Useful when only 1 operand is used, which is by default pre-selected.
      */
-    public function hideOperands($bool = true)
+    public function hideOperands(bool $bool = true): static
     {
         $this->withMeta([__FUNCTION__ => $bool]);
 
@@ -114,7 +96,7 @@ class OperandFilter extends Filter
     }
 
     /**
-     * Defines a filter type
+     * Defines a filter type.
      */
     public function type(): string
     {

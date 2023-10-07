@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,6 +14,7 @@ namespace Modules\MailClient\Listeners;
 
 use Illuminate\Http\Request;
 use Modules\Core\Facades\OAuthState;
+use Modules\Core\Models\OAuthAccount;
 use Modules\MailClient\Client\ClientManager;
 use Modules\MailClient\Client\ConnectionType;
 use Modules\MailClient\Client\Exceptions\UnauthorizedException;
@@ -48,7 +49,7 @@ class CreateEmailAccountViaOAuth
             // as well that sync is enabled in case stopped previously e.q. because of refresh token
             // in this case, the user won't need to re-authenticate via the email accounts index area again
             if ($account) {
-                $this->makeSureAccountIsUsable($account);
+                $this->makeSureAccountIsUsable($account, $oAuthAccount);
             }
 
             return;
@@ -62,21 +63,24 @@ class CreateEmailAccountViaOAuth
             set_alert(__('mailclient::mail.account.already_connected'), 'warning');
         }
 
-        $this->makeSureAccountIsUsable($account);
-
-        // Update the access_token_id because it's not set in the createEmailAccount method
-        $account->forceFill(['access_token_id' => $oAuthAccount->id])->save();
+        $this->makeSureAccountIsUsable($account, $oAuthAccount);
     }
 
     /**
      * Make sure that the account is usable
-     * Sets requires autentication to false as well enabled sync again if is stopped by system
      *
-     * @param  \Modules\MailClient\Models\EmailAccount  $account
-     * @return void
+     * Sets requires autentication to false as well enabled sync again if is stopped by system
      */
-    protected function makeSureAccountIsUsable($account)
+    protected function makeSureAccountIsUsable(EmailAccount $account, OAuthAccount $oAuthAccount): void
     {
+        // Update the access_token_id because it's not set in the createEmailAccount method
+        // This useful when users deletes an OAuth account and this account
+        // was connected to an email account, in this case, becauase we found
+        // a disabled email account (we disable email account before oAuth deletition) with the same e-mail address,
+        // we will just re-connect the OAuth account with the email account when user is re-connecting again.
+        $account->access_token_id = $oAuthAccount->id;
+
+        // This method call updates the "access_token_id" as well as it's saving the model.
         $account->setRequiresAuthentication(false);
 
         // If the sync is stopped, probably it's because of empty refresh token or

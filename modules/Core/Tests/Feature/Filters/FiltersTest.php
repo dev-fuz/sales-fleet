@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,7 +14,7 @@ namespace Modules\Core\Tests\Feature\Filters;
 
 use Illuminate\Support\Facades\Request;
 use Modules\Core\Filters\Date;
-use Modules\Core\QueryBuilder\Exceptions\FieldValueMustBeArrayException;
+use Modules\Core\Filters\QueryBuilder\Exceptions\FieldValueMustBeArrayException;
 use Modules\Core\Table\TableSettings;
 use Modules\Core\Tests\Concerns\TestsFilters;
 use Tests\Fixtures\EventTable;

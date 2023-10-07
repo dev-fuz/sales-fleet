@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,13 +12,12 @@
 
 namespace Modules\Billable\Models;
 
-use Illuminate\Database\Eloquent\Casts\Attribute;
+use Akaunting\Money\Money;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Modules\Billable\Database\Factories\BillableFactory;
 use Modules\Billable\Enums\TaxType;
-use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Models\Model;
 
 class Billable extends Model
@@ -26,7 +25,7 @@ class Billable extends Model
     use HasFactory;
 
     /**
-     * The attributes that should be cast.
+     * The attributes that should be cast to native types.
      *
      * @var array
      */
@@ -46,7 +45,11 @@ class Billable extends Model
      *
      * @var array
      */
-    protected $fillable = ['tax_type', 'terms', 'notes'];
+    protected $fillable = [
+        'tax_type',
+        //'terms',
+        //'notes'
+    ];
 
     /**
      * Boot the model.
@@ -61,39 +64,15 @@ class Billable extends Model
     }
 
     /**
-     * Billable has many products
+     * Get all of the billable instance products.
      */
     public function products(): HasMany
     {
-        return $this->hasMany(\Modules\Billable\Models\BillableProduct::class)->orderBy('display_order');
+        return $this->hasMany(BillableProduct::class);
     }
 
     /**
-     * Check whether the billable is tax exclusive
-     */
-    public function isTaxExclusive(): bool
-    {
-        return $this->tax_type === TaxType::exclusive;
-    }
-
-    /**
-     * Check whether the billable is tax inclusive
-     */
-    public function isTaxInclusive(): bool
-    {
-        return $this->tax_type === TaxType::inclusive;
-    }
-
-    /**
-     * Check whether the billable has tax
-     */
-    public function isTaxable(): bool
-    {
-        return $this->tax_type !== TaxType::no_tax;
-    }
-
-    /**
-     * Get the owning imageable model.
+     * Get the owning billableable model.
      */
     public function billableable(): MorphTo
     {
@@ -101,69 +80,117 @@ class Billable extends Model
     }
 
     /**
-     * Get the subTotal attribute
+     * Get the billable subtotal amount.
      */
-    public function subTotal(): Attribute
+    public function subtotal(): Money
     {
-        return Attribute::get(fn () => static::round(
-            $this->products->reduce(function ($total, $product) {
-                return $total += $product->totalAmountWithDiscount();
-            }, 0)
-        ));
+        return to_money($this->rawSubtotal());
     }
 
     /**
-     * Get the totalDiscount attribute
+     * Get the billable unformatted subtotal amount.
      */
-    public function totalDiscount(): Attribute
+    public function rawSubtotal(): float
     {
-        return Attribute::get(fn () => static::round(
-            $this->products->reduce(function ($total, $product) {
-                return $total + $product->totalDiscountAmount();
-            }, 0)
-        ));
+        return $this->products->reduce(function ($total, $product) {
+            return $total += $product->calculateAmount();
+        }, 0.0);
     }
 
     /**
-     * Get the hasDiscount attribute
+     * Get the billable total amount.
      */
-    public function hasDiscount(): Attribute
+    public function total(): Money
     {
-        return Attribute::get(fn () => $this->total_discount > 0);
+        return to_money($this->rawTotal());
     }
 
     /**
-     * Get the totalTax attribute
+     * Get the billable unformatted total amount.
      */
-    public function totalTax(): Attribute
+    public function rawTotal(): float
     {
-        return Attribute::get(fn () => static::round(
-            collect($this->getAppliedTaxes())->reduce(function ($total, $tax) {
-                return $total + $tax['total'];
-            }, 0)
-        ));
+        return $this->rawSubtotal() + (! $this->isTaxInclusive() ? $this->rawTotalTax() : 0);
     }
 
     /**
-     * Get the total attribute
+     * Get the billable total tax amount.
      */
-    public function total(): Attribute
+    public function totalTax(): Money
     {
-        return Attribute::get(fn () => static::round(
-            $this->subTotal + (! $this->isTaxInclusive() ? $this->totalTax : 0)
-        ));
+        return to_money($this->rawTotalTax());
     }
 
     /**
-     * Get the applied taxes on the billable
+     * Get the billable unformatted total tax amount.
      */
-    public function getAppliedTaxes(): array
+    public function rawTotalTax(): float
+    {
+        return collect($this->taxes())->reduce(function (float $total, array $tax) {
+            return $total + $tax['raw_total'];
+        }, 0.0);
+    }
+
+    /**
+     * Get the billable total discounted amount.
+     */
+    public function discountedAmount(): Money
+    {
+        return to_money($this->rawDiscountedAmount());
+    }
+
+    /**
+     * Get the billable unformatted total discounted amount.
+     */
+    public function rawDiscountedAmount(): float
+    {
+        return $this->products->reduce(function (float $total, BillableProduct $product) {
+            return $total + $product->rawDiscountedAmount();
+        }, 0.0);
+    }
+
+    /**
+     * Check whether the billable has discount applied.
+     */
+    public function hasDiscount(): bool
+    {
+        return $this->discountedAmount()->isPositive();
+    }
+
+    /**
+     * Check whether the billable is tax exclusive.
+     */
+    public function isTaxExclusive(): bool
+    {
+        return $this->tax_type === TaxType::exclusive;
+    }
+
+    /**
+     * Check whether the billable is tax inclusive.
+     */
+    public function isTaxInclusive(): bool
+    {
+        return $this->tax_type === TaxType::inclusive;
+    }
+
+    /**
+     * Check whether the billable is taxable.
+     */
+    public function isTaxable(): bool
+    {
+        return $this->tax_type !== TaxType::no_tax;
+    }
+
+    /**
+     * Get the applied taxes on the billable.
+     */
+    public function taxes(): array
     {
         if (! $this->isTaxable()) {
             return [];
         }
 
-        return collect($this->products->unique(function ($product) {
+        return $this->products->unique(function ($product) {
             return $product->tax_label.$product->tax_rate;
         })
             ->sortBy('tax_rate')
@@ -173,51 +200,46 @@ class Billable extends Model
                     'key' => $tax->tax_label.$tax->tax_rate,
                     'rate' => $tax->tax_rate,
                     'label' => $tax->tax_label,
-                    'total' => $this->products->filter(function ($product) use ($tax) {
-                        return $product->tax_label === $tax->tax_label && $product->tax_rate === $tax->tax_rate;
-                    })->reduce(fn ($total, $product) => $total + $this->totalTaxInAmount(
-                        $product->totalAmountWithDiscount(),
-                        $product->tax_rate,
-                        $this->isTaxInclusive()
-                    ), 0),
+                    'raw_total' => $total = $this->calculatetotalTax($tax),
+                    'total' => to_money($total),
                 ];
 
                 return $groups;
-            }, []))->map(function ($tax) {
-                $tax['total'] = static::round($tax['total']);
-
-                return $tax;
-            })->all();
+            }, []);
     }
 
     /**
-     * Round the given number/money
+     * Calculate the total tax amount for the given tax.
      */
-    public static function round(mixed $number): float
+    protected function calculatetotalTax(object $tax)
     {
-        return floatval(
-            number_format($number, currency(Innoclapps::currency())->getPrecision(), '.', '')
-        );
+        return $this->products->filter(function (BillableProduct $product) use ($tax) {
+            return $product->tax_label === $tax->tax_label && $product->tax_rate === $tax->tax_rate;
+        })->reduce(function (float $total, BillableProduct $product) {
+            return $total + $this->calculateTotalTaxInAmount(
+                $product->calculateAmount(),
+                $product->tax_rate,
+                $this->isTaxInclusive()
+            );
+        }, 0.0);
     }
 
     /**
-     * Calculate total tax in the given amount for the given tax rate
+     * Calculate total tax in the given amount for the given tax rate.
      */
-    protected function totalTaxInAmount(float $fromAmount, string|int|float $taxRate, bool $isTaxInclusive): float
+    protected function calculateTotalTaxInAmount(float $amount, string|int|float $taxRate, bool $inclusive): float
     {
         $taxRate = floatval($taxRate);
 
-        if ($isTaxInclusive) {
-            // [(Unit Price) – (Unit Price / (1+ Tax %))]
-            return $fromAmount - ($fromAmount / (1 + ($taxRate / 100)));
+        if ($inclusive) {
+            return $amount - ($amount / (1 + ($taxRate / 100)));
         }
 
-        // ((Unit Price) x (Tax %))
-        return $fromAmount * ($taxRate / 100);
+        return $amount * ($taxRate / 100);
     }
 
     /**
-     * Get the billable products default tax type
+     * Get the billable products default tax type.
      */
     public static function defaultTaxType(): ?TaxType
     {
@@ -231,7 +253,7 @@ class Billable extends Model
     }
 
     /**
-     * Set the billable products default tax type
+     * Set the billable products default tax type.
      */
     public static function setDefaultTaxType(null|string|TaxType $value): void
     {

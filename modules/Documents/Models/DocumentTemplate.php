@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,18 +12,19 @@
 
 namespace Modules\Documents\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Lang;
-use Modules\Core\Models\Model;
+use Modules\Core\Models\CacheModel;
 use Modules\Documents\Content\FontsExtractor;
 use Modules\Documents\Database\Factories\DocumentTemplateFactory;
 use Modules\Documents\Enums\DocumentViewType;
 
-class DocumentTemplate extends Model
+class DocumentTemplate extends CacheModel
 {
     use HasFactory;
 
@@ -48,9 +49,9 @@ class DocumentTemplate extends Model
     ];
 
     /**
-     * The fields for the model that are searchable.
+     * The columns for the model that are searchable.
      */
-    protected static array $searchableFields = [
+    protected static array $searchableColumns = [
         'name' => 'like',
     ];
 
@@ -72,6 +73,14 @@ class DocumentTemplate extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(\Modules\Users\Models\User::class);
+    }
+
+    /**
+     * Scope a query to only include shared templates.
+     */
+    public function scopeShared(Builder $query): void
+    {
+        $query->where('is_shared', true);
     }
 
     /**

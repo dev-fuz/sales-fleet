@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -19,6 +19,7 @@ class DefaultSettings
      */
     protected static array $defaults = [
         '_server_ip' => null,
+        '_server_hostname' => null,
         '_installed_date' => null,
         '_last_updated_date' => null,
         '_db_driver_version' => null,

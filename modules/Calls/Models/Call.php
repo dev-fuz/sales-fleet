@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -21,13 +21,13 @@ use Modules\Comments\Concerns\HasComments;
 use Modules\Core\Casts\ISO8601DateTime;
 use Modules\Core\Models\Model;
 use Modules\Core\Resource\Resourceable;
-use Modules\Core\Timeline\Timelineable;
+use Modules\Core\Support\Timeline\Timelineable;
 
 class Call extends Model
 {
     use HasComments,
-        Resourceable,
         HasFactory,
+        Resourceable,
         Timelineable;
 
     /**
@@ -51,9 +51,9 @@ class Call extends Model
     ];
 
     /**
-     * The fields for the model that are searchable.
+     * The columns for the model that are searchable.
      */
-    protected static array $searchableFields = [
+    protected static array $searchableColumns = [
         'body' => 'like',
     ];
 
@@ -127,9 +127,9 @@ class Call extends Model
     public function scopeWithCommon(Builder $query): void
     {
         $query->withCount(['comments'])->with([
-            'companies.nextActivity',
-            'contacts.nextActivity',
-            'deals.nextActivity',
+            'companies',
+            'contacts',
+            'deals',
             'user',
             'outcome',
         ]);

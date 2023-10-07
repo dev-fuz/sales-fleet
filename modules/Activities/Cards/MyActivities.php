@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,11 +14,11 @@ namespace Modules\Activities\Cards;
 
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Expression;
+use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Auth;
 use Modules\Activities\Models\Activity;
 use Modules\Core\Card\TableAsyncCard;
-use Modules\Core\Date\Carbon;
+use Modules\Core\Support\Date\Carbon;
 
 class MyActivities extends TableAsyncCard
 {
@@ -30,11 +30,11 @@ class MyActivities extends TableAsyncCard
     /**
      * Provide the query that will be used to retrieve the items.
      */
-    public function query(): Builder
+    public function query(Request $request): Builder
     {
         return Activity::with('type')
             ->incomplete()
-            ->where('user_id', Auth::id())
+            ->where('user_id', $request->user()->getKey())
             ->orderBy(Activity::dueDateQueryExpression());
     }
 
@@ -53,10 +53,10 @@ class MyActivities extends TableAsyncCard
     /**
      * Get the columns that should be selected in the query
      */
-    protected function selectColumns(): array
+    protected function selectColumns(Request $request): array
     {
         return array_merge(
-            parent::selectColumns(),
+            parent::selectColumns($request),
             // select the due time for full_due_date column, user_id is for authorization
             ['activity_type_id', 'due_time', 'user_id']
         );
@@ -68,9 +68,9 @@ class MyActivities extends TableAsyncCard
      * @param  \Illuminate\Database\Eloquent\Model  $model
      * @return array
      */
-    protected function mapRow($model)
+    protected function mapRow($model, Request $request)
     {
-        $row = parent::mapRow($model);
+        $row = parent::mapRow($model, $request);
 
         // Remove the due time as we are using only to query and create the full_due_date attribute
         Arr::forget($row, 'due_time');
@@ -82,7 +82,7 @@ class MyActivities extends TableAsyncCard
                     'swatch_color' => $model->type->swatch_color,
                     'icon' => $model->type->icon,
                 ],
-                'is_completed' => $model->isCompleted,
+                'is_completed' => $model->is_completed,
                 'due_date' => $model->due_time ? Carbon::parse($model->full_due_date) : $model->due_date,
                 'tdClass' => $model->isDue ? 'due' : 'not-due',
             ]

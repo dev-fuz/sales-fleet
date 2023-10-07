@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -33,8 +33,6 @@ return new class extends Migration
 
             $table->foreignId('source_id')->nullable()->constrained('sources');
 
-            $table->foreignId('list_id')->nullable()->constrained('lists');
-
             $table->string('first_name');
             $table->string('last_name')->nullable();
 
@@ -55,6 +53,9 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users');
 
             $table->foreignId('next_activity_id')->nullable()->constrained('activities');
+            $table->dateTime('next_activity_date')->nullable()->index();
+
+            $table->index(['first_name', 'last_name']);
 
             $table->softDeletes();
             $table->timestamps();

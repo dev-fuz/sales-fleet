@@ -1,28 +1,33 @@
 <template>
   <div
     v-bind="$attrs"
-    role="button"
     ref="reference"
-    @click="open ? hide() : show()"
+    role="button"
     :class="[
-      disabled ? 'pointer-events-none bg-neutral-200' : 'bg-white',
       {
-        'border-primary-500 ring-1 ring-primary-500': open,
+        'border-primary-500 ring-1 ring-primary-500':
+          open && bordered && !simple,
         'px-2.5 py-1.5': size === 'sm',
-        'px-3 py-2': size === 'md' || size === '',
+        'px-3 py-2': (size === 'md' || size === '') && !simple,
         'px-4 py-2.5': size === 'lg',
-        'border border-neutral-300 dark:border-neutral-500': bordered,
-        rounded: rounded && size === 'sm',
-        'rounded-md': rounded && size !== 'sm' && size !== false,
+        'border border-neutral-300 dark:border-neutral-600':
+          bordered && !simple,
+        rounded: rounded && size === 'sm' && !simple,
+        'rounded-md': rounded && size !== 'sm' && size !== false && !simple,
+        'shadow-sm': shadow && !simple,
+        'bg-white': !simple && !disabled,
+        'dark:bg-neutral-700': !simple,
+        'bg-neutral-200': !simple && disabled,
+        'pointer-events-none': disabled,
       },
-      'relative w-full text-left text-sm shadow-sm dark:bg-neutral-700',
-      stateClasses,
+      'relative w-full text-left text-sm',
     ]"
+    @click="open ? hide() : show()"
   >
     <div class="flex items-center">
       <div
         :id="`cs${uid}__combobox`"
-        :class="['flex items-center', { 'cursor-text': searchable }]"
+        :class="['flex items-center', { 'cursor-text': isSearchable }]"
         role="combobox"
         :aria-expanded="dropdownOpen.toString()"
         :aria-owns="`cs${uid}__listbox`"
@@ -44,6 +49,7 @@
           >
             <ISelectSelectedOption
               :option="option"
+              :simple="simple"
               :get-option-label="getOptionLabel"
               :get-option-key="getOptionKey"
               :normalize-option-for-slot="normalizeOptionForSlot"
@@ -61,18 +67,20 @@
           </slot>
         </div>
       </div>
-      <div class="mr-4 grow">
+      <div v-show="!simple" class="mr-4 grow">
         <input
+          ref="inputSearchRef"
           :class="[
-            dropdownOpen || isValueEmpty || searching ? '!w-full' : '!w-0',
+            (dropdownOpen || isValueEmpty || searching) && !simple
+              ? '!w-full'
+              : '!w-0',
             'max-w-full border-0 p-0 text-sm leading-none focus:border-0 focus:ring-0 disabled:bg-neutral-200 dark:bg-neutral-700 dark:text-white dark:placeholder-neutral-400',
           ]"
-          ref="inputSearchRef"
           v-bind="{
             disabled: disabled,
             placeholder: searchPlaceholder,
             tabindex: tabindex,
-            readonly: !searchable,
+            readonly: !isSearchable,
             class: 'cs__search',
             id: inputId,
             'aria-autocomplete': 'list',
@@ -101,14 +109,14 @@
       </div>
       <div class="inline-flex">
         <button
-          type="button"
           v-show="showClearButton"
+          ref="clearButton"
+          type="button"
           :disabled="disabled"
-          @click.prevent.stop="clearSelection"
           class="mr-1 text-neutral-400 hover:text-neutral-600 dark:text-neutral-200 dark:hover:text-neutral-400"
           title="Clear Selected"
           aria-label="Clear Selected"
-          ref="clearButton"
+          @click.prevent.stop="clearSelection"
         >
           <Icon
             icon="X"
@@ -129,9 +137,9 @@
           />
         </slot>
 
-        <div>
+        <div v-if="!simple || !(simple && disabled)">
           <Icon
-            icon="Selector"
+            :icon="toggleIcon"
             :class="['text-neutral-400', size !== 'sm' ? 'h-5 w-5' : 'h-4 w-4']"
           />
         </div>
@@ -140,94 +148,134 @@
   </div>
 
   <Teleport :to="teleportTo">
-    <ul
+    <div
       v-if="open"
-      ref="dropdownMenuRef"
-      :id="`cs${uid}__listbox`"
-      :key="`cs${uid}__listbox`"
+      ref="dropdownMenuWrapperRef"
+      :class="[
+        'c-popper overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg dark:border-neutral-600 dark:bg-neutral-800',
+        listWrapperClass,
+      ]"
       :style="{
         zIndex: 99999,
         width:
           typeof referenceElWidth === 'number' ? `${referenceElWidth}px` : '',
-        position: strategy,
-        top: `${y ?? 0}px`,
-        left: `${x ?? 0}px`,
+        ...floatingStyles,
       }"
-      class="c-popper max-h-80 overflow-y-auto rounded-md border border-neutral-200 bg-white shadow-lg dark:border-neutral-500 dark:bg-neutral-800"
-      role="listbox"
     >
+      <div
+        v-if="simple && searchable"
+        class="border-b border-neutral-200 px-4 py-3 dark:border-neutral-600"
+      >
+        <IFormInput
+          v-model="search"
+          type="search"
+          :placeholder="searchPlaceholder"
+        />
+      </div>
       <slot name="header"></slot>
-
-      <!-- using v-memo as it's causing all options to re-render on update because of the @mouseover event -->
-      <ISelectOption
-        v-for="(option, index) in filteredOptions"
-        v-memo="[
-          index === typeAheadPointer,
-          isOptionSelected(option),
-          getOptionLabel(option),
-          getOptionKey(option),
-        ]"
-        :key="index"
-        @selected="select(option)"
-        @type-ahead-pointer="typeAheadPointer = $event"
-        :uid="uid"
-        :swatch-color="option.swatch_color"
-        :index="index"
-        :active="index === typeAheadPointer"
-        :label="getOptionLabel(option)"
-        :is-selectable="selectable(option)"
-        :is-selected="isOptionSelected(option)"
+      <draggable
+        v-bind="{ ...draggableOptions, ...{ ghostClass: 'drag-ghost' } }"
+        :id="`cs${uid}__listbox`"
+        ref="dropdownMenuRef"
+        :key="`cs${uid}__listbox`"
+        :model-value="filteredOptions"
+        handle=".select-option-draggable-handle"
+        tag="ul"
+        :item-key="item => getOptionKey(item)"
+        :class="[listClass, 'max-h-80 overflow-y-auto']"
+        role="listbox"
+        @update:model-value="$emit('update:draggable', $event)"
       >
-        <template v-slot="{ label }">
-          <slot
-            name="option"
-            v-bind="{ ...normalizeOptionForSlot(option), ...{ label: label } }"
+        <template v-if="totalFilteredOptions === 0 && !loading" #header>
+          <li
+            class="relative cursor-default select-none px-4 py-2 text-sm text-neutral-600 dark:text-neutral-300"
           >
-            {{ label }}
-          </slot>
+            <slot
+              name="no-options"
+              v-bind="{
+                search: search,
+                loading: loading,
+                searching: searching,
+                text: noOptionsText,
+              }"
+            >
+              {{ noOptionsText }}
+            </slot>
+          </li>
         </template>
-      </ISelectOption>
+        <!-- using v-memo as it's causing all options to re-render on update because of the @mouseover event -->
+        <template #item="{ element: option, index }">
+          <ISelectOption
+            :key="index"
+            v-memo="[
+              index === typeAheadPointer,
+              isOptionSelected(option),
+              getOptionLabel(option),
+              getOptionKey(option),
+            ]"
+            :uid="uid"
+            :swatch-color="option.swatch_color"
+            :index="index"
+            :active="index === typeAheadPointer"
+            :label="getOptionLabel(option)"
+            :is-selectable="selectable(option)"
+            :is-selected="isOptionSelected(option)"
+            @selected="select(option)"
+            @type-ahead-pointer="typeAheadPointer = $event"
+          >
+            <template #default="{ label }">
+              <slot
+                name="option"
+                v-bind="{
+                  ...normalizeOptionForSlot(option),
+                  ...{ label: label },
+                }"
+              >
+                {{ label }}
+              </slot>
+            </template>
 
-      <li
-        v-if="totalFilteredOptions === 0 && !loading"
-        class="relative cursor-default select-none px-3 py-2 text-sm text-neutral-600 dark:text-neutral-300"
-      >
-        <slot
-          name="no-options"
-          v-bind="{
-            search: search,
-            loading: loading,
-            searching: searching,
-            text: noOptionsText,
-          }"
-        >
-          {{ noOptionsText }}
-        </slot>
-      </li>
+            <template #option-inner="innerOptionSlotProps">
+              <span
+                v-show="filteredOptions.length > 1"
+                class="absolute right-5 top-2.5 flex space-x-3"
+              >
+                <slot name="option-actions" v-bind="innerOptionSlotProps" />
+                <Icon
+                  v-if="reorderable && !searching"
+                  icon="Selector"
+                  class="select-option-draggable-handle h-4 w-4 cursor-move text-neutral-600 dark:text-neutral-200"
+                />
+              </span>
+            </template>
+          </ISelectOption>
+        </template>
+      </draggable>
       <slot name="footer"></slot>
-    </ul>
+    </div>
   </Teleport>
 </template>
-<script>
-export default {
-  name: 'ICustomSelect',
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
 // TODO, https://vueuse.org/integrations/useFocusTrap/
-import { watch, ref, computed, toRef, onMounted, onBeforeUnmount } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import draggable from 'vuedraggable'
+import { autoUpdate, flip, offset, useFloating } from '@floating-ui/vue'
+import { onClickOutside } from '@vueuse/core'
+
+import { useDraggable } from '~/Core/composables/useDraggable'
+
+import propsDefinition from '../props'
+import { useTypeAheadPointer } from '../useTypeAheadPointer'
 import uniqueId from '../utility/uniqueId'
+
 import ISelectOption from './ISelectOption.vue'
 import ISelectSelectedOption from './ISelectSelectedOption.vue'
-import propsDefinition from '../props'
-import { useI18n } from 'vue-i18n'
-import { useTypeAheadPointer } from '../useTypeAheadPointer'
-import { useFloating, offset, flip, autoUpdate } from '@floating-ui/vue'
-import { onClickOutside } from '@vueuse/core'
 
 const emit = defineEmits([
   'update:modelValue',
+  'update:draggable',
   'open',
   'close',
   'cleared',
@@ -243,8 +291,16 @@ const emit = defineEmits([
 
 const props = defineProps(propsDefinition)
 
+defineOptions({
+  name: 'ICustomSelect',
+  inheritAttrs: false,
+})
+
+const { draggableOptions } = useDraggable()
+
 const reference = ref(null)
 const dropdownMenuRef = ref(null)
+const dropdownMenuWrapperRef = ref(null)
 const inputSearchRef = ref(null)
 const teleportTo = ref('body')
 
@@ -259,13 +315,15 @@ const _value = ref([])
 
 const mutableLoading = ref(props.loading)
 
-const { x, y, strategy } = useFloating(reference, dropdownMenuRef, {
+const { floatingStyles } = useFloating(reference, dropdownMenuWrapperRef, {
   placement: 'bottom',
   middleware: [offset(10), flip()],
   whileElementsMounted: autoUpdate,
 })
 
 const { t } = useI18n()
+
+const isSearchable = computed(() => props.searchable && !props.simple)
 
 /**
  * Toggle props.loading. Optionally pass a boolean
@@ -285,6 +343,7 @@ function toggleLoading(toggle = null) {
  */
 function createOption(option) {
   let newOption = null
+
   if (props.createOptionProvider) {
     newOption = props.createOptionProvider(option)
   } else {
@@ -306,9 +365,11 @@ function createOption(option) {
 function filter(options, search) {
   return options.filter(option => {
     let label = getOptionLabel(option)
+
     if (typeof label === 'number') {
       label = label.toString()
     }
+
     return props.filterBy(option, label, search)
   })
 }
@@ -328,7 +389,7 @@ function getOptionLabel(option) {
   }
 
   if (typeof option === 'object') {
-    if (!option.hasOwnProperty(props.label)) {
+    if (!Object.hasOwn(option, props.label)) {
       return console.warn(
         `[select warn]: Label key "option.${props.label}" does not` +
           ` exist in options object ${JSON.stringify(option)}.`
@@ -343,7 +404,7 @@ function getOptionLabel(option) {
 
 /**
  * Generate a unique identifier for each option. If `option`
- * is an object and `option.hasOwnProperty('id')` exists,
+ * is an object and `Object.hasOwn(option, 'id')` exists,
  * `option.id` is used by default, otherwise the option
  * will be serialized to JSON.
  *
@@ -363,12 +424,13 @@ function getOptionKey(option) {
   }
 
   try {
-    return option.hasOwnProperty('id') ? option.id : sortAndStringify(option)
+    return Object.hasOwn(option, 'id') ? option.id : sortAndStringify(option)
   } catch (e) {
     const warning =
       `[select warn]: Could not stringify this option ` +
       `to generate unique key. Please provide'getOptionKey' prop ` +
       `to return a unique key for each option.`
+
     return console.warn(warning, option, e)
   }
 }
@@ -441,6 +503,7 @@ function clearSelection() {
 /**
  * Called from "select" after each selection.
  */
+// eslint-disable-next-line no-unused-vars
 function onAfterSelect(option) {
   if (props.closeOnSelect) {
     hide()
@@ -507,6 +570,7 @@ function optionComparator(a, b) {
   if (props.optionComparatorProvider) {
     return props.optionComparatorProvider(a, b, getOptionKey)
   }
+
   return getOptionKey(a) === getOptionKey(b)
 }
 
@@ -546,7 +610,9 @@ function maybeDeleteValue() {
     let value = null
 
     if (props.multiple) {
-      value = [...selectedValue.value.slice(0, selectedValue.value.length - 1)]
+      value = Array.from(
+        selectedValue.value.slice(0, selectedValue.value.length - 1)
+      )
     }
 
     updateValue(value)
@@ -589,6 +655,7 @@ function onEscape() {
 /**
  * Close the dropdown on blur.
  */
+// eslint-disable-next-line no-unused-vars
 function onSearchBlur(e) {
   emit('search:blur')
 }
@@ -644,19 +711,6 @@ const optionList = computed(() =>
 )
 
 /**
- * Holds the current state of the component.
- */
-const stateClasses = computed(() => ({
-  'cs--open': dropdownOpen.value,
-  'cs--single': !props.multiple,
-  'cs--searching': searching.value,
-  'cs--searchable': props.searchable,
-  'cs--unsearchable': !props.searchable,
-  'cs--loading': mutableLoading.value,
-  'cs--disabled': props.disabled,
-}))
-
-/**
  * Return the current state of the search input
  */
 const searching = computed(() => !!search.value)
@@ -673,6 +727,8 @@ const searchPlaceholder = computed(() => {
   if (isValueEmpty.value && props.placeholder) {
     return props.placeholder
   }
+
+  return ''
 })
 
 /**
@@ -835,7 +891,7 @@ function clearReferenceElResizeObserver() {
 onMounted(() => {
   startReferenceElResizeObserver()
 
-  onClickOutside(dropdownMenuRef, hide, {
+  onClickOutside(dropdownMenuWrapperRef, hide, {
     ignore: [reference.value],
   })
 
@@ -850,6 +906,7 @@ onBeforeUnmount(() => {
 
 defineExpose({ focus, show, hide })
 </script>
+
 <style scoped>
 .cs__search::-webkit-search-cancel-button {
   display: none !important;

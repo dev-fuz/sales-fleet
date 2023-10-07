@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,9 +13,9 @@ import { randomString } from '@/utils'
 export default {
   form: { type: Boolean },
   overlay: { type: Boolean, default: true },
-  visible: { type: Boolean, default: false }, // v-model
+  visible: Boolean, // v-model
   title: String,
-  description: String,
+  subTitle: String,
   busy: Boolean,
   size: {
     type: String,
@@ -27,14 +27,14 @@ export default {
   id: { type: String, default: randomString() },
 
   okTitle: { type: String, default: 'Ok' },
-  okDisabled: { type: Boolean, default: false },
-  okLoading: { type: Boolean, default: false },
+  okDisabled: Boolean,
+  okLoading: Boolean,
   okVariant: { type: String, default: 'primary' },
   okSize: String,
 
   cancelTitle: { type: String, default: 'Cancel' },
   cancelVariant: { type: String, default: 'white' },
-  cancelDisabled: { type: Boolean, default: false },
+  cancelDisabled: Boolean,
   cancelSize: String,
 
   hideFooter: Boolean,

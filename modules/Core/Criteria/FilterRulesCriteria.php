@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -18,9 +18,9 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Modules\Core\Contracts\Criteria\QueryCriteria;
+use Modules\Core\Filters\QueryBuilder\JoinRelationParser;
+use Modules\Core\Filters\QueryBuilder\Parser;
 use Modules\Core\Models\Filter;
-use Modules\Core\QueryBuilder\JoinRelationParser;
-use Modules\Core\QueryBuilder\Parser;
 use Modules\Users\Filters\UserFilter;
 
 class FilterRulesCriteria implements QueryCriteria
@@ -106,7 +106,7 @@ class FilterRulesCriteria implements QueryCriteria
     /**
      * Create the filters parser
      *
-     * @return Modules\Core\QueryBuilder\Parser
+     * @return Modules\Core\Filters\QueryBuilder\Parser
      */
     public function createParser()
     {

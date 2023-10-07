@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,6 +14,7 @@ namespace Modules\Users\Tests\Feature\Actions;
 
 use Modules\Core\Tests\ResourceTestCase;
 use Modules\Users\Actions\UserDelete;
+use Modules\Users\Models\User;
 
 class UserDeleteTest extends ResourceTestCase
 {
@@ -64,13 +65,15 @@ class UserDeleteTest extends ResourceTestCase
     public function test_user_cannot_delete_his_own_account()
     {
         $user = $this->signIn();
+        $user2 = User::factory()->create();
 
         $this->postJson($this->actionEndpoint($this->action), [
             'user_id' => $user->id,
-            'ids' => [$user->id],
+            'ids' => [$user2, $user->id],
         ])->assertStatus(409);
 
         $this->assertDatabaseHas('users', ['id' => $user->id]);
+        $this->assertDatabaseHas('users', ['id' => $user2->id]);
     }
 
     public function test_user_cannot_transfer_the_data_on_delete_on_the_same_user_which_is_about_to_be_deleted()

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,10 +15,8 @@ namespace Modules\Core\Fields;
 use Modules\Core\Contracts\Fields\Customfieldable;
 use Modules\Core\Contracts\Fields\Dateable;
 use Modules\Core\Facades\Format;
-use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Fields\Dateable as DateableTrait;
-use Modules\Core\Placeholders\DateTimePlaceholder;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Support\Placeholders\DateTimePlaceholder;
 use Modules\Core\Table\DateTimeColumn;
 
 class DateTime extends Field implements Customfieldable, Dateable
@@ -26,41 +24,23 @@ class DateTime extends Field implements Customfieldable, Dateable
     use DateableTrait;
 
     /**
-     * Field component
+     * Field component.
      */
-    public ?string $component = 'date-time-field';
+    public static $component = 'date-time-field';
 
     /**
-     * Boot the field
+     * Initialize new DateTime instance class
      *
-     * @return void
+     * @param  string  $attribute field attribute
+     * @param  string|null  $label field label
      */
-    public function boot()
+    public function __construct($attribute, $label = null)
     {
+        parent::__construct($attribute, $label);
+
         $this->rules(['nullable', 'date'])
-            ->provideSampleValueUsing(fn () => date('Y-m-d H:i:s'));
-    }
-
-    /**
-     * Handle the resource record "creating" event
-     *
-     * @param  \Modules\Core\Models\Model  $model
-     * @return void
-     */
-    public function recordCreating($model)
-    {
-        if (! Innoclapps::isImportInProgress() || ! $model->usesTimestamps()) {
-            return;
-        }
-
-        $timestampAttrs = [$model->getCreatedAtColumn(), $model->getUpdatedAtColumn()];
-        $request = app(ResourceRequest::class);
-
-        if ($request->has($this->requestAttribute()) &&
-            in_array($this->attribute, $timestampAttrs) &&
-            $model->isGuarded($this->attribute)) {
-            $model->{$this->attribute} = $request->input($this->attribute);
-        }
+            ->provideSampleValueUsing(fn () => date('Y-m-d H:i:s'))
+            ->displayUsing(fn ($model, $value) => Format::dateTime($value));
     }
 
     /**
@@ -76,21 +56,10 @@ class DateTime extends Field implements Customfieldable, Dateable
     }
 
     /**
-     * Resolve the displayable field value
-     *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return string|null
-     */
-    public function resolveForDisplay($model)
-    {
-        return Format::dateTime($model->{$this->attribute});
-    }
-
-    /**
      * Get the mailable template placeholder
      *
      * @param  \Modules\Core\Models\Model|null  $model
-     * @return \Modules\Core\Placeholders\DateTimePlaceholder
+     * @return \Modules\Core\Support\Placeholders\DateTimePlaceholder
      */
     public function mailableTemplatePlaceholder($model)
     {

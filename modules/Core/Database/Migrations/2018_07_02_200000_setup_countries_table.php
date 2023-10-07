@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -21,7 +21,7 @@ return new class extends Migration
     public function up(): void
     {
         // Creates the countries table
-        Schema::create(\Config::get('countries.table_name'), function ($table) {
+        Schema::create(config('countries.table_name'), function ($table) {
             $table->integer('id')->unsigned()->index();
             $table->string('capital', 255)->nullable();
             $table->string('citizenship', 255)->nullable();
@@ -51,6 +51,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::drop(\Config::get('countries.table_name'));
+        Schema::drop(config('countries.table_name'));
     }
 };

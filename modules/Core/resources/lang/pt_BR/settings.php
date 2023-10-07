@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -54,20 +54,5 @@ return [
         'migrate' => 'Executar as migrações do banco de dados',
         'optimize' => 'Armazene em cache os arquivos de inicialização do aplicativo, como configuração e rotas.',
         'seed-mailables' => 'Distribua os modelos de e-mail do aplicativo',
-    ],
-    'integrations' => [
-        'twilio' => [
-            'create_app' => 'Criar Aplicativo',
-            'disconnect' => 'Desconectar Integração',
-            'number' => 'Selecione o número Twilio da sua conta que será usado para fazer e receber chamadas.',
-            'app' => 'Crie um aplicativo que lidará com o início de novas chamadas e chamadas recebidas.',
-        ],
-    ],
-    'translator' => [
-        'translator' => 'Tradutor',
-        'new_locale' => 'Nova Localidade',
-        'create_new_locale' => 'Criar Nova Localidade',
-        'locale_name' => 'Nome da Localidade',
-        'changes_not_saved' => 'Você não salvou as traduções para este grupo, para evitar perder suas traduções, salve o grupo clicando no botão Salvar localizado na parte inferior da página.',
     ],
 ];

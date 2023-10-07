@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -11,10 +11,12 @@
 export const addExternalScript = (src, callback) => {
   if (isScriptAlreadyIncluded(src)) {
     if (callback) callback()
+
     return
   }
 
   var script = document.createElement('script')
+
   script.onload = () => {
     if (callback) callback()
   }
@@ -37,6 +39,7 @@ export const addExternalStyle = (url, prepend = false) => {
     var link = document.createElement('link')
     link.rel = 'stylesheet'
     link.href = url
+
     if (!prepend) {
       document.head.appendChild(link)
     } else {
@@ -51,6 +54,7 @@ export const isScriptAlreadyIncluded = src => {
   const scripts = document.getElementsByTagName('script')
   for (let i = 0; i < scripts.length; i++)
     if (scripts[i].getAttribute('src') === src) return true
+
   return false
 }
 
@@ -58,11 +62,13 @@ export const isStyleAlreadyIncluded = url => {
   const styles = document.getElementsByTagName('link')
   for (let i = 0; i < styles.length; i++)
     if (styles[i].getAttribute('href') === url) return true
+
   return false
 }
 
 export const removeExternalStyle = url => {
   const styles = document.getElementsByTagName('link')
+
   for (let i = 0; i < styles.length; i++)
     if (styles[i].getAttribute('href') === url) {
       styles[i].parentNode.removeChild(styles[i])

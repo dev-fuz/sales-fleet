@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -20,9 +20,10 @@ use Illuminate\Support\Facades\Schema;
 use Modules\Core\Contracts\Fields\Customfieldable;
 use Modules\Core\Facades\Fields;
 use Modules\Core\Facades\Innoclapps;
+use Modules\Core\Filters\QueryBuilder\Parser;
 use Modules\Core\Models\CustomField;
+use Modules\Core\Models\CustomFieldOption;
 use Modules\Core\Models\Filter;
-use Modules\Core\QueryBuilder\Parser;
 
 class CustomFieldService
 {
@@ -46,30 +47,21 @@ class CustomFieldService
     {
         $resource = Innoclapps::resourceByName($attributes['resource_name']);
 
-        $this->createColumn(
-            $resource->newModel(),
-            $attributes['field_id'],
-            $attributes['field_type'],
-            $unique = array_key_exists('is_unique', $attributes) ? $attributes['is_unique'] : null,
-        );
-
-        // For seeders, do not pass the options array to the create method
-        // As in Seeder, mass assignment protection is disabled
-        $field = new CustomField([
+        $field = CustomField::create([
             'resource_name' => $attributes['resource_name'],
             'label' => $attributes['label'],
             'field_type' => $attributes['field_type'],
             'field_id' => $attributes['field_id'],
-            'is_unique' => $unique,
+            'is_unique' => array_key_exists('is_unique', $attributes) ? $attributes['is_unique'] : null,
         ]);
 
-        $field->save();
+        $this->createColumn($resource->newModel(), $field);
 
         if ($field->isOptionable()) {
             return $this->createOptions($attributes['options'], $field)->load('options');
         }
 
-        $this->flushCache();
+        static::flushCache();
 
         return $field;
     }
@@ -100,30 +92,34 @@ class CustomFieldService
     public function update(array $attributes, int $id): CustomField
     {
         $field = $this->find($id);
-        $field->fill($attributes);
-        $field->save();
+        $unmarkAsUnique = Arr::pull($attributes, 'is_unique') === false && $field->is_unique;
+
+        $field->fill(array_merge($attributes, [
+            'is_unique' => $unmarkAsUnique ? false : $field->is_unique,
+        ]))->save();
 
         if ($field->isOptionable()) {
             $this->handleFieldOptionsUpdate($field, $attributes['options']);
         }
 
-        $this->flushCache();
+        if ($unmarkAsUnique) {
+            $this->dropUniqueIndex($field);
+        }
+
+        static::flushCache();
 
         return $field->load('options');
     }
 
     public function delete(int $id): bool
     {
-        $field = $this->find($id);
+        $this->dropColumn($field = $this->find($id));
 
-        $this->deleteColumn($field);
+        return tap($field->delete(), function () use ($field) {
+            $this->handleDeletedFieldFiltersRules($field);
 
-        $retval = $field->delete();
-
-        $this->handleDeletedFieldFiltersRules($field);
-        $this->flushCache();
-
-        return $retval;
+            static::flushCache();
+        });
     }
 
     /**
@@ -133,30 +129,30 @@ class CustomFieldService
     {
         $optionsBeforeUpdate = $field->options;
 
-        $this->prepareOptionsForInsert($options)->each(function ($option, $index) use ($field, $optionsBeforeUpdate) {
-            $attributes = [
-                'name' => $option['name'],
-                'display_order' => $option['display_order'] ?? $index + 1,
-                'swatch_color' => $option['swatch_color'] ?? null,
-            ];
+        $this->prepareOptionsForInsert($options)
+            ->each(function ($option, $index) use ($field, $optionsBeforeUpdate) {
+                $attributes = [
+                    'name' => $option['name'],
+                    'display_order' => $option['display_order'] ?? $index + 1,
+                    'swatch_color' => $option['swatch_color'] ?? null,
+                ];
 
-            if (isset($option['id'])) {
-                $optionsBeforeUpdate->find($option['id'])->fill($attributes)->save();
-            } else {
-                $field->options()->create($attributes);
-            }
-        });
+                if (isset($option['id'])) {
+                    $optionsBeforeUpdate->find($option['id'])->fill($attributes)->save();
+                } else {
+                    $field->options()->create($attributes);
+                }
+            });
 
-        $optionsBeforeUpdate->filter(function ($option) use ($options) {
+        $optionsBeforeUpdate->filter(function (CustomFieldOption $option) use ($options) {
             return ! in_array($option->id, Arr::pluck($options, 'id'));
-        })->each(function ($option) use ($field) {
-            if ($field->isNotMultiOptionable()) {
-                $resource = Innoclapps::resourceByName($field->resource_name);
+        })->each(function (CustomFieldOption $option) use ($field) {
+            if ($field->isMultiOptionable()) {
+                $option->delete();
+            } else {
                 // Update constraint
-                $resource->newModel()->withTrashed()->update([$field->field_id => null]);
+                $field->resource()->newModel()->withTrashed()->update([$field->field_id => null]);
             }
-
-            $option->delete();
         });
     }
 
@@ -180,20 +176,18 @@ class CustomFieldService
      * @param  \Illuminate\Database\Eloquent\Model  $model
      * @param  \Modules\Core\Contracts\Fields\Customfieldable  $field
      * @param  string  $action
-     * @return void
      */
-    public function syncOptionsForModel($model, Customfieldable&Field $field, array $attributes, $action)
+    public function syncOptionsForModel($model, Customfieldable&Field $field, array $ids, $action): void
     {
-        $callbackAttributes = [$model, $field, $attributes, $action];
+        $callbackAttributes = [$model, $field, $ids, $action];
 
         collect($model::$beforeSyncCustomFieldOptions[$model::class] ?? [])->each->__invoke(
             ...$callbackAttributes
         );
 
-        $model->{$field->customField->relationName}()->sync(
-            collect($attributes)->mapWithKeys(function ($id) use ($field) {
-                return [$id => ['custom_field_id' => $field->customField->id]];
-            })
+        $model->{$field->customField->relationName}()->syncWithPivotValues(
+            $ids,
+            ['custom_field_id' => $field->customField->id]
         );
 
         collect($model::$afterSyncCustomFieldOptions[$model::class] ?? [])->each->__invoke(
@@ -204,39 +198,35 @@ class CustomFieldService
     /**
      * Flush the fieds cache.
      */
-    public function flushCache(): static
+    public static function flushCache(): void
     {
         static::$cache = null;
-
-        return $this;
     }
 
     /**
      * Create the custom field in database
      *
      * @param  \Illuminate\Database\Eloquent\Model  $relatedModel
-     * @param  string  $fieldId
-     * @return void
      */
-    protected function createColumn($relatedModel, $fieldId, $type, ?bool $isUnique)
+    protected function createColumn($relatedModel, CustomField $field): void
     {
-        $field = Fields::customFieldable()[$type];
+        $fromField = Fields::customFieldable()[$field->field_type];
 
-        Schema::table($relatedModel->getTable(), function (Blueprint $table) use ($field, $fieldId, $isUnique) {
-            $field['className']::createValueColumn($table, $fieldId);
+        Schema::table($relatedModel->getTable(), function (Blueprint $table) use ($fromField, $field) {
+            $fromField['className']::createValueColumn($table, $field->field_id);
 
-            if ($isUnique === true && $field['uniqueable']) {
-                $table->unique($fieldId);
+            if ($field->is_unique === true && $fromField['uniqueable']) {
+                $table->unique($field->field_id, $field->uniqueIndexName());
             }
         });
     }
 
     /**
-     * Delete the given field column.
+     * Drop the column related to the given custom field.
      */
-    protected function deleteColumn(CustomField $field): void
+    protected function dropColumn(CustomField $field): void
     {
-        $relatedModel = app(Innoclapps::resourceByName($field->resource_name)::$model);
+        $relatedModel = $field->resource()->newModel();
 
         if (! Schema::hasColumn($relatedModel->getTable(), $field->field_id)) {
             return;
@@ -244,18 +234,24 @@ class CustomFieldService
 
         Schema::table($relatedModel->getTable(), function (Blueprint $table) use ($field, $relatedModel) {
             if ($field->isOptionable() && ! app()->runningUnitTests()) {
-                $key = DB::select(
-                    DB::raw(
-                        'SHOW KEYS
-                            FROM '.DB::getTablePrefix().$relatedModel->getTable().'
-                            WHERE Column_name=\''.$field->field_id.'\''
-                    )->getValue(DB::connection()->getQueryGrammar())
-                );
-
-                $table->dropForeign($key[0]->Key_name);
+                collect(DB::listIndexes($relatedModel, $field->field_id))->each(function ($index) use ($table) {
+                    $table->dropForeign($index->Key_name);
+                });
             }
 
             $table->dropColumn($field->field_id);
+        });
+    }
+
+    /**
+     * Drop the unique index for the given field.
+     */
+    protected function dropUniqueIndex(CustomField $field): void
+    {
+        $resource = Innoclapps::resourceByName($field->resource_name);
+
+        Schema::table($resource->newModel()->getTable(), function (Blueprint $table) use ($field) {
+            $table->dropUnique($field->uniqueIndexName());
         });
     }
 
@@ -274,9 +270,7 @@ class CustomFieldService
     {
         // When model with custom fields is deleted, we will get the filters
         // which most likely are using custom field and remove them from the query object
-        Filter::where(
-            'rules', 'like', '%'.$field->field_id.'%'
-        )
+        Filter::where('rules', 'like', '%'.$field->field_id.'%')
             ->get()
             ->each(function (Filter $filter) use ($field) {
                 $rules = Arr::toObject($filter->rules);

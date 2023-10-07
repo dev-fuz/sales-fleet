@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,6 @@
 namespace Modules\Documents\Concerns;
 
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
-use Modules\Deals\Criteria\ViewAuthorizedDealsCriteria;
 use Modules\Documents\Enums\DocumentStatus;
 
 /** @mixin \Modules\Core\Models\Model */
@@ -28,18 +27,10 @@ trait HasDocuments
     }
 
     /**
-     * Get the documents the user is authorized to see
-     */
-    public function documentsForUser(): MorphToMany
-    {
-        return $this->documents()->criteria(ViewAuthorizedDealsCriteria::class);
-    }
-
-    /**
      * Get the draft documents the user is authorized to see
      */
-    public function draftDocumentsForUser(): MorphToMany
+    public function draftDocuments(): MorphToMany
     {
-        return $this->documentsForUser()->where('status', DocumentStatus::DRAFT);
+        return $this->documents()->where('status', DocumentStatus::DRAFT);
     }
 }

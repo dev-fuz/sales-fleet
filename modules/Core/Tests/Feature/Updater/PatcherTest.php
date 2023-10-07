@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -192,27 +192,7 @@ class PatcherTest extends TestCase
 
     public function test_cannot_apply_patch_with_invalid_files_permissions()
     {
-        Patcher::providePermissionsCheckerFinderUsing(function ($path) {
-            // Exclude the main folder so we can only verify the invalid-file.php
-            // and void looping over all the files and buid up memory when testing
-            return (new Finder)->files()->in($path)->exclude([
-                'app',
-                'bootstrap',
-                'config',
-                'database',
-                'node_modules',
-                'public',
-                'resources',
-                'routes',
-                'storage',
-                'tests',
-                'vendor',
-                'patchers',
-            ]);
-        });
-
-        file_put_contents($file = base_path('invalid-file.php'), '');
-        chmod($file, 0444);
+        Patcher::checkPermissionsUsing(fn ($finder, $path, $excludedFolders) => false);
 
         $path = $this->createZipFromFixtureFiles();
 
@@ -341,6 +321,7 @@ class PatcherTest extends TestCase
     protected function tearDown(): void
     {
         Patcher::providePermissionsCheckerFinderUsing(null);
+        Patcher::checkPermissionsUsing(null);
         $this->guzzleMock = null;
         $this->cleanFixturesFiles();
         parent::tearDown();

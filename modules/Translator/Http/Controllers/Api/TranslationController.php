@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -18,7 +18,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
 use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Http\Controllers\ApiController;
-use Modules\Core\Rules\Locale;
+use Modules\Core\Rules\SupportedLocaleRule;
 use Modules\Translator\Translator;
 
 class TranslationController extends ApiController
@@ -63,7 +63,7 @@ class TranslationController extends ApiController
             'name' => [
                 'required',
                 'string',
-                new Locale,
+                new SupportedLocaleRule,
                 Rule::notIn(Innoclapps::locales()),
             ],
         ]);

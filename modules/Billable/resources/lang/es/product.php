@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -49,9 +49,7 @@ return [
     'sold_amount_exc_tax' => 'Importe vendido (sin impuestos)',
     'interest_in_product' => 'Interés en el producto',
     'resource_has_no_products' => 'No hay productos creados, empiece por añadir productos',
-    'deal_info' => 'Vincule productos a la oferta para crear una lista de los productos con los que está relacionada la oferta; el importe de la oferta se calcula automáticamente en función de los productos añadidos.',
     'exists_in_trash_by_name' => 'Ya existe un producto con el mismo nombre en la papelera, ¿desea restaurar el producto de la papelera?',
-    'add_to_deal' => 'Añadir productos a la oferta',
     'choose_or_enter' => 'Seleccione o introduzca un producto',
     'cards' => [
         'performance' => 'Rendimiento del producto',

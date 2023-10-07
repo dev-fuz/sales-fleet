@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,14 +13,18 @@
 namespace Modules\Calls\Tests\Feature;
 
 use Illuminate\Support\Carbon;
-use Modules\Activities\Models\ActivityType;
+use Illuminate\Support\Facades\Notification;
+use Modules\Calls\Models\Call;
 use Modules\Calls\Models\CallOutcome;
 use Modules\Contacts\Models\Contact;
-use Modules\Core\Database\Seeders\PermissionsSeeder;
 use Modules\Core\Tests\ResourceTestCase;
+use Modules\Users\Notifications\UserMentioned;
+use Modules\Users\Tests\Concerns\TestsMentions;
 
 class CallResourceTest extends ResourceTestCase
 {
+    use TestsMentions;
+
     protected $resourceName = 'calls';
 
     public function test_user_can_create_resource_record()
@@ -214,7 +218,6 @@ class CallResourceTest extends ResourceTestCase
 
     public function test_user_can_retrieve_calls_that_are_associated_with_related_records_the_user_is_authorized_to_see()
     {
-        $this->seed(PermissionsSeeder::class);
         $user = $this->asRegularUser()->withPermissionsTo('view own contacts')->createUser();
         $this->signIn($user);
         $user2 = $this->createUser();
@@ -263,41 +266,6 @@ class CallResourceTest extends ResourceTestCase
         $this->deleteJson($this->deleteEndpoint($call))->assertForbidden();
     }
 
-    public function test_user_can_create_call_and_follow_up_task()
-    {
-        $this->withUserAttrs(['timezone' => 'UTC'])->signIn();
-        $outcome = CallOutcome::factory()->create();
-        $contact = Contact::factory()->create();
-        ActivityType::factory()->create(['flag' => 'task']);
-
-        $this->postJson($this->createEndpoint(), [
-            'body' => 'Call Body',
-            'call_outcome_id' => $outcome->id,
-            'date' => '2021-12-10 12:00:00',
-            'via_resource' => 'contacts',
-            'via_resource_id' => $contact->id,
-            'contacts' => [$contact->id],
-            'task_date' => $date = date('Y-m-d'),
-        ])->assertCreated()->assertJson([
-            'createdActivity' => [
-                'due_date' => [
-                    'date' => $date,
-                    'time' => value(function () {
-                        return now()->setHour(config('activities.defaults.hour'))
-                            ->setMinute(config('activities.defaults.minute'))
-                            ->format('H:i');
-                    }),
-                ],
-            ], ]);
-
-        $this->assertCount(1, $contact->activities);
-        $this->assertDatabaseHas('activities', [
-            'note' => __('calls::call.follow_up_task_body', [
-                'content' => 'Call Body',
-            ]),
-        ]);
-    }
-
     protected function assertResourceJsonStructure($response)
     {
         $response->assertJsonStructure([
@@ -309,8 +277,6 @@ class CallResourceTest extends ResourceTestCase
 
     public function test_user_can_retrieve_calls_related_to_associations_authorized_to_view()
     {
-        $this->seed(PermissionsSeeder::class);
-
         $user = $this->asRegularUser()->withPermissionsTo('view own contacts')->signIn();
         $call = $this->factory()->has(Contact::factory()->for($user))->create();
         $contact = $call->contacts[0];
@@ -333,5 +299,52 @@ class CallResourceTest extends ResourceTestCase
                 ['user', 'comments_count'],
             ],
         ])->assertJsonPath('data.0.comments_count', 1);
+    }
+
+    public function test_it_send_notifications_to_mentioned_users_when_call_is_created()
+    {
+        Notification::fake();
+
+        $user = $this->signIn();
+
+        $mentionUser = $this->createUser();
+        $contact = Contact::factory()->create();
+
+        $this->postJson($this->createEndpoint(), array_merge($this->factory()->for($user)->make()->toArray(), [
+            'via_resource' => 'contacts',
+            'via_resource_id' => $contact->id,
+            'body' => 'Other Text - '.$this->mentionText($mentionUser->id, $mentionUser->name),
+        ]));
+
+        $call = Call::first();
+
+        Notification::assertSentTo($mentionUser, UserMentioned::class, function ($notification) use ($contact, $call) {
+            return $notification->mentionUrl === "/contacts/{$contact->id}?section=calls&resourceId={$call->id}";
+        });
+    }
+
+    public function test_it_send_notifications_to_mentioned_users_when_call_is_updated()
+    {
+        Notification::fake();
+
+        $user = $this->signIn();
+
+        $mentionUser = $this->createUser();
+        $call = $this->factory()->for($user)->create();
+        $contact = Contact::factory()->create();
+
+        $this->putJson($this->updateEndpoint($call), [
+            'call_outcome_id' => $call->call_outcome_id,
+            'body' => $call->body.$this->mentionText($mentionUser->id, $mentionUser->name),
+            'date' => now(),
+            'via_resource' => 'contacts',
+            'via_resource_id' => $contact->id,
+        ]);
+
+        $call->refresh();
+
+        Notification::assertSentTo($mentionUser, UserMentioned::class, function ($notification) use ($contact, $call) {
+            return $notification->mentionUrl === "/contacts/{$contact->id}?section=calls&resourceId={$call->id}";
+        });
     }
 }

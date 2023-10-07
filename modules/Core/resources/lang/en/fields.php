@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,11 +14,14 @@ return [
     'add' => 'Add New',
     'fields' => 'Fields',
     'field' => 'Field',
-    'more' => 'Show Collapsed Fields',
-    'less' => 'Less Fields',
     'updated' => 'Updated Fields',
+    'hide_fields' => 'Hide :count field|Hide :count fields',
+    'more_fields' => ':count more field|:count more fields',
     'reseted' => 'Fields are set to initial state successfully',
+    'all' => 'All Fields',
+    'select' => 'Select Fields',
     'updated_field' => 'Updated Field',
+    'update_field' => 'Update Field',
     'optional' => '(optional)',
     'configured' => 'Fields configured successfully',
     'no_longer_available' => 'Field no longer available',
@@ -32,11 +35,14 @@ return [
     'label' => 'Label',
     'is_readonly' => 'Read Only',
 
+    'keep_existing_value' => 'Keep existing value',
+    'replace_existing_value' => 'Replace existing value with..',
+
     'settings' => [
         'create' => 'Creation Fields',
         'create_info' => 'Fields that will be displayed when any user creates a record.',
 
-        'update' => 'Edit / Preview Fields',
+        'update' => 'Edit Fields',
         'update_info' => 'Fields that are available and will be displayed on record edit/preview view.',
 
         'detail' => 'Detail Fields',
@@ -48,10 +54,13 @@ return [
 
     'collapsed_by_default' => 'Collapsed by default?',
     'is_required' => 'Required?',
-    'required_will_propagate' => 'When enabled, propagates to ":view_name" view too.',
+    'option_enabled_will_propagate' => 'When enabled, propagates to ":view_name" view too.',
+    'option_disabled_will_propagate' => 'When disabled, propagates to ":view_name" view too.',
     'options' => 'Options',
-    'is_unique' => 'Do not allow duplicate values',
-    'is_unique_change_info' => 'The value of this option can be set only on field creation.',
+    'field_is_unique' => 'Unique',
+    'mark_as_unique' => 'Do not allow duplicate values',
+    'mark_as_unique_change_info' => 'The value of this option can be set only on field creation.',
+    'unmark_as_unique_change_info' => 'This action is irreversible, after the field is unmarked as unique, cannot be marked as unique again.',
 
     'validation' => [
         'exist' => 'It looks like field with this ID already exists for the resource.',
@@ -59,10 +68,14 @@ return [
         'field_type_invalid' => 'Field type is not supported',
         'field_id_invalid' => 'Only lowercase alpha characters (a-z) and underscore (_) are accepted.',
         'refuses_options' => 'This field does not support options.',
+        'option_coma' => 'Comas are not allowed in option names.',
     ],
 
     'custom' => [
         'create_option_icon' => 'Click the :icon icon to create new option.',
+        'or_add_options_via_text' => 'Or add options via text',
+        'convert_text_to_options' => 'Convert text to options',
+        'text_options_each_on_new_line' => 'Paste/enter each option on new line.',
         'field' => 'Custom Field',
         'create' => 'Create New Custom Field',
         'update' => 'Update Custom Field',

@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -10,6 +10,7 @@
  */
 import { unref, watch } from 'vue'
 import { useStore } from 'vuex'
+
 import { needsArray } from '../utils'
 
 export function useType(query, operator, isNullable) {
@@ -29,6 +30,7 @@ export function useType(query, operator, isNullable) {
 
   watch(operator, (newVal, oldVal) => {
     const nowNeedsArray = needsArray(newVal)
+
     // If now needs array and the current value is not array
     // set the current value to empty array
     if (nowNeedsArray && !Array.isArray(unref(query).value)) {

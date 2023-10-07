@@ -19,10 +19,10 @@
             <IButton
               variant="white"
               size="sm"
-              @click="run(tool)"
               :loading="toolBeingExecuted === tool"
               :disabled="toolBeingExecuted !== null"
               :text="$t('core::settings.tools.run')"
+              @click="run(tool)"
             />
           </div>
         </div>
@@ -30,6 +30,7 @@
     </ul>
   </ICard>
 </template>
+
 <script setup>
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'

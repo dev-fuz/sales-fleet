@@ -1,8 +1,8 @@
 <template>
-  <div class="mx-auto max-w-3xl" v-show="visible">
+  <div v-show="visible" class="mx-auto max-w-3xl">
     <h3
-      class="mb-3 text-lg font-medium text-neutral-800 dark:text-neutral-100"
       v-t="'documents::document.sections.signature'"
+      class="mb-3 text-base font-medium text-neutral-800 dark:text-neutral-100"
     />
 
     <RadioGroup v-model="form.requires_signature">
@@ -11,11 +11,11 @@
       </RadioGroupLabel>
       <div class="-space-y-px rounded-md bg-white">
         <RadioGroupOption
-          as="template"
           v-for="(setting, settingIdx) in signatureOptions"
           :key="setting.name"
-          :value="setting.value"
           v-slot="{ checked, active }"
+          as="template"
+          :value="setting.value"
         >
           <div
             :class="[
@@ -75,8 +75,8 @@
 
     <div v-show="form.requires_signature">
       <h3
-        class="mb-3 mt-6 text-lg font-medium text-neutral-800 dark:text-neutral-100"
         v-t="'documents::document.signers.document_signers'"
+        class="mb-3 mt-6 text-base font-medium text-neutral-800 dark:text-neutral-100"
       />
       <div class="table-responsive">
         <div
@@ -88,12 +88,12 @@
             <thead class="bg-neutral-50 dark:bg-neutral-800">
               <tr>
                 <th
-                  class="bg-neutral-50 p-2 text-left text-xs font-semibold uppercase tracking-wider text-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
                   v-t="'documents::document.signers.signer_name'"
+                  class="bg-neutral-50 p-2 text-left text-xs font-semibold uppercase tracking-wider text-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
                 />
                 <th
-                  class="bg-neutral-50 p-2 text-left text-xs font-semibold uppercase tracking-wider text-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
                   v-t="'documents::document.signers.signer_email'"
+                  class="bg-neutral-50 p-2 text-left text-xs font-semibold uppercase tracking-wider text-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
                 />
                 <th
                   class="bg-neutral-50 p-2 text-center text-xs font-semibold uppercase tracking-wider text-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
@@ -111,9 +111,9 @@
             >
               <tr v-if="form.signers.length === 0">
                 <td
+                  v-t="'documents::document.signers.no_signers'"
                   colspan="4"
                   class="bg-white p-3 align-middle text-sm font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
-                  v-t="'documents::document.signers.no_signers'"
                 />
               </tr>
 
@@ -158,11 +158,11 @@
                     <IFormInput
                       ref="signerNameInputRef"
                       v-model="signer.name"
-                      @input="form.errors.clear('signers.' + index + '.name')"
                       :placeholder="
                         $t('documents::document.signers.enter_full_name')
                       "
                       :disabled="document.status === 'accepted'"
+                      @input="form.errors.clear('signers.' + index + '.name')"
                     />
                     <IFormError
                       v-text="form.getError('signers.' + index + '.name')"
@@ -173,13 +173,13 @@
                   >
                     <IFormInput
                       v-model="signer.email"
-                      @input="form.errors.clear('signers.' + index + '.email')"
-                      @keyup.enter="insertEmptySigner"
                       :disabled="document.status === 'accepted'"
                       type="email"
                       :placeholder="
                         $t('documents::document.signers.enter_email')
                       "
+                      @input="form.errors.clear('signers.' + index + '.email')"
+                      @keyup.enter="insertEmptySigner"
                     />
 
                     <IFormError
@@ -220,23 +220,27 @@
         href="#"
         @click.prevent="insertEmptySigner"
       >
-        + {{ $t('documents::document.signers.add') }}
+        &plus; {{ $t('documents::document.signers.add') }}
       </a>
     </div>
   </div>
 </template>
+
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { computed, nextTick, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   RadioGroup,
   RadioGroupDescription,
   RadioGroupLabel,
   RadioGroupOption,
 } from '@headlessui/vue'
-import propsDefinition from './formSectionProps'
+
 import { isValueEmpty } from '@/utils'
-import { useI18n } from 'vue-i18n'
-import { useDates } from '~/Core/resources/js/composables/useDates'
+
+import { useDates } from '~/Core/composables/useDates'
+
+import propsDefinition from './formSectionProps'
 
 const props = defineProps(propsDefinition)
 

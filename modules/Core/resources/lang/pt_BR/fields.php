@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,8 +14,6 @@ return [
     'add' => 'Adicionar Novo',
     'fields' => 'Campos',
     'field' => 'Campo',
-    'more' => 'Mostrar Campos Recolhidos',
-    'less' => 'Menos Campos',
     'updated' => 'Campos Atualizados',
     'reseted' => 'Os campos foram redefinidos com sucesso',
     'updated_field' => 'Campo Atualizado',
@@ -34,7 +32,7 @@ return [
     'settings' => [
         'create' => 'Campos de Criação',
         'create_info' => 'Campos que serão exibidos quando algum usuário criar um registro.',
-        'update' => 'Campos de Edição / Visualização',
+        'update' => 'Campos de Edição',
         'update_info' => 'Campos que estão disponíveis e serão exibidos na visualização de edição/visualização do registro.',
         'detail' => 'Detalhar Campos',
         'detail_info' => 'Campos que estão disponíveis e serão exibidos no detalhe dos registros.',
@@ -43,10 +41,10 @@ return [
     ],
     'collapsed_by_default' => 'Recolhido por padrão?',
     'is_required' => 'Obrigatório?',
-    'required_will_propagate' => 'Quando ativado, propaga-se também para a visualização ":view_name".',
+    'option_enabled_will_propagate' => 'Quando ativado, propaga-se também para a visualização ":view_name".',
     'options' => 'Opções',
-    'is_unique' => 'Não permitir valores duplicados',
-    'is_unique_change_info' => 'O valor desta opção pode ser definido apenas na criação do campo.',
+    'mark_as_unique' => 'Não permitir valores duplicados',
+    'mark_as_unique_change_info' => 'O valor desta opção pode ser definido apenas na criação do campo.',
     'validation' => [
         'exist' => 'Parece que o campo com este ID já existe para o recurso.',
         'requires_options' => 'Adicione opções para este campo.',

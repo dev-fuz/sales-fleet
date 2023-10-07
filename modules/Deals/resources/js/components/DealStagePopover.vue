@@ -3,7 +3,7 @@
     <div v-if="authorizedToUpdate">
       <IPopover
         v-if="status !== 'lost'"
-        ref="popoverRef"
+        v-model:visible="popoverVisible"
         class="w-72"
         @show="handleStagePopoverShowEvent"
       >
@@ -17,40 +17,49 @@
         </button>
 
         <template #popper>
-          <div class="px-5 py-4">
+          <div class="p-4">
             <ICustomSelect
-              :options="pipelines"
               v-model="selectPipeline"
-              @option:selected="handlePipelineChangedEvent"
+              :options="pipelines"
               :clearable="false"
               class="mb-2"
               label="name"
+              @option:selected="handlePipelineChangedEvent"
+              @update:model-value="
+                form.errors.clear('pipeline_id'), form.errors.clear('stage_id')
+              "
             />
+
+            <IFormError v-text="form.getError('pipeline_id')" />
+
             <ICustomSelect
+              v-model="selectPipelineStage"
               :options="selectPipeline ? selectPipeline.stages : []"
               :clearable="false"
-              v-model="selectPipelineStage"
               label="name"
+              @update:model-value="form.errors.clear('stage_id')"
             />
-            <div
-              class="-mx-5 -mb-4 mt-4 flex justify-end space-x-1 bg-neutral-100 px-6 py-3 dark:bg-neutral-900"
-            >
-              <IButton
-                size="sm"
-                variant="white"
-                :disabled="requestInProgress"
-                :text="$t('core::app.cancel')"
-                @click="() => $refs.popoverRef.hide()"
-              />
-              <IButton
-                size="sm"
-                variant="primary"
-                :text="$t('core::app.save')"
-                :loading="requestInProgress"
-                :disabled="requestInProgress || !selectPipelineStage"
-                @click="saveStageChange"
-              />
-            </div>
+
+            <IFormError v-text="form.getError('stage_id')" />
+          </div>
+          <div
+            class="flex justify-end space-x-1 bg-neutral-100 px-6 py-3 dark:bg-neutral-900"
+          >
+            <IButton
+              size="sm"
+              variant="white"
+              :disabled="form.busy"
+              :text="$t('core::app.cancel')"
+              @click="popoverVisible = false"
+            />
+            <IButton
+              size="sm"
+              variant="primary"
+              :text="$t('core::app.save')"
+              :loading="form.busy"
+              :disabled="form.busy || !selectPipelineStage"
+              @click="saveStageChange"
+            />
           </div>
         </template>
       </IPopover>
@@ -72,54 +81,50 @@
     <slot></slot>
   </div>
 </template>
+
 <script setup>
-import { ref, shallowRef, computed } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
+
+import { useForm } from '~/Core/composables/useForm'
+import { useResourceable } from '~/Core/composables/useResourceable'
+
 import { usePipelines } from '../composables/usePipelines'
-import { useRecordStore } from '~/Core/resources/js/composables/useRecordStore'
+
+const emit = defineEmits(['updated'])
 
 const props = defineProps({
   dealId: { required: true, type: Number },
-  pipelineId: { required: true, type: Number },
+  pipeline: { required: true, type: Object }, // use directly from deal in case the pipeline is hidden from the current user
   stageId: { required: true, type: Number },
   status: { required: true, type: String },
   authorizedToUpdate: { required: true, type: Boolean },
-  isFloating: { type: Boolean, default: false },
 })
 
-const { ensureRecordIsUpdated } = useRecordStore()
+const { orderedPipelines: pipelines } = usePipelines()
+const { form } = useForm()
+const { updateResource } = useResourceable(Innoclapps.resourceName('deals'))
 
-const {
-  orderedPipelines: pipelines,
-  findPipelineById,
-  findPipelineStageById,
-} = usePipelines()
+const dealPipeline = computed(() => props.pipeline)
 
-const dealPipeline = computed(() => findPipelineById(props.pipelineId))
-
-const dealStage = computed(() =>
-  findPipelineStageById(props.pipelineId, props.stageId)
+const dealStage = computed(
+  () => props.pipeline.stages.filter(stage => stage.id == props.stageId)[0]
 )
 
-const popoverRef = ref(null)
+const popoverVisible = ref(false)
 const selectPipeline = shallowRef(null)
 const selectPipelineStage = shallowRef(null)
-const requestInProgress = ref(false)
 
-function saveStageChange() {
-  requestInProgress.value = true
-  Innoclapps.request()
-    .put(`/deals/${props.dealId}`, {
+async function saveStageChange() {
+  let updatedDeal = await updateResource(
+    form.fill({
       pipeline_id: selectPipeline.value.id,
       stage_id: selectPipelineStage.value.id,
-    })
-    .then(({ data }) => {
-      ensureRecordIsUpdated(data, 'deals', props.isFloating)
-      Innoclapps.$emit('deals-record-updated', data)
-    })
-    .finally(() => {
-      popoverRef.value.hide()
-      requestInProgress.value = false
-    })
+    }),
+    props.dealId
+  )
+
+  emit('updated', updatedDeal)
+  popoverVisible.value = false
 }
 
 function handleStagePopoverShowEvent() {
@@ -128,10 +133,10 @@ function handleStagePopoverShowEvent() {
 }
 
 function handlePipelineChangedEvent(value) {
-  if (value.id != props.pipelineId) {
+  if (value.id != props.pipeline.id) {
     // Use the first stage selected from the new pipeline
     selectPipelineStage.value = value.stages[0] || null
-  } else if (value.id === props.pipelineId) {
+  } else if (value.id === props.pipeline.id) {
     // revent back to the original stage after the user select new stage
     // and goes back to the original without saving
     selectPipelineStage.value = dealStage.value

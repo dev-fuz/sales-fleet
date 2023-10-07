@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -22,7 +22,7 @@ trait DisplaysOnIndex
     public array $tapIndexColumnCallbacks = [];
 
     /**
-     * @var callable
+     * @var null|callable
      */
     public $indexColumnCallback;
 
@@ -70,9 +70,9 @@ trait DisplaysOnIndex
             return null;
         }
 
-        $column->primary($this->isPrimary());
         $column->help($this->helpText);
         $column->hidden(! $this->showOnIndex);
+        $column->setField($this);
 
         foreach ($this->tapIndexColumnCallbacks as $callback) {
             tap($column, $callback);

@@ -9,15 +9,18 @@
     :action-request-params="actionRequestParams"
   />
 </template>
+
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
-import MessagesOutgoing from './InboxMessagesTableOutgoing.vue'
-import MessagesIncoming from './InboxMessagesTableIncoming.vue'
-import find from 'lodash/find'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useApp } from '~/Core/resources/js/composables/useApp'
-import { useTable } from '~/Core/resources/js/components/Table/useTable'
-import { useGlobalEventListener } from '~/Core/resources/js/composables/useGlobalEventListener'
+import find from 'lodash/find'
+
+import { useGlobalEventListener } from '~/Core/composables/useGlobalEventListener'
+import { usePageTitle } from '~/Core/composables/usePageTitle'
+import { useTable } from '~/Core/composables/useTable'
+
+import MessagesIncoming from './InboxMessagesTableIncoming.vue'
+import MessagesOutgoing from './InboxMessagesTableOutgoing.vue'
 
 const props = defineProps({
   account: { type: Object, required: true },
@@ -25,8 +28,8 @@ const props = defineProps({
 
 const route = useRoute()
 
-const { setPageTitle } = useApp()
 const { reloadTable } = useTable()
+const pageTitle = usePageTitle()
 
 const folderId = ref(null)
 const accountId = ref(null)
@@ -155,8 +158,9 @@ watch(
     }
 
     if (samePageNavigation) {
-      nextTick(() =>
-        setPageTitle(`${folder.value.display_name} - ${props.account.email}`)
+      nextTick(
+        () =>
+          (pageTitle.value = `${folder.value.display_name} - ${props.account.display_email}`)
       )
     }
 
@@ -168,7 +172,13 @@ watch(
       oldVal &&
       Number(newVal.account_id) !== Number(oldVal.account_id)
     ) {
-      nextTick(() => tableComponentRef.value.tableRef.refetchActions())
+      // Reset the table page, as the user may be at page 200 to different account
+      // and then change the account from the dropdown which does not have this 200 page.
+      tableComponentRef.value.tableRef.setPage(1)
+
+      nextTick(() => {
+        tableComponentRef.value.tableRef.refetchActions()
+      })
     }
   },
   { immediate: true }
@@ -178,6 +188,7 @@ useGlobalEventListener('user-synchronized-email-account', reload)
 useGlobalEventListener('email-accounts-sync-finished', reload)
 useGlobalEventListener('email-sent', reloadOutgoingFolderTable)
 </script>
+
 <style>
 .sync-stopped-by-system table .form-check {
   pointer-events: none;

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,13 +13,12 @@
 namespace Modules\Deals\Concerns;
 
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
-use Modules\Deals\Criteria\ViewAuthorizedDealsCriteria;
 
 /** @mixin \Modules\Core\Models\Model */
 trait HasDeals
 {
     /**
-     * Get all of the deals that are associated with the model
+     * Get all of the deals that are associated with the model.
      */
     public function deals(): MorphToMany
     {
@@ -27,42 +26,34 @@ trait HasDeals
     }
 
     /**
-     * Initiate query for only deals the user is authorized to see
+     * Get all of the open deals associated with the model.
      */
-    public function authorizedDeals(): MorphToMany
+    public function openDeals(): MorphToMany
     {
-        return $this->deals()->criteria(ViewAuthorizedDealsCriteria::class);
+        return $this->deals()->open();
     }
 
     /**
-     * Get all of the model open deals that the current logged-in user is authorized to see
+     * Get all of the won deals associated with the model.
      */
-    public function authorizedOpenDeals(): MorphToMany
+    public function wonDeals(): MorphToMany
     {
-        return $this->authorizedDeals()->open();
+        return $this->deals()->won();
     }
 
     /**
-     * Get all of the model won deals that the current logged-in user is authorized to see
+     * Get all of the lost deals associated with the model.
      */
-    public function authorizedWonDeals(): MorphToMany
+    public function lostDeals(): MorphToMany
     {
-        return $this->authorizedDeals()->won();
+        return $this->deals()->lost();
     }
 
     /**
-     * Get all of the model closed deals that the current logged-in user is authorized to see
+     * Get all of the closed deals associated with the model.
      */
-    public function authorizedClosedDeals(): MorphToMany
+    public function closedDeals(): MorphToMany
     {
-        return $this->authorizedDeals()->closed();
-    }
-
-    /**
-     * Get all of the model lost deals that the current logged-in user is authorized to see
-     */
-    public function authorizedLostDeals(): MorphToMany
-    {
-        return $this->authorizedDeals()->lost();
+        return $this->deals()->closed();
     }
 }

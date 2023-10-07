@@ -18,19 +18,24 @@
             icon="CloudArrowUp"
             class="h-7 w-7 text-neutral-600 dark:text-neutral-300 dark:group-hover:text-white"
           />
+          <!-- eslint-disable -->
           <p
             class="mt-1 max-w-sm text-sm text-neutral-700 dark:text-neutral-100 dark:group-hover:text-white"
             v-html="section.label"
           />
+          <!-- eslint-enable -->
         </div>
       </template>
     </MediaUpload>
     <IFormError v-text="form.getError(section.requestAttribute)" />
   </IFormGroup>
 </template>
+
 <script setup>
-import { ref, computed, watch } from 'vue'
-import MediaUpload from '~/Core/resources/js/components/Media/MediaUpload.vue'
+import { computed, ref, watch } from 'vue'
+
+import MediaUpload from '~/Core/components/Media/MediaUpload.vue'
+
 import propsDefinition from './props'
 
 const props = defineProps(propsDefinition)
@@ -45,6 +50,7 @@ const totalFiles = computed(() => files.value.length)
 
 watch(totalFiles, () => {
   const attribute = props.section.requestAttribute
+
   if (files.value.length === 0) {
     props.form.fill(attribute, props.section.multiple ? [] : null)
   } else {

@@ -3,13 +3,13 @@
     class="relative justify-between last:!mb-0 odd:my-4 odd:border-t odd:border-neutral-200 odd:pt-4 dark:odd:border-neutral-600 sm:flex sm:items-center"
   >
     <div
-      class="mb-1 flex w-full flex-col justify-start sm:mr-3 sm:mb-0 sm:w-auto sm:flex-row sm:items-center sm:space-x-3"
+      class="mb-1 flex w-full flex-col justify-start sm:mb-0 sm:mr-3 sm:w-auto sm:flex-row sm:items-center sm:space-x-3"
     >
       <div class="mb-1 flex items-center sm:mb-0">
         <div
           v-if="rule.helpText"
-          class="mr-1 -ml-1"
           v-i-tooltip.bottom.light="rule.helpText"
+          class="-ml-1 mr-1"
         >
           <Icon
             icon="QuestionMarkCircle"
@@ -17,18 +17,18 @@
           />
         </div>
         <label
-          class="whitespace-nowrap text-sm font-medium text-neutral-800 dark:text-neutral-200"
+          class="max-w-xs truncate whitespace-nowrap text-sm font-medium text-neutral-800 dark:text-neutral-200"
           v-text="rule.label"
         />
       </div>
 
       <ICustomSelect
         v-if="showOperands"
+        v-model="selectFieldOperand"
         class="mb-1 w-52 sm:mb-0"
         size="sm"
         :disabled="readOnly"
         :clearable="false"
-        v-model="selectFieldOperand"
         :option-label-provider="operand => operand[operand.labelKey]"
         :options="rule.operands"
         @option:selected="handleOperandSelected"
@@ -36,17 +36,17 @@
 
       <IFormSelect
         v-if="!rule.isStatic"
-        size="sm"
         v-show="!hasOnlyOneOperator"
+        size="sm"
         :value="query.operator"
+        :disabled="readOnly"
+        class="w-auto bg-none"
         @input="
           $store.commit('filters/UPDATE_QUERY_OPERATOR', {
             query: query,
             value: $event,
           })
         "
-        :disabled="readOnly"
-        class="w-auto bg-none"
       >
         <option
           v-for="operator in operators"
@@ -63,7 +63,7 @@
       </IFormSelect>
     </div>
 
-    <div class="grow" v-show="!isNullable">
+    <div v-show="!isNullable" class="grow">
       <component
         :is="rulesComponents[operand ? operand.rule.component : rule.component]"
         :query="query"
@@ -77,42 +77,43 @@
         :is-between="isBetween"
       />
     </div>
+
     <IButtonIcon
       v-if="!readOnly"
-      @click="requestRemove"
       icon="X"
       class="absolute right-0 top-1 sm:relative sm:right-auto sm:top-auto sm:ml-3"
       icon-class="h-4 w-4 sm:h-5 sm:w-5"
+      @click="requestRemove"
     />
   </div>
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-  name: 'rule',
-}
-</script>
-<script setup>
-import { ref, computed, onMounted } from 'vue'
-import find from 'lodash/find'
-import cloneDeep from 'lodash/cloneDeep'
 
-import NumericRule from './Rules/NumericRule.vue'
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { useStore } from 'vuex'
+import cloneDeep from 'lodash/cloneDeep'
+import find from 'lodash/find'
+
 import CheckboxRule from './Rules/CheckboxRule.vue'
 import DateRule from './Rules/DateRule.vue'
+import MultiSelectRule from './Rules/MultiSelectRule.vue'
+import NullableRule from './Rules/NullableRule.vue'
 import NumberRule from './Rules/NumberRule.vue'
+import NumericRule from './Rules/NumericRule.vue'
 import RadioRule from './Rules/RadioRule.vue'
 import SelectRule from './Rules/SelectRule.vue'
-import MultiSelectRule from './Rules/MultiSelectRule.vue'
-import TextRule from './Rules/TextRule.vue'
 import StaticRule from './Rules/StaticRule.vue'
-import NullableRule from './Rules/NullableRule.vue'
-import { isNullableOperator, isBetweenOperator } from './utils'
-import { useStore } from 'vuex'
+import TextRule from './Rules/TextRule.vue'
+import { isBetweenOperator, isNullableOperator } from './utils'
 
 const emit = defineEmits(['child-deletion-requested'])
 
 const props = defineProps(['query', 'index', 'rule', 'labels', 'readOnly'])
+
+defineOptions({
+  name: 'Rule',
+  inheritAttrs: false,
+})
 
 const rulesComponents = {
   'numeric-rule': NumericRule,
@@ -165,7 +166,7 @@ const hasOnlyOneOperator = computed(() => operators.value.length === 1)
 const showOperands = computed(() => {
   if (
     props.rule.isStatic ||
-    (props.rule.hasOwnProperty('hideOperands') && props.rule.hideOperands)
+    (Object.hasOwn(props.rule, 'hideOperands') && props.rule.hideOperands)
   ) {
     return false
   }

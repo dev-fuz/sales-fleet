@@ -2,21 +2,21 @@
   <div v-if="show">
     <div class="mb-4">
       <p
-        class="font-medium text-neutral-700 dark:text-white"
         v-t="'core::app.record_view.sections.edit_heading'"
+        class="font-medium text-neutral-700 dark:text-white"
       />
       <p
-        class="text-sm text-neutral-500 dark:text-neutral-300"
         v-t="'core::app.record_view.sections.edit_subheading'"
+        class="text-sm text-neutral-500 dark:text-neutral-300"
       />
     </div>
     <draggable
-      :modelValue="sections"
-      @update:modelValue="sections = $event"
+      :model-value="sections"
       item-key="id"
       class="space-y-3"
       handle=".section-reorder-handle"
       v-bind="draggableOptions"
+      @update:model-value="$emit('update:sections', $event)"
     >
       <template #item="{ element }">
         <div
@@ -24,9 +24,9 @@
         >
           <div class="grow">
             <IFormCheckbox
+              :id="'section-' + element.id"
               v-model:checked="checked[element.id]"
               :name="'section-' + element.id"
-              :id="'section-' + element.id"
             >
               {{ element.heading || element.id }}
             </IFormCheckbox>
@@ -50,10 +50,10 @@
       <IButton
         variant="primary"
         size="sm"
-        @click="save"
         :disabled="sectionsAreBeingSaved"
         :loading="sectionsAreBeingSaved"
         :text="$t('core::app.save')"
+        @click="save"
       />
     </div>
   </div>
@@ -61,15 +61,16 @@
 
 <script setup>
 import { ref } from 'vue'
-import map from 'lodash/map'
 import draggable from 'vuedraggable'
-import { useDraggable } from '~/Core/resources/js/composables/useDraggable'
+import map from 'lodash/map'
+
+import { useDraggable } from '~/Core/composables/useDraggable'
 
 const emit = defineEmits(['saved', 'update:show', 'update:sections'])
 
 const props = defineProps({
   sections: { type: Array, required: true },
-  show: { type: Boolean, default: false },
+  show: Boolean,
   identifier: { type: String, required: true },
 })
 

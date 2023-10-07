@@ -13,10 +13,12 @@
     </div>
   </ILayout>
 </template>
+
 <script setup>
 import { ref } from 'vue'
-import SettingsMenu from './SettingsMenu.vue'
 import { onBeforeRouteUpdate } from 'vue-router'
+
+import SettingsMenu from './SettingsMenu.vue'
 
 const settingsViewRef = ref(null)
 

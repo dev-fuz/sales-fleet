@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -20,9 +20,11 @@ const colorVariantWithOpacity = ({
   if (opacityValue !== undefined) {
     return `rgba(var(--color-${color}-${key}), ${opacityValue})`
   }
+
   if (opacityVariable !== undefined) {
     return `rgba(var(--color-${color}-${key}), var(${opacityVariable}, 1))`
   }
+
   return `rgb(var(--color-${color}-${key}))`
 }
 
@@ -47,5 +49,4 @@ const generateColorVariant = color => ({
   900: attributes => colorVariantCallback(attributes, color, 900),
 })
 
-exports.colorVariantWithOpacity = colorVariantWithOpacity
-exports.generateColorVariant = generateColorVariant
+export { colorVariantWithOpacity, generateColorVariant }

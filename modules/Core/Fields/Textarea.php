@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,13 +13,14 @@
 namespace Modules\Core\Fields;
 
 use Modules\Core\Contracts\Fields\Customfieldable;
+use Modules\Core\Table\Column;
 
 class Textarea extends Field implements Customfieldable
 {
     /**
-     * Field component
+     * Field component.
      */
-    public ?string $component = 'textarea-field';
+    public static $component = 'textarea-field';
 
     /**
      * Textarea rows attribute
@@ -29,6 +30,33 @@ class Textarea extends Field implements Customfieldable
         $this->withMeta(['attributes' => ['rows' => $rows]]);
 
         return $this;
+    }
+
+    /**
+     * Provide the column used for index
+     */
+    public function indexColumn(): Column
+    {
+        $column = parent::indexColumn();
+
+        $column->newlineable = true;
+
+        return $column;
+    }
+
+    /**
+     * Get the mailable template placeholder
+     *
+     * @param  \Modules\Core\Models\Model|null  $model
+     * @return \Modules\Core\Support\Placeholders\GenericPlaceholder
+     */
+    public function mailableTemplatePlaceholder($model)
+    {
+        $placeholder = parent::mailableTemplatePlaceholder($model);
+
+        $placeholder->newlineable = true;
+
+        return $placeholder;
     }
 
     /**

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,19 +14,19 @@ namespace Modules\Core\Table;
 
 class ActionColumn extends Column
 {
-    /**
-     * This column is not sortable
-     */
     public bool $sortable = false;
+
+    public bool $customizeable = false;
+
+    public string $attribute = 'actions';
+
+    public ?string $label = null;
 
     /**
      * Initialize new ActionColumn instance.
      */
-    public function __construct(?string $label = null)
+    public function __construct()
     {
-        // Set the attribute to null to prevent showing on re-order table options
-        parent::__construct(null, $label);
-
-        $this->width('150px');
+        $this->minWidth('50px')->width('50px');
     }
 }

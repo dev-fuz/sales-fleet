@@ -1,31 +1,31 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import i18n from '~/Core/resources/js/i18n'
+import i18n from '~/Core/i18n'
 
-import DocumentIndex from './views/DocumentIndex.vue'
-import CreateDocument from './views/CreateDocument.vue'
-import EditDocument from './views/EditDocument.vue'
-
-import CreateDocumentTemplate from './views/Templates/CreateDocumentTemplate.vue'
-import EditDocumentTemplate from './views/Templates/EditDocumentTemplate.vue'
-import DocumentTemplateIndex from './views/Templates/DocumentTemplateIndex.vue'
+import DocumentsCreate from './views/DocumentsCreate.vue'
+import DocumentsEdit from './views/DocumentsEdit.vue'
+import DocumentsIndex from './views/DocumentsIndex.vue'
+import DocumentsTemplatesCreate from './views/DocumentsTemplatesCreate.vue'
+import DocumentsTemplatesEdit from './views/DocumentsTemplatesEdit.vue'
+import DocumentsTemplatesIndex from './views/DocumentsTemplatesIndex.vue'
 
 export default [
   {
     path: '/documents',
     name: 'document-index',
-    component: DocumentIndex,
+    component: DocumentsIndex,
     meta: {
       title: i18n.t('documents::document.documents'),
     },
+    // eslint-disable-next-line no-unused-vars
     beforeEnter: (to, from) => {
       to.meta.initialize = to.name === 'document-index'
     },
@@ -34,7 +34,7 @@ export default [
         path: 'create',
         name: 'create-document',
         components: {
-          create: CreateDocument,
+          create: DocumentsCreate,
         },
         meta: { title: i18n.t('documents::document.create') },
       },
@@ -42,20 +42,14 @@ export default [
         path: ':id',
         name: 'view-document',
         components: {
-          edit: EditDocument,
-        },
-        props: {
-          resourceName: 'documents',
+          edit: DocumentsEdit,
         },
       },
       {
         path: ':id/edit',
         name: 'edit-document',
         components: {
-          edit: EditDocument,
-        },
-        props: {
-          resourceName: 'documents',
+          edit: DocumentsEdit,
         },
       },
     ],
@@ -63,7 +57,7 @@ export default [
   {
     path: '/document-templates',
     name: 'document-templates-index',
-    component: DocumentTemplateIndex,
+    component: DocumentsTemplatesIndex,
     meta: {
       title: i18n.t('documents::document.template.templates'),
     },
@@ -72,7 +66,7 @@ export default [
         path: 'create',
         name: 'create-document-template',
         components: {
-          create: CreateDocumentTemplate,
+          create: DocumentsTemplatesCreate,
         },
         meta: {
           title: i18n.t('documents::document.template.create'),
@@ -82,7 +76,7 @@ export default [
         path: ':id/edit',
         name: 'edit-document-template',
         components: {
-          edit: EditDocumentTemplate,
+          edit: DocumentsTemplatesEdit,
         },
       },
     ],

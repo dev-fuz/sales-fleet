@@ -1,21 +1,20 @@
 <template>
-  <form @submit.prevent="update" method="POST">
+  <form method="POST" @submit.prevent="update">
     <ICard :overlay="!componentReady">
-      <FieldsGenerator
-        :form-id="recordForm.formId"
-        view="update"
-        :via-resource="viaResource"
-        :via-resource-id="record.id"
+      <FormFields
         :fields="fields"
+        :form-id="form.formId"
+        :resource-id="activityId"
+        :resource-name="resourceName"
       />
       <template #footer>
         <div
           class="flex w-full flex-col sm:w-auto sm:flex-row sm:items-center sm:justify-end"
         >
           <IFormToggle
+            v-model="form.is_completed"
             class="mb-4 mr-4 pr-4 sm:mb-0 sm:border-r sm:border-neutral-200 sm:dark:border-neutral-700"
             :label="$t('activities::activity.mark_as_completed')"
-            v-model="recordForm.is_completed"
           />
           <IButton
             class="mb-2 ml-0 sm:mb-0 sm:mr-2"
@@ -27,94 +26,103 @@
           <IButton
             type="submit"
             variant="primary"
-            @click="update"
             size="sm"
-            :disabled="recordForm.busy"
+            :disabled="form.busy"
             :text="$t('core::app.save')"
+            @click="update"
           />
         </div>
       </template>
     </ICard>
   </form>
 </template>
+
 <script setup>
-import { onBeforeMount } from 'vue'
-import { useResourceUpdate } from '~/Core/resources/js/composables/useResourceUpdate'
-import { useRecordStore } from '~/Core/resources/js/composables/useRecordStore'
-import { useResourceFields } from '~/Core/resources/js/composables/useResourceFields'
+import { computed, inject, onBeforeMount } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import { useFieldsForm } from '~/Core/composables/useFieldsForm'
+import { useResourceable } from '~/Core/composables/useResourceable'
+import { useResourceFields } from '~/Core/composables/useResourceFields'
 
 const emit = defineEmits(['cancelled', 'updated'])
 
 const props = defineProps({
-  viaResource: { type: String, required: true },
   activityId: { type: Number, required: true },
+  relatedResource: { required: true, type: Object },
+  viaResource: { type: String, required: true },
+  viaResourceId: { type: [String, Number], required: true },
 })
 
-const resourceName = Innoclapps.config('resources.activities.name')
+const synchronizeResource = inject('synchronizeResource')
+const incrementResourceCount = inject('incrementResourceCount')
+const decrementResourceCount = inject('decrementResourceCount')
+
+const resourceName = Innoclapps.resourceName('activities')
 
 const { t } = useI18n()
 
-const { getUpdateFields } = useResourceFields()
+const { fields, getUpdateFields } = useResourceFields()
+const { form } = useFieldsForm(fields)
+const { updateResource, retrieveResource } = useResourceable(resourceName)
 
-const {
-  isReady: componentReady,
-  form: recordForm,
-  fields,
-  boot,
-  update,
-} = useResourceUpdate(resourceName)
+let isCompleted = false
 
-const {
-  record,
-  updateResourceRecordHasManyRelationship,
-  incrementResourceRecordCount,
-  decrementResourceRecordCount,
-} = useRecordStore()
+const componentReady = computed(() => fields.value.isNotEmpty())
 
-function handleActivityUpdated(activity) {
+const contactsForGuestsSelectField = computed(() =>
+  props.viaResource === 'contacts'
+    ? [props.relatedResource]
+    : props.relatedResource.contacts || []
+)
+
+function update() {
+  updateResource(
+    form.withQueryString({
+      via_resource: props.viaResource,
+      via_resource_id: props.viaResourceId,
+    }),
+    props.activityId
+  ).then(handleActivityUpdated)
+}
+
+function handleActivityUpdated(updatedActivity) {
   // For the mark as completed toggle
-  if (activity.is_completed !== record.value.is_completed) {
-    if (activity.is_completed) {
-      decrementResourceRecordCount('incomplete_activities_for_user_count')
+  if (updatedActivity.is_completed !== isCompleted) {
+    if (updatedActivity.is_completed) {
+      decrementResourceCount('incomplete_activities_for_user_count')
     } else {
-      incrementResourceRecordCount('incomplete_activities_for_user_count')
+      incrementResourceCount('incomplete_activities_for_user_count')
     }
+
+    isCompleted = updatedActivity.is_completed
   }
 
-  updateResourceRecordHasManyRelationship(activity, 'activities')
+  synchronizeResource({ activities: updatedActivity })
 
-  emit('updated', activity)
+  emit('updated', updatedActivity)
+
+  Innoclapps.success(t('core::resource.updated'))
 }
 
 onBeforeMount(async () => {
-  const { data: activity } = await Innoclapps.request().get(
-    `/activities/${props.activityId}`
-  )
+  const activity = await retrieveResource(props.activityId)
 
-  boot(activity, {
-    onBeforeUpdate: form =>
-      form.withQueryString({
-        via_resource: props.viaResource,
-        via_resource_id: record.value.id,
-      }),
-    fields: () =>
-      getUpdateFields(resourceName, props.activityId, {
+  isCompleted = activity.is_completed
+
+  fields.value
+    .set(
+      await getUpdateFields(resourceName, props.activityId, {
         viaResource: props.viaResource,
-        viaResourceId: record.value.id,
-      }),
-    onAfterUpdate: record => {
-      handleActivityUpdated(record)
-      Innoclapps.success(t('core::resource.updated'))
-    },
-    onReady: record => {
-      // For checkbox mark as completed
-      recordForm.set('is_completed', record.is_completed)
-
-      fields.value.update('guests', {
-        activity: record,
+        viaResourceId: props.viaResourceId,
       })
-    },
-  })
+    )
+    .update('guests', {
+      contacts: contactsForGuestsSelectField,
+    })
+    .populate(activity)
+
+  // For checkbox mark as completed
+  form.set('is_completed', activity.is_completed)
 })
 </script>

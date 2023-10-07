@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,7 +14,7 @@ namespace Modules\Core\Tests\Unit\Models;
 
 use Illuminate\Support\Facades\Crypt;
 use Modules\Core\Models\OAuthAccount;
-use Modules\Core\OAuth\AccessTokenProvider;
+use Modules\Core\Support\OAuth\AccessTokenProvider;
 use Tests\TestCase;
 
 class OAuthAccountTest extends TestCase

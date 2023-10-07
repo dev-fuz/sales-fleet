@@ -13,12 +13,12 @@ return [
     |
     */
 
-    'reset'     => 'Sua senha foi redefinida!',
-    'sent'      => 'Enviamos um link para redefinir sua senha por e-mail!',
+    'reset' => 'Sua senha foi redefinida!',
+    'sent' => 'Enviamos um link para redefinir sua senha por e-mail!',
     'throttled' => 'Por favor, aguarde antes de tentar novamente.',
-    'token'     => 'Este token de redefinição de senha é inválido.',
-    'user'      => "Não conseguimos encontrar um usuário com esse endereço de e-mail.",
+    'token' => 'Este token de redefinição de senha é inválido.',
+    'user' => 'Não conseguimos encontrar um usuário com esse endereço de e-mail.',
 
-    'reset_password'           => 'Redefinir Senha',
+    'reset_password' => 'Redefinir Senha',
     'send_password_reset_link' => 'Enviar Link de Redefinição de Senha',
 ];

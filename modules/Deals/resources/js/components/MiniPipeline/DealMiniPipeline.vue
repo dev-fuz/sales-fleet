@@ -20,11 +20,13 @@
     </ol>
   </nav>
 </template>
+
 <script setup>
 import { computed } from 'vue'
+
 import PipelineStage from './DealMiniPipelineStage.vue'
 
-const emit = defineEmits(['stage-updated'])
+defineEmits(['stage-updated'])
 
 const props = defineProps({
   stages: { type: Array, required: true },

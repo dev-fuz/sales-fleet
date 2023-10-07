@@ -1,32 +1,33 @@
 <template>
-  <div class="flex flex-wrap">
-    <div v-for="icon in icons" :key="icon[valueField]">
-      <IButton
-        :disabled="disabled"
-        :class="[
-          'mr-1.5 mb-1',
-          {
-            'bg-neutral-300 dark:bg-neutral-600 sm:bg-neutral-200':
-              selected === icon[valueField],
-          },
-        ]"
-        :size="size"
-        @click="pickIcon(icon[valueField])"
-        :icon="icon.icon"
-        variant="white"
-        v-i-tooltip="icon.tooltip"
-      />
-    </div>
+  <div class="flex flex-wrap space-x-1.5">
+    <button
+      v-for="icon in icons"
+      :key="icon[valueField]"
+      v-i-tooltip="icon.tooltip"
+      type="button"
+      :disabled="disabled"
+      :class="[
+        'flex h-9 w-10 items-center justify-center rounded-md border border-neutral-300 p-1 text-neutral-800 dark:border-neutral-500  dark:text-neutral-200',
+        selected === icon[valueField]
+          ? 'bg-neutral-200 hover:bg-neutral-200 dark:bg-neutral-800'
+          : 'bg-white hover:bg-neutral-50 dark:bg-neutral-700 dark:hover:bg-neutral-600',
+      ]"
+      @click="pickIcon(icon[valueField])"
+    >
+      <Icon :icon="icon.icon" class="h-5 w-5" />
+    </button>
   </div>
 </template>
+
 <script setup>
 import { ref, watch } from 'vue'
+
 const emit = defineEmits(['update:modelValue', 'change'])
+
 const props = defineProps({
   modelValue: [String, Number],
   label: String,
   disabled: Boolean,
-  size: { type: String, default: 'md' },
   valueField: { default: 'icon' },
   icons: {
     type: Array,

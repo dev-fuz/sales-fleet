@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -29,7 +29,9 @@ class ToScriptProvider
 
         return [
             'user_id' => Auth::id(),
-            'users' => UserResource::collection(User::withCommon()->get()),
+            'users' => UserResource::collection(
+                User::withCommon()->get()
+            ),
             'invitation' => [
                 'expires_after' => config('users.invitation.expires_after'),
             ],

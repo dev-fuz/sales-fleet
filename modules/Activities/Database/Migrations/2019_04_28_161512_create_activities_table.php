@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -23,7 +23,7 @@ return new class extends Migration
     {
         Schema::create('activities', function (Blueprint $table) {
             $table->id();
-            $table->string('title');
+            $table->string('title')->index();
 
             $table->text('description')->nullable();
             $table->text('note')->nullable();
@@ -47,6 +47,8 @@ return new class extends Migration
             $table->dateTime('completed_at')->index()->nullable();
 
             $table->foreignId('created_by')->constrained('users');
+
+            $table->index(['due_date', 'due_time']);
 
             $table->softDeletes();
             $table->timestamps();

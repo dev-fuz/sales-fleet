@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -25,8 +25,7 @@ class SourceFilter extends Select
     {
         parent::__construct('source_id', __('contacts::fields.companies.source.name'));
 
-        $this->withNullOperators()
-            ->valueKey('id')
+        $this->valueKey('id')
             ->labelKey('name')
             ->options(Innoclapps::resourceByModel(SoruceModel::class));
     }

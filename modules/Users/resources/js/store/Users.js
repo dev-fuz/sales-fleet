@@ -1,18 +1,20 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import PersistentResourceCrud from '@/store/actions/PersistentResourceCrud'
-import PersistentResourceMutations from '@/store/mutations/PersistentResourceMutations'
-import PersistentResourceGetters from '@/store/getters/PersistentResourceGetters'
 import findIndex from 'lodash/findIndex'
-import i18n from '~/Core/resources/js/i18n'
+
+import PersistentResourceCrud from '@/store/actions/PersistentResourceCrud'
+import PersistentResourceGetters from '@/store/getters/PersistentResourceGetters'
+import PersistentResourceMutations from '@/store/mutations/PersistentResourceMutations'
+
+import i18n from '~/Core/i18n'
 
 function currentUserIndex(state) {
   return findIndex(state.collection, [
@@ -123,6 +125,7 @@ const mutations = {
    */
   UPDATE_DASHBOARD(state, dashboard) {
     const index = currentUserIndex(state)
+
     const dashboardIndex = findIndex(state.collection[index].dashboards, [
       'id',
       Number(dashboard.id),
@@ -149,6 +152,7 @@ const mutations = {
    */
   REMOVE_DASHBOARD(state, id) {
     const index = currentUserIndex(state)
+
     const dashboardIndex = findIndex(state.collection[index].dashboards, [
       'id',
       Number(id),
@@ -209,7 +213,7 @@ const getters = {
    *
    * @return {String}
    */
-  localizeNotification: state => notification => {
+  localizeNotification: () => notification => {
     if (notification.data.lang) {
       return i18n.t(notification.data.lang.key, notification.data.lang.attrs)
     }

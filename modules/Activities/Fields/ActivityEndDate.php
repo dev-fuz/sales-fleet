@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,29 +12,26 @@
 
 namespace Modules\Activities\Fields;
 
-use Modules\Core\Date\Carbon;
-use Modules\Core\Fields\Field;
+use Closure;
+use Modules\Core\Support\Date\Carbon;
+use Modules\Core\Http\Requests\ResourceRequest;
 
 class ActivityEndDate extends ActivityDueDate
 {
     /**
      * The model attribute that holds the time
-     *
-     * @var string
      */
-    protected $dateField = 'end_date';
+    protected string $dateField = 'end_date';
 
     /**
      * The model attribute that holds the date
-     *
-     * @var string
      */
-    protected $timeField = 'end_time';
+    protected string $timeField = 'end_time';
 
     /**
-     * Field component
+     * Field component.
      */
-    public ?string $component = 'activity-end-date-field';
+    public static $component = 'activity-end-date-field';
 
     /**
      * Initialize new ActivityEndDate instance
@@ -45,12 +42,12 @@ class ActivityEndDate extends ActivityDueDate
     {
         parent::__construct($label);
 
-        $this->rules(function ($attribute, $value, $fail) {
+        $this->rules(function (string $attribute, mixed $value, Closure $fail, ResourceRequest $request) {
             if (empty($value)) {
                 return;
             }
 
-            [$attributesDueDate, $attributesEndDate] = $this->attributesForValidation();
+            [$attributesDueDate, $attributesEndDate] = $this->attributesForValidation($request);
 
             $dueCarbon = $this->carbonInstanceFromStorageAttribute($attributesDueDate);
             $endCarbon = $this->carbonInstanceFromStorageAttribute($attributesEndDate);
@@ -88,12 +85,11 @@ class ActivityEndDate extends ActivityDueDate
     }
 
     /**
-     * Create Carbon instance from the given storage attributes
+     * Create Carbon instance from the given storage attributes.
      *
-     * @param  array  $attributes
      * @return \Illuminate\Support\Carbon
      */
-    protected function carbonInstanceFromStorageAttribute($attributes)
+    protected function carbonInstanceFromStorageAttribute(array $attributes)
     {
         [$date, $time] = array_values($attributes);
 
@@ -101,26 +97,24 @@ class ActivityEndDate extends ActivityDueDate
     }
 
     /**
-     * Create attributes that will be used to validate the field value
-     *
-     * @return array
+     * Create attributes that will be used to validate the field value.
      */
-    protected function attributesForValidation()
+    protected function attributesForValidation(ResourceRequest $request): array
     {
-        return with($this->resolveRequest(), function ($request) {
-            // We will create attributes from the helper method because the time
-            // may be provided within the same attribute e.q. end_date => '2021-04-05 22:00:00'
-            return [
-                $this->createSeparateDateAndTimeAttributes(
-                    $request->due_date.($request->due_time ? ' '.$request->due_time : ''),
-                    'due_date',
-                    'due_time'
-                ),
+        // We will create attributes from the helper method because the time
+        // may be provided within the same attribute e.q. end_date => '2021-04-05 22:00:00'
+        return [
+            $this->createSeparateDateAndTimeAttributes(
+                $request->due_date.($request->due_time ? ' '.$request->due_time : ''),
+                $request,
+                'due_date',
+                'due_time'
+            ),
 
-                $this->createSeparateDateAndTimeAttributes(
-                    $request->end_date.($request->end_time ? ' '.$request->end_time : '')
-                ),
-            ];
-        });
+            $this->createSeparateDateAndTimeAttributes(
+                $request->end_date.($request->end_time ? ' '.$request->end_time : ''),
+                $request
+            ),
+        ];
     }
 }

@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,10 +12,9 @@ export default {
   fr: 'fr_FR',
   he: 'he_IL',
   hu: 'hu_HU',
-  it: 'it_IT',
   nb: 'nb_NO',
   pt: 'pt_PT',
   sv: 'sv_SE',
   zh: 'zh_CN',
-  es: 'es_419',
+  bg: 'bg_BG',
 }

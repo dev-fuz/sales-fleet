@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,29 +12,24 @@
 
 namespace Modules\Activities\Http\Resources;
 
-use App\Http\Resources\ProvidesCommonData;
 use Illuminate\Http\Request;
 use Modules\Comments\Http\Resources\CommentResource;
 use Modules\Core\Http\Resources\MediaResource;
-use Modules\Core\Resource\Http\JsonResource;
+use Modules\Core\Resource\JsonResource;
 use Modules\Users\Http\Resources\UserResource;
 
 /** @mixin \Modules\Activities\Models\Activity */
 class ActivityResource extends JsonResource
 {
-    use ProvidesCommonData;
-
     /**
      * Transform the resource collection into an array.
      *
-     * @param  \Modules\Core\Resource\Http\ResourceRequest  $request
+     * @param  \Modules\Core\Http\Requests\ResourceRequest  $request
      */
     public function toArray(Request $request): array
     {
         return $this->withCommonData([
-            'is_reminded' => $this->isReminded,
-            'is_completed' => $this->isCompleted,
-            'completed_at' => $this->completed_at,
+            'is_reminded' => $this->is_reminded,
             'is_due' => $this->is_due,
             'created_by' => $this->created_by,
             'creator' => new UserResource($this->whenLoaded('creator')),

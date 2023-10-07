@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -24,6 +24,45 @@ class BillableControllerTest extends TestCase
         $this->getJson('FAKE_RESOURCE_NAME/FAKE_RESOURCE_ID/billable')->assertUnauthorized();
     }
 
+    public function test_billable_can_be_retrieved()
+    {
+        $this->signIn();
+
+        $billable = Billable::factory()
+            ->taxExclusive()
+            ->withBillableable(Deal::factory())
+            ->has(BillableProduct::factory($this->sampleProduct()), 'products')
+            ->create();
+
+        $this->getJson("/api/deals/{$billable->billableable->getKey()}/billable")
+            ->assertOk()
+            ->assertJson(['tax_type' => 'exclusive'])
+            ->assertJsonPath('products.0.name', 'Product Name')
+            ->assertJsonPath('products.0.description', 'Product Description')
+            ->assertJsonPath('products.0.unit_price', 1000)
+            ->assertJsonPath('products.0.qty', '2.00')
+            ->assertJsonPath('products.0.tax_label', 'TAX')
+            ->assertJsonPath('products.0.tax_rate', 10)
+            ->assertJsonPath('products.0.unit', 'kg')
+            ->assertJsonPath('products.0.display_order', 1)
+            ->assertJsonPath('products.0.discount_total', '10.00')
+            ->assertJsonPath('products.0.discount_type', 'percent');
+    }
+
+    public function test_unauthorized_user_cannot_retrieve_billable()
+    {
+        $this->asRegularUser()->signIn();
+
+        $billable = Billable::factory()
+            ->taxExclusive()
+            ->withBillableable(Deal::factory())
+            ->has(BillableProduct::factory($this->sampleProduct()), 'products')
+            ->create();
+
+        $this->getJson("/api/deals/{$billable->billableable->getKey()}/billable")
+            ->assertForbidden();
+    }
+
     public function test_billable_can_be_created()
     {
         $this->signIn();
@@ -39,12 +78,12 @@ class BillableControllerTest extends TestCase
             ->assertJsonPath('products.0.name', 'Product Name')
             ->assertJsonPath('products.0.description', 'Product Description')
             ->assertJsonPath('products.0.unit_price', 1000)
-            ->assertJsonPath('products.0.qty', 2)
+            ->assertJsonPath('products.0.qty', '2.00')
             ->assertJsonPath('products.0.tax_label', 'TAX')
             ->assertJsonPath('products.0.tax_rate', 10)
             ->assertJsonPath('products.0.unit', 'kg')
             ->assertJsonPath('products.0.display_order', 1)
-            ->assertJsonPath('products.0.discount_total', 10)
+            ->assertJsonPath('products.0.discount_total', '10.00')
             ->assertJsonPath('products.0.discount_type', 'percent');
 
         $this->assertDatabaseHas('billables', [
@@ -53,13 +92,33 @@ class BillableControllerTest extends TestCase
         ]);
     }
 
-    public function test_billable_product_can_be_updated()
+    public function test_billable_can_be_updated()
     {
         $this->signIn();
 
-        $billable = Deal::factory()->create();
+        $billable = Billable::factory()
+            ->taxExclusive()
+            ->withBillableable(Deal::factory())
+            ->has(BillableProduct::factory(), 'products')
+            ->create();
 
-        $billable = Billable::factory()->withBillableable()
+        $this->postJson("/api/deals/{$billable->billableable->getKey()}/billable", [
+            'tax_type' => 'inclusive',
+            'products' => [
+                array_merge($billable->products[0]->toArray(), [
+                    'name' => 'Changed Product Name',
+                ]),
+            ],
+        ])
+            ->assertJsonPath('tax_type', 'inclusive')
+            ->assertJsonPath('products.0.name', 'Changed Product Name');
+    }
+
+    public function test_unauthorized_user_cannot_update_billable()
+    {
+        $this->asRegularUser()->signIn();
+
+        $billable = Billable::factory()
             ->taxExclusive()
             ->withBillableable(Deal::factory())
             ->has(BillableProduct::factory(), 'products')
@@ -71,7 +130,9 @@ class BillableControllerTest extends TestCase
                     'name' => 'Changed Product Name',
                 ]),
             ],
-        ])->assertJsonPath('products.0.name', 'Changed Product Name');
+        ])->assertForbidden();
+
+        $this->assertDatabaseMissing('billable_products', ['name' => 'Changed Product Name']);
     }
 
     protected function sampleProduct($attributes = [])

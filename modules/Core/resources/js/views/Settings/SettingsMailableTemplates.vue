@@ -7,27 +7,39 @@
       <template #actions>
         <div class="flex flex-col items-center sm:flex-row">
           <div class="flex items-center sm:mr-3">
-            <span class="mr-2 text-sm text-neutral-700 dark:text-neutral-300">
-              {{ $t('core::app.locale') }}:
-            </span>
-            <FormDropdownSelect
-              :items="locales"
+            <span
+              v-t="'core::app.locale'"
+              class="mr-2 text-sm font-medium text-neutral-700 dark:text-neutral-300"
+            />
+            <DropdownSelectInput
               v-model="locale"
+              :items="locales"
               placement="bottom-end"
               @change="fetch"
-            />
+            >
+              <template #default="{ toggle }">
+                <button
+                  type="button"
+                  class="inline-flex w-full justify-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-neutral-100"
+                  @click="toggle"
+                >
+                  {{ locale }}
+                </button>
+              </template>
+            </DropdownSelectInput>
           </div>
           <div class="flex items-center">
-            <span class="mr-2 text-sm text-neutral-700 dark:text-neutral-300">
-              {{ $t('core::mail_template.template') }}:
-            </span>
-            <FormDropdownSelect
-              :items="templates"
+            <span
+              v-t="'core::mail_template.template'"
+              class="mr-2 text-sm font-medium text-neutral-700 dark:text-neutral-300"
+            />
+            <DropdownSelectInput
               v-model="template"
-              @change="setActive"
+              :items="templates"
               placement="bottom-end"
               value-key="id"
               label-key="name"
+              @change="setActive"
             >
               <template #header>
                 <div
@@ -35,23 +47,23 @@
                 >
                   <div class="px-4 py-3">
                     <p
-                      class="text-sm font-medium text-neutral-900 dark:text-white"
                       v-t="'core::mail_template.choose_to_edit'"
+                      class="text-sm font-medium text-neutral-900 dark:text-white"
                     />
                   </div>
                 </div>
               </template>
-              <template v-slot="{ toggle }">
+              <template #default="{ toggle }">
                 <button
                   type="button"
+                  class="inline-flex w-full justify-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-neutral-100"
                   @click="toggle"
-                  class="inline-flex w-full justify-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-neutral-100 hover:bg-neutral-50"
                 >
                   <Icon icon="Mail" class="mr-2 h-5 w-5" />
                   {{ template.name }}
                 </button>
               </template>
-            </FormDropdownSelect>
+            </DropdownSelectInput>
           </div>
         </div>
       </template>
@@ -61,13 +73,14 @@
         label-for="subject"
         required
       >
-        <IFormInput v-model="form.subject" id="subject" name="subject" />
+        <IFormInput id="subject" v-model="form.subject" name="subject" />
         <IFormError v-text="form.getError('subject')" />
       </IFormGroup>
+
       <IFormGroup>
         <div class="mb-2 flex items-center">
           <!--
-              <FormDropdownSelect :items="['HTML', 'Text']"
+              <DropdownSelectInput :items="['HTML', 'Text']"
               v-model="templateType" />
             -->
           <IFormLabel :label="$t('core::mail_template.message')" required />
@@ -105,15 +118,17 @@
     </ICard>
   </form>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
-import findIndex from 'lodash/findIndex'
-import find from 'lodash/find'
-import MailPlaceholders from '~/Core/resources/js/components/MailPlaceholders.vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useForm } from '~/Core/resources/js/composables/useForm'
-import { useLoader } from '~/Core/resources/js/composables/useLoader'
-import { useApp } from '~/Core/resources/js/composables/useApp'
+import find from 'lodash/find'
+import findIndex from 'lodash/findIndex'
+
+import MailPlaceholders from '~/Core/components/MailPlaceholders.vue'
+import { useApp } from '~/Core/composables/useApp'
+import { useForm } from '~/Core/composables/useForm'
+import { useLoader } from '~/Core/composables/useLoader'
 
 const { t } = useI18n()
 const { setLoading, isLoading } = useLoader()
@@ -189,6 +204,7 @@ function setActive(mailableTemplate) {
  *
  * @return {String}
  */
+// eslint-disable-next-line no-unused-vars
 function placeholderURLConverter(url, node, on_save, name) {
   if (url.indexOf('%7B%7B%20') > -1 && url.indexOf('%20%7D%7D') > -1) {
     url = url.replace('%7B%7B%20', '{').replace('%20%7D%7D', '}')

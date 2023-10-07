@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -17,10 +17,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Str;
+use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Fields\CustomFieldFactory;
 use Modules\Core\Fields\Field;
+use Modules\Core\Resource\Resource;
 
-class CustomField extends Model
+class CustomField extends CacheModel
 {
     /**
      * @var \Modules\Core\Fields\Field
@@ -50,7 +52,7 @@ class CustomField extends Model
      */
     public function options(): HasMany
     {
-        return $this->hasMany(CustomFieldOption::class)->orderBy('display_order');
+        return $this->hasMany(CustomFieldOption::class);
     }
 
     /**
@@ -61,7 +63,9 @@ class CustomField extends Model
      */
     public function relationName(): Attribute
     {
-        return Attribute::get(fn () => 'customField'.Str::studly($this->field_id));
+        return Attribute::get(
+            fn () => 'customField'.Str::studly($this->field_id)
+        );
     }
 
     /**
@@ -77,19 +81,19 @@ class CustomField extends Model
     }
 
     /**
+     * Get the field resource instance.
+     */
+    public function resource(): Resource
+    {
+        return Innoclapps::resourceByName($this->resource_name);
+    }
+
+    /**
      * Check whether the custom field is multi optionable
      */
     public function isMultiOptionable(): bool
     {
         return $this->instance()->isMultiOptionable();
-    }
-
-    /**
-     * Check whether the custom field is not multi optionable
-     */
-    public function isNotMultiOptionable(): bool
-    {
-        return ! $this->isMultiOptionable();
     }
 
     /**
@@ -101,11 +105,11 @@ class CustomField extends Model
     }
 
     /**
-     * Check whether the custom field is not optionable
+     * Get the database index name when the field is unique.
      */
-    public function isNotOptionable(): bool
+    public function uniqueIndexName(): string
     {
-        return ! $this->isOptionable();
+        return $this->field_id.'_unique_index';
     }
 
     /**
@@ -149,14 +153,14 @@ class CustomField extends Model
     /**
      * Prepare the options for front-end
      */
-    public function prepareOptions(?Collection $options = null): array
+    public function prepareOptions(Collection $options = null): array
     {
-        return ($options ?? $this->options)->map(function ($option) {
-            return [
+        return ($options ?? $this->options)->map(
+            fn (CustomFieldOption $option) => [
                 'id' => $option->id,
-                'label' => $option->name,
+                'name' => $option->name,
                 'swatch_color' => $option->swatch_color,
-            ];
-        })->all();
+            ]
+        )->all();
     }
 }

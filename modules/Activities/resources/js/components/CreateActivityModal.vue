@@ -1,36 +1,36 @@
 <template>
   <ISlideover
-    @hidden="handleModalHiddenEvent"
-    @shown="handleModalShownEvent"
+    id="createActivityModal"
     :visible="visible"
-    @update:visible="$emit('update:visible', $event)"
     :title="title || $t('activities::activity.create')"
     :ok-title="$t('core::app.create')"
     :ok-disabled="form.busy"
     :cancel-title="$t('core::app.cancel')"
     :initial-focus="modalCloseElement"
-    id="createActivityModal"
     static-backdrop
     form
+    @hidden="handleModalHiddenEvent"
+    @shown="handleModalShownEvent"
+    @update:visible="$emit('update:visible', $event)"
     @submit="create"
   >
     <FieldsPlaceholder v-if="fields.isEmpty()" />
 
-    <FieldsGenerator
-      focus-first
-      :form-id="form.formId"
-      view="create"
-      :is-floating="true"
+    <FormFields
       :fields="fields"
+      :form-id="form.formId"
+      :resource-name="resourceName"
+      is-floating
+      focus-first
     >
       <template #after-deals-field>
         <span class="-mt-2 block text-right">
           <a
             href="#"
-            @click.prevent="dealBeingCreated = true"
             class="link text-sm"
+            @click.prevent="dealBeingCreated = true"
           >
-            + {{ $t('deals::deal.create') }}
+            &plus; {{ $t('deals::deal.create') }}
           </a>
         </span>
       </template>
@@ -39,10 +39,10 @@
         <span class="-mt-2 block text-right">
           <a
             href="#"
-            @click.prevent="companyBeingCreated = true"
             class="link text-sm"
+            @click.prevent="companyBeingCreated = true"
           >
-            + {{ $t('contacts::company.create') }}
+            &plus; {{ $t('contacts::company.create') }}
           </a>
         </span>
       </template>
@@ -51,16 +51,16 @@
         <span class="-mt-2 block text-right">
           <a
             href="#"
-            @click.prevent="contactBeingCreated = true"
             class="link text-sm"
+            @click.prevent="contactBeingCreated = true"
           >
-            + {{ $t('contacts::contact.create') }}
+            &plus; {{ $t('contacts::contact.create') }}
           </a>
         </span>
       </template>
-    </FieldsGenerator>
+    </FormFields>
 
-    <template #modal-ok v-if="withExtendedSubmitButtons">
+    <template v-if="withExtendedSubmitButtons" #modal-ok>
       <IDropdownButtonGroup
         type="submit"
         placement="top-end"
@@ -69,13 +69,13 @@
         :text="$t('core::app.create')"
       >
         <IDropdownItem
-          @click="createAndAddAnother"
           :text="$t('core::app.create_and_add_another')"
+          @click="createAndAddAnother"
         />
         <IDropdownItem
           v-if="goToList"
-          @click="createAndGoToList"
           :text="$t('core::app.create_and_go_to_list')"
+          @click="createAndGoToList"
         />
       </IDropdownButtonGroup>
     </template>
@@ -116,14 +116,16 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { whenever } from '@vueuse/core'
 import { computedWithControl } from '@vueuse/shared'
-import { useResourceFields } from '~/Core/resources/js/composables/useResourceFields'
-import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { useFieldsForm } from '~/Core/resources/js/components/Fields/useFieldsForm'
 import cloneDeep from 'lodash/cloneDeep'
 import map from 'lodash/map'
+
+import { useFieldsForm } from '~/Core/composables/useFieldsForm'
+import { useResourceable } from '~/Core/composables/useResourceable'
+import { useResourceFields } from '~/Core/composables/useResourceFields'
 
 const emit = defineEmits([
   'created',
@@ -135,11 +137,9 @@ const emit = defineEmits([
 const props = defineProps({
   visible: { type: Boolean, default: true },
   goToList: { type: Boolean, default: true },
-  redirectToView: { type: Boolean, default: false },
-  withExtendedSubmitButtons: { type: Boolean, default: false },
+  redirectToView: Boolean,
+  withExtendedSubmitButtons: Boolean,
   title: String,
-
-  title: {},
   note: {},
   description: {},
   activityTypeId: {},
@@ -151,12 +151,14 @@ const props = defineProps({
   reminderMinutesBefore: {},
 })
 
+const resourceName = Innoclapps.resourceName('activities')
+
 const { t } = useI18n()
 const router = useRouter()
 
 const { fields, getCreateFields } = useResourceFields()
-
 const { form } = useFieldsForm(fields)
+const { createResource } = useResourceable(resourceName)
 
 const dealBeingCreated = ref(false)
 const contactBeingCreated = ref(false)
@@ -173,23 +175,23 @@ const modalCloseElement = computedWithControl(
 whenever(() => props.visible, prepareComponent, { immediate: true })
 
 function create() {
-  request().then(createdHandler)
+  makeCreateRequest().then(onAfterCreate)
 }
 
 function createAndAddAnother() {
-  request('create-another').then(data => {
+  makeCreateRequest('create-another').then(data => {
     form.reset()
-    createdHandler(data)
+    onAfterCreate(data)
   })
 }
 
 function createAndGoToList() {
-  request('go-to-list').then(createdHandler)
+  makeCreateRequest('go-to-list').then(onAfterCreate)
 }
 
-async function request(actionType = null) {
+async function makeCreateRequest(actionType = null) {
   try {
-    let activity = await form.hydrate().post('/activities')
+    let activity = await createResource(form)
 
     let payload = {
       activity: activity,
@@ -223,7 +225,7 @@ function handleModalHiddenEvent() {
   fields.value.set([])
 }
 
-function createdHandler(data) {
+function onAfterCreate(data) {
   data.indexRoute = { name: 'activity-index' }
 
   if (data.action === 'go-to-list') {
@@ -247,12 +249,8 @@ function createdHandler(data) {
 }
 
 async function prepareComponent() {
-  const createFields = await getCreateFields(
-    Innoclapps.config('fields.groups.activities')
-  )
-
   fields.value.set(
-    map(cloneDeep(createFields), field => {
+    map(cloneDeep(await getCreateFields(resourceName)), field => {
       if (
         [
           'contacts',

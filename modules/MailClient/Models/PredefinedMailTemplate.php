@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -51,11 +51,19 @@ class PredefinedMailTemplate extends Model
     /**
      * Scope a query to only include templates visible for the user.
      */
-    public function scopeVisibleToUser(Builder $query, ?int $userId = null): void
+    public function scopeVisibleToUser(Builder $query, int $userId = null): void
     {
         $query->where(function ($query) use ($userId) {
             $query->where('user_id', $userId ?: Auth::id())->orWhere('is_shared', true);
         });
+    }
+
+    /**
+     * Scope a query to only include shared templates.
+     */
+    public function scopeShared(Builder $query): void
+    {
+        $query->where('is_shared', true);
     }
 
     /**

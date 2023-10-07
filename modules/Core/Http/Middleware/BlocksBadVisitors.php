@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -91,7 +91,7 @@ class BlocksBadVisitors
     protected function getList(string $type): array
     {
         return Cache::remember('bv-'.$type, now()->addDay(1), function () use ($type) {
-            $response = Http::get($this->getListUrl($type));
+            $response = Http::withoutVerifying()->get($this->getListUrl($type));
 
             if ($response->successful()) {
                 return explode("\n", trim($response->body()));

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,8 +14,8 @@ namespace Modules\Users\Mail;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Modules\Core\MailableTemplate\DefaultMailable;
-use Modules\Core\Placeholders\Collection as BasePlaceholders;
-use Modules\Core\Placeholders\GenericPlaceholder;
+use Modules\Core\Support\Placeholders\GenericPlaceholder;
+use Modules\Core\Support\Placeholders\Placeholders as BasePlaceholders;
 use Modules\MailClient\Mail\MailableTemplate;
 use Modules\Users\Models\UserInvitation;
 

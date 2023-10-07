@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -69,7 +69,7 @@ class FontsExtractor
      * If we don't do this and for example, user add Bold Italic with font Poppins and Polish characters
      * the "Bold 700 Italic" font won't be loaded and the special characters won't be displayed properly on PDF
      */
-    public function extract(string $html, ?string $provider = null): Collection
+    public function extract(string $html, string $provider = null): Collection
     {
         if ($html === '') {
             return collect();
@@ -90,7 +90,11 @@ class FontsExtractor
                     'name' => $font ? trim(explode(',', $family)[0]) : null,
                 ]);
             })
-            ->push(...$this->extra)
+            ->when(
+                array_is_list($this->extra),
+                fn ($collection) => $collection->merge($this->extra),
+                fn ($collection) => $collection->push($this->extra)
+            )
             ->reject(fn ($font) => empty($font['name']))
             ->unique('name')
             ->when(
@@ -102,7 +106,7 @@ class FontsExtractor
     /**
      * Get the fonts from config prepared
      */
-    protected function getFontsFromConfig(): Collection
+    public function getFontsFromConfig(): Collection
     {
         return collect(config('contentbuilder.fonts'))->mapWithKeys(function ($font) {
             $family = $this->cleanUpFontName($font['font-family']);
@@ -115,7 +119,7 @@ class FontsExtractor
      * Clean up the given font family name
      * If the font contains quotes e.q. 'Exo 2', serif
      */
-    protected function cleanUpFontName(string $name): string
+    public function cleanUpFontName(string $name): string
     {
         return str_replace(['"', '\''], '', html_entity_decode($name));
     }

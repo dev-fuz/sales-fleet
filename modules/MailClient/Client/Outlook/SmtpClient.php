@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -17,10 +17,10 @@ use Microsoft\Graph\Model\BodyType;
 use Microsoft\Graph\Model\OpenTypeExtension;
 use Modules\Core\Facades\MsGraph as Api;
 use Modules\Core\Mail\EmbeddedImagesProcessor;
-use Modules\Core\Microsoft\Services\Batch\BatchDeleteRequest;
-use Modules\Core\Microsoft\Services\Batch\BatchPostRequest;
-use Modules\Core\Microsoft\Services\Batch\BatchRequests;
-use Modules\Core\OAuth\AccessTokenProvider;
+use Modules\Core\Support\Microsoft\Services\Batch\BatchDeleteRequest;
+use Modules\Core\Support\Microsoft\Services\Batch\BatchPostRequest;
+use Modules\Core\Support\Microsoft\Services\Batch\BatchRequests;
+use Modules\Core\Support\OAuth\AccessTokenProvider;
 use Modules\MailClient\Client\AbstractSmtpClient;
 use Modules\MailClient\Client\Contracts\SupportSaveToSentFolderParameter;
 use Modules\MailClient\Client\FolderIdentifier;
@@ -96,7 +96,7 @@ class SmtpClient extends AbstractSmtpClient implements SupportSaveToSentFolderPa
      * @param  string  $remoteId
      * @return null|\Modules\MailClient\Client\Contracts\MessageInterface
      */
-    public function reply($remoteId, ?FolderIdentifier $folder = null)
+    public function reply($remoteId, FolderIdentifier $folder = null)
     {
         $message = $this->imap->getMessage($remoteId);
         $payload = $this->prepareNewMessage($message);
@@ -128,7 +128,7 @@ class SmtpClient extends AbstractSmtpClient implements SupportSaveToSentFolderPa
      * @param  string  $remoteId
      * @return null|\Modules\MailClient\Client\Contracts\MessageInterface
      */
-    public function forward($remoteId, ?FolderIdentifier $folder = null)
+    public function forward($remoteId, FolderIdentifier $folder = null)
     {
         $message = $this->imap->getMessage($remoteId);
         $payload = $this->prepareNewMessage($message);
@@ -434,7 +434,7 @@ class SmtpClient extends AbstractSmtpClient implements SupportSaveToSentFolderPa
             return false;
         }
 
-        $values = collect($this->headers)->mapWithKeys(function ($header) {
+        $values = collect($this->headers)->mapWithKeys(function (array $header) {
             return [$header['name'] => $header['value']];
         })->all();
 

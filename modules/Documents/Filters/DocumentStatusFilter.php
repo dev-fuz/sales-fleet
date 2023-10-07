@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,7 @@
 namespace Modules\Documents\Filters;
 
 use Modules\Core\Filters\MultiSelect;
-use Modules\Core\QueryBuilder\Parser;
+use Modules\Core\Filters\QueryBuilder\Parser;
 use Modules\Documents\Enums\DocumentStatus;
 
 class DocumentStatusFilter extends MultiSelect
@@ -26,7 +26,7 @@ class DocumentStatusFilter extends MultiSelect
         parent::__construct('status', __('documents::document.status.status'));
 
         $this->options(collect(DocumentStatus::cases())
-            ->mapWithKeys(function ($status) {
+            ->mapWithKeys(function (DocumentStatus $status) {
                 return [$status->value => $status->displayName()];
             })->all())->query(function ($builder, $value, $condition, $sqlOperator, $rule, Parser $parser) {
                 return $parser->makeArrayQueryIn(

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -45,11 +45,7 @@ class PersonalAccessTokenController extends ApiController
      */
     public function destroy(string $id, Request $request): JsonResponse
     {
-        $token = $request->user()->tokens()->find($id);
-
-        abort_if(is_null($token), 404);
-
-        $token->delete();
+        $request->user()->tokens()->findOrFail($id)->delete();
 
         return $this->response('', 204);
     }

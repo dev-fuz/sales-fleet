@@ -1,58 +1,63 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import { ref, unref, computed } from 'vue'
-import Fields from '~/Core/resources/js/components/Fields/Fields'
+import { ref, unref } from 'vue'
 import { useStore } from 'vuex'
+
+import Fields from '~/Core/fields/Fields'
 
 export function useResourceFields(list = []) {
   const store = useStore()
 
   const fields = ref(new Fields(list))
 
-  const hasCollapsibleFields = computed(
-    () => fields.value.all().filter(field => field.collapsed).length > 0
-  )
-
-  function getCreateFields(group, params = {}) {
+  function getCreateFields(resourceName, params = {}) {
     return store.dispatch('fields/getForResource', {
-      resourceName: unref(group),
+      resourceName: unref(resourceName),
       view: Innoclapps.config('fields.views.create'),
       ...params,
     })
   }
 
-  function getDetailFields(group, id, params = {}) {
+  function getDetailFields(resourceName, id, params = {}) {
     return store.dispatch('fields/getForResource', {
-      resourceName: unref(group),
+      resourceName: unref(resourceName),
       resourceId: id,
       view: Innoclapps.config('fields.views.detail'),
       ...params,
     })
   }
 
-  function getUpdateFields(group, id, params = {}) {
+  function getUpdateFields(resourceName, id, params = {}) {
     return store.dispatch('fields/getForResource', {
-      resourceName: unref(group),
+      resourceName: unref(resourceName),
       resourceId: id,
       view: Innoclapps.config('fields.views.update'),
       ...params,
     })
   }
 
+  function getIndexFields(resourceName, params = {}) {
+    return store.dispatch('fields/getForResource', {
+      resourceName: unref(resourceName),
+      view: Innoclapps.config('fields.views.index'),
+      ...params,
+    })
+  }
+
   return {
     fields,
-    hasCollapsibleFields,
 
     getCreateFields,
     getUpdateFields,
     getDetailFields,
+    getIndexFields,
   }
 }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,21 +12,32 @@
 
 namespace Modules\Users\Resource;
 
-use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Modules\Core\Contracts\Resources\Resourceful;
+use Modules\Core\Contracts\Resources\HasOperations;
 use Modules\Core\Contracts\Resources\Tableable;
-use Modules\Core\Facades\Innoclapps;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Fields\BelongsToMany;
+use Modules\Core\Fields\Boolean;
+use Modules\Core\Fields\DateTime;
+use Modules\Core\Fields\FieldsCollection;
+use Modules\Core\Fields\ID;
+use Modules\Core\Fields\Text;
+use Modules\Core\Fields\Timezone;
+use Modules\Core\Http\Requests\ResourceRequest;
+use Modules\Core\Models\Model;
+use Modules\Core\Resource\Events\ResourceRecordCreated;
+use Modules\Core\Resource\Events\ResourceRecordDeleted;
+use Modules\Core\Resource\Events\ResourceRecordUpdated;
 use Modules\Core\Resource\Resource;
 use Modules\Core\Rules\UniqueResourceRule;
+use Modules\Core\Rules\ValidLocaleRule;
 use Modules\Core\Rules\ValidTimezoneCheckRule;
 use Modules\Core\Settings\SettingsMenuItem;
+use Modules\Core\Table\Column;
 use Modules\Core\Table\Table;
 use Modules\Users\Http\Resources\UserResource;
 use Modules\Users\Services\UserService;
 
-class User extends Resource implements Resourceful, Tableable
+class User extends Resource implements HasOperations, Tableable
 {
     /**
      * The column the records should be default ordered by when retrieving
@@ -39,21 +50,96 @@ class User extends Resource implements Resourceful, Tableable
     public static string $model = 'Modules\Users\Models\User';
 
     /**
-     * Get the resource service for CRUD operations.
-     */
-    public function service(): UserService
-    {
-        return new UserService();
-    }
-
-    /**
      * Provide the resource table class
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $query
      */
-    public function table($query, Request $request): Table
+    public function table($query, ResourceRequest $request): Table
     {
-        return new UserTable($query, $request);
+        $table = new Table($query, $request);
+
+        return $table->select(['avatar', 'super_admin'])
+            ->appends(['avatar_url'])
+            ->with(['teams', 'managedTeams'])
+            ->customizeable()
+            ->orderBy(static::$orderBy, static::$orderByDir);
+    }
+
+    /**
+     * Get the fields for index.
+     */
+    public function fieldsForIndex(): FieldsCollection
+    {
+        return (new FieldsCollection([
+            Text::make('name', __('users::user.name'))
+                ->tapIndexColumn(fn (Column $column) => $column
+                    ->width('300px')
+                    ->minWidth('300px')
+                    ->route(['name' => 'edit-user', 'params' => ['id' => '{id}']])
+                    ->primary()),
+
+            ID::make(),
+
+            Text::make('email', __('users::user.email'))->tapIndexColumn(
+                fn (Column $column) => $column->link('mailto:{email}')
+            ),
+
+            BelongsToMany::make('roles', __('core::role.roles'))
+                ->labelKey('name')
+                ->displayAsPills()
+                ->hidden(),
+
+            BelongsToMany::make('teams', __('users::team.teams'))
+                ->labelKey('name')
+                ->displayAsPills()
+                ->hidden(),
+
+            Timezone::make('timezone', __('core::app.timezone'))->hidden(),
+
+            Boolean::make('super_admin', __('users::user.super_admin')),
+
+            Boolean::make('access_api', __('core::api.access'))->hidden(),
+
+            DateTime::make('created_at', __('core::app.created_at'))->hidden(),
+
+            DateTime::make('updated_at', __('core::app.updated_at'))->hidden(),
+        ]))->disableInlineEdit();
+    }
+
+    /**
+     * Create resource record.
+     */
+    public function create(Model $model, ResourceRequest $request): Model
+    {
+        $user = (new UserService)->create($model, $request->all());
+
+        ResourceRecordCreated::dispatch($user, $this);
+
+        return $user;
+    }
+
+    /**
+     * Update resource record.
+     */
+    public function update(Model $model, ResourceRequest $request): Model
+    {
+        $user = (new UserService)->update($model, $request->all());
+
+        ResourceRecordUpdated::dispatch($user, $this);
+
+        return $user;
+    }
+
+    /**
+     * Delete resource record.
+     */
+    public function delete(Model $model, $transferDataTo = null): mixed
+    {
+        $response = (new UserService)->delete($model, $transferDataTo);
+
+        ResourceRecordDeleted::dispatch($model, $this);
+
+        return $response;
     }
 
     /**
@@ -80,7 +166,7 @@ class User extends Resource implements Resourceful, Tableable
                 'max:191',
                 UniqueResourceRule::make(static::$model),
             ],
-            'locale' => ['nullable', Rule::in(Innoclapps::locales())],
+            'locale' => ['nullable', new ValidLocaleRule],
             'timezone' => ['required', 'string', new ValidTimezoneCheckRule],
             'time_format' => ['required', 'string', Rule::in(config('core.time_formats'))],
             'date_format' => ['required', 'string', Rule::in(config('core.date_formats'))],

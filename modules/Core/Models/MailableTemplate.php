@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,11 +14,11 @@ namespace Modules\Core\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Modules\Core\Facades\MailableTemplates;
-use Modules\Core\Media\HasAttributesWithPendingMedia;
-use Modules\Core\Placeholders\Collection as BasePlaceholders;
-use Modules\Core\Resource\Placeholders as ResourcePlaceholders;
+use Modules\Core\Resource\ResourcePlaceholders;
+use Modules\Core\Support\Media\HasAttributesWithPendingMedia;
+use Modules\Core\Support\Placeholders\Placeholders as BasePlaceholders;
 
-class MailableTemplate extends Model
+class MailableTemplate extends CacheModel
 {
     use HasAttributesWithPendingMedia;
 
@@ -132,12 +132,16 @@ class MailableTemplate extends Model
     /**
      * Scope a query to only include templates of a given locale.
      */
-    public function scopeForLocale(Builder $query, string $locale): void
+    public function scopeForLocale(Builder $query, string $locale, string $mailable = null): void
     {
         // @todo
         MailableTemplates::seedIfRequired();
 
         $query->where('locale', $locale);
+
+        if ($mailable) {
+            $query->forMailable($mailable);
+        }
     }
 
     /**

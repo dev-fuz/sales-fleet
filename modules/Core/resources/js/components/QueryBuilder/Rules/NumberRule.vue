@@ -5,16 +5,16 @@
     type="number"
     :placeholder="placeholder"
     :disabled="readOnly"
-    :modelValue="query.value"
+    :model-value="query.value"
     @input="updateValue($event)"
   />
-  <div class="flex items-center space-x-2" v-else>
+  <div v-else class="flex items-center space-x-2">
     <IFormInput
       type="number"
       size="sm"
       :placeholder="placeholder"
       :disabled="readOnly"
-      :modelValue="query.value[0]"
+      :model-value="query.value[0]"
       @input="updateValue([$event, query.value[1]])"
     />
     <Icon icon="ArrowRight" class="h-4 w-4 shrink-0 text-neutral-600" />
@@ -23,23 +23,24 @@
       size="sm"
       :placeholder="placeholder"
       :disabled="readOnly"
-      :modelValue="query.value[1]"
+      :model-value="query.value[1]"
       @input="updateValue([query.value[0], $event])"
     />
   </div>
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
-import { toRef, computed } from 'vue'
-import { useType } from './useType'
-import propsDefinition from './props'
+import { computed, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import propsDefinition from './props'
+import { useType } from './useType'
+
 const props = defineProps(propsDefinition)
+
+defineOptions({
+  inheritAttrs: false,
+})
 
 const { t } = useI18n()
 

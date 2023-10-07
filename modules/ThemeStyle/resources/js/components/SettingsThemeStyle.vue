@@ -23,53 +23,55 @@
           <div class="flex items-center justify-center space-x-3">
             <a
               v-if="!isEqual(defaultColors[color], colors[color])"
+              v-t="'core::app.reset'"
               href="#"
               :class="[
                 'link mr-3 text-sm',
                 { 'pointer-events-none': resetting },
               ]"
               @click.prevent="reset(color)"
-              v-t="'core::app.reset'"
             />
 
             <div class="relative">
               <label
+                v-t="'themestyle::style.lightness_maximum'"
                 for="lMax"
                 class="absolute -top-2.5 left-2 inline-block bg-white px-1 text-xs font-medium text-neutral-900 dark:bg-neutral-900 dark:text-neutral-300"
-                v-t="'themestyle::style.lightness_maximum'"
               />
               <input
-                type="number"
                 id="lMax"
                 v-model="options.lMax"
-                @input="generatePalette(color)"
+                type="number"
                 class="block w-full rounded-md border-0 py-1 text-neutral-900 shadow-sm ring-1 ring-inset ring-neutral-300 placeholder:text-neutral-400 focus:ring-2 focus:ring-inset focus:ring-primary-600 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700 dark:focus:ring-primary-500 sm:text-sm/6"
+                @input="generatePalette(color)"
               />
             </div>
+
             <div class="relative">
               <label
+                v-t="'themestyle::style.lightness_minimum'"
                 for="lMin"
                 class="absolute -top-2.5 left-2 inline-block bg-white px-1 text-xs font-medium text-neutral-900 dark:bg-neutral-900 dark:text-neutral-300"
-                v-t="'themestyle::style.lightness_minimum'"
               />
               <input
-                type="number"
                 id="lMin"
                 v-model="options.lMin"
-                @input="generatePalette(color)"
+                type="number"
                 class="block w-full rounded-md border-0 py-1 text-neutral-900 shadow-sm ring-1 ring-inset ring-neutral-300 placeholder:text-neutral-400 focus:ring-2 focus:ring-inset focus:ring-primary-600 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700 dark:focus:ring-primary-500 sm:text-sm/6"
+                @input="generatePalette(color)"
               />
             </div>
-            <FormDropdownSelect
-              :items="shades"
+
+            <DropdownSelectInput
               v-model="options.valueStop"
+              :items="shades"
               @change="generatePalette(color)"
             />
 
             <IFormInput
               class="mr-1 h-8 w-8 p-0"
               type="color"
-              :modelValue="options.hex"
+              :model-value="options.hex"
               @input="generatePalette(color, $event)"
             />
           </div>
@@ -93,9 +95,9 @@
             </div>
 
             <Swatch
+              v-model:hex="swatch.hex"
               :swatch="swatch"
               :color="color"
-              v-model:hex="swatch.hex"
               @update:hex="updateUI()"
             />
           </div>
@@ -111,25 +113,30 @@
     </ICard>
   </form>
 </template>
+
 <script setup>
 import { ref } from 'vue'
-import { useSettings } from '~/Core/resources/js/views/Settings/useSettings'
+import { whenever } from '@vueuse/core'
+import hexRgb from 'hex-rgb'
+import cloneDeep from 'lodash/cloneDeep'
 import debounce from 'lodash/debounce'
 import each from 'lodash/each'
-import cloneDeep from 'lodash/cloneDeep'
 import isEqual from 'lodash/isEqual'
-import { createSwatches } from '../createSwatches'
-import Swatch from './SettingsThemeStyleSwatch.vue'
-import hexRgb from 'hex-rgb'
-import { rgbToHex } from '../helpers'
-import { whenever } from '@vueuse/core'
-import defaultVarsString from '../../../../../resources/css/variables.css?inline'
+
 import { getContrast } from '@/utils'
+
+import { useSettings } from '~/Core/composables/useSettings'
+
+import defaultVarsString from '../../../../../resources/css/variables.css?inline'
 import {
   DEFAULT_PALETTE_CONFIG,
   DEFAULT_STOP,
   SHADES as shades,
 } from '../constants'
+import { createSwatches } from '../createSwatches'
+import { rgbToHex } from '../helpers'
+
+import Swatch from './SettingsThemeStyleSwatch.vue'
 
 const colorTypes = []
 const defaultVars = {}
@@ -276,11 +283,11 @@ function parseDefaultVars() {
       colorTypes.push(m[1])
     }
 
-    if (!defaultVars.hasOwnProperty(colorType)) {
+    if (!Object.hasOwn(defaultVars, colorType)) {
       defaultVars[colorType] = {}
     }
 
-    if (!defaultVars[colorType].hasOwnProperty(shade)) {
+    if (!Object.hasOwn(defaultVars[colorType], shade)) {
       defaultVars[colorType][shade] = []
     }
 

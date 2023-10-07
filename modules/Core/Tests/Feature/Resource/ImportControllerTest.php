@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,6 +16,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Modules\Core\Database\Seeders\CountriesSeeder;
 use Modules\Core\Models\Import;
+use Modules\Users\Models\User;
 use Tests\TestCase;
 
 class ImportControllerTest extends TestCase
@@ -222,6 +223,25 @@ class ImportControllerTest extends TestCase
         ])->assertJsonValidationErrorFor('mappings.0.detected_attribute');
     }
 
+    public function test_it_fails_when_import_rows_exceedes_configured_max_rows()
+    {
+        config(['core.import.max_rows' => $maxRows = 20]);
+
+        $this->signIn();
+
+        Storage::fake('local');
+
+        $this->postJson('/api/contacts/import/upload', [
+            'file' => $this->createFakeImportFile($maxRows + 1),
+        ]);
+
+        $import = Import::first();
+
+        $this->postJson("/api/contacts/import/{$import->id}", [
+            'mappings' => $import->data['mappings'],
+        ])->assertJson(['rows_exceeded' => true]);
+    }
+
     public function test_user_can_upload_only_csv_file()
     {
         $this->signIn();
@@ -238,6 +258,16 @@ class ImportControllerTest extends TestCase
         $import = $this->createFakeImport();
 
         $this->deleteJson("/api/contacts/import/{$import->id}")->assertNoContent();
+    }
+
+    public function test_unauthorized_user_cant_delete_import()
+    {
+        $this->asRegularUser()->signIn();
+        $user = User::factory()->create();
+
+        $import = $this->createFakeImport(['user_id' => $user->id]);
+
+        $this->deleteJson("/api/contacts/import/{$import->id}")->assertForbidden();
     }
 
     public function test_user_can_download_import_sample()
@@ -264,12 +294,24 @@ class ImportControllerTest extends TestCase
         ], $attributes)))->save();
     }
 
-    protected function createFakeImportFile()
+    protected function createFakeImportFile($totalRows = 2)
     {
         $header = 'First Name,E-Mail Address,NonExistent Field';
-        $row1 = 'John,john@example.com';
-        $row2 = 'Jane,jane@example.com';
-        $content = implode("\n", [$header, $row1, $row2]);
+        $rows = [];
+
+        for ($i = 0; $i < $totalRows; $i++) {
+            $default = 'John,john@example.com';
+
+            if ($i === 0) {
+                $rows[] = $default;
+            } elseif ($i === 1) {
+                $rows[] = 'Jane,jane@example.com';
+            } else {
+                $rows[] = $default;
+            }
+        }
+
+        $content = implode("\n", [$header, ...$rows]);
 
         return UploadedFile::fake()->createWithContent(
             'test.csv',

@@ -1,25 +1,23 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import i18n from '~/Core/resources/js/i18n'
-
-import CreateUser from './views/CreateUser.vue'
-import EditUser from './views/EditUser.vue'
-import InviteUser from './views/InviteUser.vue'
-import ManageTeams from './views/ManageTeams.vue'
-
-import RoleIndex from '~/Core/resources/js/views/Roles/RoleIndex.vue'
-import CreateRole from '~/Core/resources/js/views/Roles/CreateRole.vue'
-import EditRole from '~/Core/resources/js/views/Roles/EditRole.vue'
+import i18n from '~/Core/i18n'
+import RolesCreate from '~/Core/views/Roles/RolesCreate.vue'
+import RolesEdit from '~/Core/views/Roles/RolesEdit.vue'
+import RolesIndex from '~/Core/views/Roles/RolesIndex.vue'
 
 import SettingsManageUsers from './components/SettingsManageUsers.vue'
+import UsersCreate from './views/UsersCreate.vue'
+import UsersEdit from './views/UsersEdit.vue'
+import UsersInvite from './views/UsersInvite.vue'
+import UsersManageTeams from './views/UsersManageTeams.vue'
 
 export default [
   {
@@ -32,7 +30,7 @@ export default [
         path: 'create',
         name: 'create-user',
         components: {
-          createEdit: CreateUser,
+          createEdit: UsersCreate,
         },
         meta: { title: i18n.t('users::user.create') },
       },
@@ -40,7 +38,7 @@ export default [
         path: ':id/edit',
         name: 'edit-user',
         components: {
-          createEdit: EditUser,
+          createEdit: UsersEdit,
         },
         meta: { title: i18n.t('users::user.edit') },
       },
@@ -48,7 +46,7 @@ export default [
         path: 'invite',
         name: 'invite-user',
         components: {
-          invite: InviteUser,
+          invite: UsersInvite,
         },
         meta: { title: i18n.t('users::user.invite') },
       },
@@ -56,7 +54,7 @@ export default [
         path: 'roles',
         name: 'role-index',
         components: {
-          roles: RoleIndex,
+          roles: RolesIndex,
         },
         meta: {
           title: i18n.t('core::role.roles'),
@@ -65,13 +63,13 @@ export default [
           {
             path: 'create',
             name: 'create-role',
-            component: CreateRole,
+            component: RolesCreate,
             meta: { title: i18n.t('core::role.create') },
           },
           {
             path: ':id/edit',
             name: 'edit-role',
-            component: EditRole,
+            component: RolesEdit,
             meta: { title: i18n.t('core::role.edit') },
           },
         ],
@@ -80,7 +78,7 @@ export default [
         path: 'teams',
         name: 'manage-teams',
         components: {
-          teams: ManageTeams,
+          teams: UsersManageTeams,
         },
         meta: {
           title: i18n.t('users::team.teams'),

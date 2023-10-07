@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -45,11 +45,10 @@ class HeadingsMapper implements ToCollection, WithHeadingRow, WithLimit
         // to work with and from the headings will detect the appropriate fields
         return $this->collection->first()
             ->keys()
-            ->reject(fn ($heading) => is_numeric($heading))
+            ->reject(fn ($heading) => is_numeric($heading) || $heading === SkipFileGenerator::SKIP_REASON_HEADING)
             ->values()
-            ->map(function ($originalHeadingKey, $index) {
-                return $this->mapHeading($originalHeadingKey, $index);
-            })->all();
+            ->map(fn ($originalHeadingKey, $index) => $this->mapHeading($originalHeadingKey, $index))
+            ->all();
     }
 
     /**
@@ -75,13 +74,10 @@ class HeadingsMapper implements ToCollection, WithHeadingRow, WithLimit
      */
     public function previewRecords(string $heading): Collection
     {
-        return $this->collection->filter(function ($row) use ($heading) {
-            return ! empty($row[$heading]);
-        })
+        return $this->collection
+            ->reject(fn ($row) => empty($row[$heading]))
             ->take(3)
-            ->map(function ($row) use ($heading) {
-                return $row[$heading];
-            });
+            ->map(fn ($row) => $row[$heading]);
     }
 
     /**
@@ -97,7 +93,7 @@ class HeadingsMapper implements ToCollection, WithHeadingRow, WithLimit
                 // Same index order, slightly changes in heading
                 $fIndex === $index && Str::contains($heading, $field->label) ||
                 // E.q. recognize "Field Label (UTC)" heading to "Field Label" or "field_attribute"
-                $field instanceof Dateable && Str::endsWith($heading, '(UTC)') && Str::contains($heading, [$field->label, $field->attribute])
+                $field instanceof Dateable && Str::endsWith($heading, '('.config('app.timezone').')') && Str::contains($heading, [$field->label, $field->attribute])
             );
         });
 

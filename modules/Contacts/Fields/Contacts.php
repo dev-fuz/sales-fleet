@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,13 +12,30 @@
 
 namespace Modules\Contacts\Fields;
 
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Modules\Contacts\Http\Resources\ContactResource;
+use Modules\Contacts\Models\Contact as ContactModel;
 use Modules\Contacts\Resource\Contact\Contact;
 use Modules\Core\Facades\Innoclapps;
+use Modules\Core\Fields\ConfiguresOptions;
 use Modules\Core\Fields\MorphToMany;
+use Modules\Core\Fields\Selectable;
+use Modules\Core\HasOptions;
+use Modules\Core\Http\Requests\ResourceRequest;
+use Modules\Core\Models\Model;
+use Modules\Core\Settings\Utilities\Arr;
+use Modules\Core\Table\MorphToManyColumn;
 
 class Contacts extends MorphToMany
 {
+    use ConfiguresOptions, HasOptions, Selectable;
+
+    /**
+     * Multi select custom component
+     */
+    public static $component = 'select-multiple-field';
+
     public ?int $order = 1000;
 
     protected static Contact $resource;
@@ -35,76 +52,122 @@ class Contacts extends MorphToMany
 
         static::$resource = Innoclapps::resourceByName('contacts');
 
-        $this->setJsonResource(ContactResource::class)
-            ->labelKey('display_name')
+        $this->labelKey('display_name')
             ->valueKey('id')
             // Used for export
             ->displayUsing(
-                fn ($model) => $model->contacts->map(fn ($contact) => $contact->displayName)->implode(', ')
+                fn ($model) => (string) $model->contacts->pluck('displayName')->implode(', ')
             )
+            ->onOptionClickRedirectTo('/contacts/{id}')
+            ->eachOnNewLine()
             ->excludeFromZapierResponse()
             ->async('/contacts/search')
             ->lazyLoad('/contacts', ['order' => 'created_at|desc'])
-            ->tapIndexColumn(function ($column) {
-                if (! $this->counts()) {
-                    $column->useComponent('table-data-presentable-column');
-                }
-                // For display_name append
-                $column->queryAs('first_name')->select(['last_name']);
-            })->provideSampleValueUsing(fn () => 'Contact Full Name, Other Contact Full Name');
+            ->tapIndexColumn(function (MorphToManyColumn $column) {
+                $column->queryAs('first_name')->select(['last_name']); // For display_name append
+            })
+            ->provideSampleValueUsing(fn () => 'Contact Full Name, Other Contact Full Name')
+            ->fillUsing(function (Model $model, string $attribute, ResourceRequest $request, mixed $value) {
+                return ! is_null($value) ? $this->fillCallback($model, $this->parseValue($value, $request)) : null;
+            });
     }
 
     /**
-     * Resolve the field value for import
+     * Provide the column used for index
+     */
+    public function indexColumn(): MorphToManyColumn
+    {
+        return new MorphToManyColumn(
+            $this->morphToManyRelationship,
+            $this->labelKey,
+            $this->label
+        );
+    }
+
+    /**
+     * Resolve the value for JSON Resource
      *
-     * @param  string|null  $value
-     * @param  array  $row
-     * @param  array  $original
+     * @param  \Illuminate\Database\Eloquent\Model  $model
      * @return array|null
      */
-    public function resolveForImport($value, $row, $original)
+    public function resolveForJsonResource($model)
     {
-        if (! $value) {
-            return $value;
+        if ($model->relationLoaded($this->morphToManyRelationship)) {
+            return [
+                $this->attribute => ContactResource::collection(
+                    $this->resolve($model)
+                ),
+            ];
         }
-
-        // Perhaps int e.q. when ID provided?
-        $value = is_string($value) ? explode(',', $value) : [$value];
-
-        $ids = collect($value)->map(
-            fn ($value) => $this->convertImportValueToId($value)
-        )->filter()->values()->all();
-
-        return [$this->attribute => $ids];
     }
 
     /**
-     * Convert import provided value to ID
-     *
-     * @param  int|string|null  $value
-     * @return mixed
+     * Parse the given value for storage.
      */
-    protected function convertImportValueToId($value)
+    protected function parseValue($value, ResourceRequest $request): Collection
     {
-        if (! $value) {
-            return $value;
+        // Perhaps int e.q. when ID provided?
+        $value = is_string($value) ? explode(',', $value) : Arr::wrap($value);
+        $collection = new Collection([]);
+
+        foreach ($value as $id) {
+            if ($model = $this->getModelFromValue($id, $request)) {
+                $collection->push($model);
+            }
         }
+
+        return $collection;
+    }
+
+    /**
+     * Get model instance from the given ID and ensure it's authorized to view before syncing.
+     */
+    protected function getModelFromValue(int|string|null $value, ResourceRequest $request): ?EloquentModel
+    {
+        $model = null;
 
         // ID provided?
         if (is_numeric($value)) {
-            return $value;
+            $model = static::$resource->newQuery()->find($value);
+        } elseif ($value) {
+            $value = trim($value);
+
+            $model = static::$resource->newQueryWithTrashed()
+                ->where(ContactModel::nameQueryExpression(), $value)
+                ->first() ?: static::$resource->findByEmail($value, static::$resource->newQueryWithTrashed());
+
+            if ($model?->trashed()) {
+                $model->restore();
+            }
         }
 
-        $value = trim($value);
+        return $model && $request->user()->can('view', $model) ? $model : null;
+    }
 
-        $contact = static::$resource->finder()->matchByFullName($value) ?: static::$resource->finder()->match([
-            'email' => $value,
+    /**
+     * Get the fill callback.
+     */
+    protected function fillCallback(Model $model, Collection $ids)
+    {
+        return function () use ($model, $ids) {
+            if ($model->wasRecentlyCreated) {
+                if (count($ids) > 0) {
+                    $model->{$this->morphToManyRelationship}()->attach($ids);
+                }
+            } else {
+                $model->{$this->morphToManyRelationship}()->sync($ids);
+            }
+        };
+    }
+
+    /**
+     * jsonSerialize
+     */
+    public function jsonSerialize(): array
+    {
+        return array_merge(parent::jsonSerialize(), [
+            'labelKey' => $this->labelKey,
+            'valueKey' => $this->valueKey,
         ]);
-
-        if ($contact?->trashed()) {
-            $contact->restore();
-        }
-
-        return $contact?->getKey();
     }
 }

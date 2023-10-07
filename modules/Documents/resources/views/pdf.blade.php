@@ -11,7 +11,7 @@
     {{-- Define default PDF font family --}}
     <style>
         body {
-            font-family: {{ $document->brand->pdfFont()['font-family'] }};
+            font-family: {{ $document->pdfFont()['font-family'] }};
         }
 
         @page {

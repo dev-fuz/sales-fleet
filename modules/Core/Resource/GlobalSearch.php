@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,70 +16,63 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use JsonSerializable;
 use Modules\Core\Contracts\Presentable;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Models\Model;
-use Modules\Core\Resource\Http\ResourceRequest;
 
 class GlobalSearch implements JsonSerializable
 {
     /**
      * Initialize global search for the given resources.
+     *
+     * @param  \Modules\Core\Resource\Resource[]  $resources
      */
-    public function __construct(protected ResourceRequest $request, protected Collection $resources)
+    public function __construct(protected ResourceRequest $request, protected array $resources)
     {
     }
 
     /**
-     * Get the search result
-     *
-     * @return \Illuminate\Support\Collection
+     * Get the search result.
      */
-    public function get()
+    public function get(): Collection
     {
         $result = new Collection([]);
 
-        $this->resources->reject(fn ($resource) => ! $resource::searchable())
-            ->each(function ($resource) use (&$result) {
-                $result->push([
-                    'title' => $resource->label(),
-                    'data' => $this->query($resource)
-                        ->take($resource->globalSearchResultsLimit)
-                        ->get()
-                        ->whereInstanceOf(Presentable::class)
-                        ->map(function ($model) use ($resource) {
-                            return $this->data($model, $resource);
-                        }),
-                ]);
-            });
-
-        return $result->reject(fn ($result) => $result['data']->isEmpty())->values();
-    }
-
-    /**
-     * Prepare the search query.
-     */
-    protected function query(Resource $resource): Builder
-    {
-        $query = $resource->globalSearchQuery(
-            $resource->newQuery()->criteria($resource->getRequestCriteria($this->request))
-        );
-
-        if ($criteria = $resource->viewAuthorizedRecordsCriteria()) {
-            $query->criteria($criteria);
+        foreach ($this->resources as $resource) {
+            $result->push([
+                'title' => $resource->label(),
+                'data' => $this->newQuery($resource)
+                    ->take($resource->globalSearchResultsLimit)
+                    ->get()
+                    ->whereInstanceOf(Presentable::class)
+                    ->map(function (Model&Presentable $model) use ($resource) {
+                        return $this->data($model, $resource);
+                    }),
+            ]);
         }
 
-        return $query;
+        return $result->reject(
+            fn ($result) => $result['data']->isEmpty()
+        )->values();
     }
 
     /**
-     * Provide the model data for the response.
+     * Get the query that should be used to perform global search.
+     */
+    protected function newQuery(Resource $resource): Builder
+    {
+        return $resource->globalSearchQuery($this->request);
+    }
+
+    /**
+     * Get the model data for the response.
      */
     protected function data(Model&Presentable $model, Resource $resource): array
     {
         return [
+            'id' => $model->getKey(),
             'path' => $model->path,
             'display_name' => $model->display_name,
             'created_at' => $model->created_at,
-            $model->getKeyName() => $model->getKey(),
             'resourceName' => $resource->name(),
         ];
     }

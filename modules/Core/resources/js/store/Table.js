@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -37,7 +37,7 @@ const mutations = {
   },
 
   /**
-   * Update the current table settings in store
+   * Update the given table settings in store
    *
    * @param {Object} state
    * @param {Object} data

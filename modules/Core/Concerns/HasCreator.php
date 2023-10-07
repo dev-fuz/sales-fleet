@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -19,15 +19,17 @@ use Illuminate\Support\Facades\Auth;
 trait HasCreator
 {
     /**
-     * Boot HasCreator trait
+     * Boot HasCreator trait.
      */
     protected static function bootHasCreator(): void
     {
         static::creating(function ($model) {
-            $foreignKeyName = (new static)->creator()->getForeignKeyName();
+            $foreignKey = $model->getCreatorForeignKeyName();
 
-            if (! $model->{$foreignKeyName} && Auth::check()) {
-                $model->{$foreignKeyName} = Auth::id();
+            if (is_null($model->{$foreignKey}) && Auth::check()) {
+                $model->forceFill([
+                    $foreignKey => Auth::id(),
+                ]);
             }
         });
     }
@@ -37,6 +39,17 @@ trait HasCreator
      */
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(\Modules\Users\Models\User::class, 'created_by');
+        return $this->belongsTo(
+            \Modules\Users\Models\User::class,
+            $this->getCreatorForeignKeyName()
+        );
+    }
+
+    /**
+     * Get the creator foreign key name.
+     */
+    public function getCreatorForeignKeyName(): string
+    {
+        return 'created_by';
     }
 }

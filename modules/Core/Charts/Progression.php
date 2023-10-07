@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,11 +12,12 @@
 
 namespace Modules\Core\Charts;
 
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
-use Modules\Core\Date\Carbon;
 use Modules\Core\Facades\Timezone;
+use Modules\Core\Support\Date\Carbon;
 
 abstract class Progression extends Chart
 {
@@ -65,14 +66,17 @@ abstract class Progression extends Chart
      * @param  \Illuminate\Http\Request  $request
      * @param  \Illuminate\Database\Eloquent\Builder|class-string<\Illuminate\Database\Eloquent\Model>  $model
      * @param  string  $unit
-     * @param  string|null  $column
+     * @param  string|null  $dateColumn
      * @return \Modules\Core\Charts\ChartResult
      */
-    public function count($request, $model, $unit, $column = null)
+    public function count($request, $model, $unit, $dateColumn = null)
     {
-        $model = $model instanceof Builder ? $model->getModel() : new $model;
+        $qualifiedKeyName = with(
+            $model instanceof Builder ? $model->getModel() : new $model,
+            fn ($instance) => $instance->getQualifiedKeyName()
+        );
 
-        return $this->aggregate($request, $model, $unit, 'count', $model->getQualifiedKeyName(), $column);
+        return $this->aggregate($request, $model, $unit, 'count', $qualifiedKeyName, $dateColumn);
     }
 
     /**
@@ -270,6 +274,14 @@ abstract class Progression extends Chart
     public function result(array $value): ChartResult
     {
         return new ChartResult($value);
+    }
+
+    /**
+     * Determine for how many minutes the card value should be cached.
+     */
+    public function cacheFor(): DateTimeInterface
+    {
+        return now()->addMinutes(5);
     }
 
     /**

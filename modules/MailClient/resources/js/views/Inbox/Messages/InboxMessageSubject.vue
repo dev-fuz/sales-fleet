@@ -13,6 +13,7 @@
     {{ subject ? subject : '(' + $t('mailclient::inbox.no_subject') + ')' }}
   </router-link>
 </template>
+
 <script setup>
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'

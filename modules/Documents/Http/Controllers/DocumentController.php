@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -31,11 +31,13 @@ class DocumentController extends Controller
 
         abort_if($document->status === DocumentStatus::LOST && ! Auth::check(), 404);
 
+        app()->setLocale($document->locale);
+
         $title = $document->type->name;
 
         if (! Auth::check()) {
             if (views($document)
-                ->cooldown(now()->addHours(1))
+                ->cooldown(now()->addHour())
                 ->record()) {
                 $document->addActivity([
                     'lang' => [
@@ -58,6 +60,8 @@ class DocumentController extends Controller
         $document = Document::with('brand')->where('uuid', $uuid)->firstOrFail();
 
         abort_if($document->status === DocumentStatus::LOST && ! Auth::check(), 404);
+
+        app()->setLocale($document->locale);
 
         $pdf = $document->pdf();
 

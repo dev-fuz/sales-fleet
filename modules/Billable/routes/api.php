@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,7 +15,8 @@ use Modules\Billable\Http\Controllers\Api\ActiveProductController;
 use Modules\Billable\Http\Controllers\Api\BillableController;
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/{resource}/{resourceId}/billable', [BillableController::class, 'handle']);
+    Route::get('/{resource}/{resourceId}/billable', [BillableController::class, 'show']);
+    Route::post('/{resource}/{resourceId}/billable', [BillableController::class, 'save']);
 
     Route::get('/products/active', [ActiveProductController::class, 'handle']);
 });

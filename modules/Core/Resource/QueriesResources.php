@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,12 +13,18 @@
 namespace Modules\Core\Resource;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Modules\Core\Concerns\UserOrderable;
 use Modules\Core\Contracts\Fields\Customfieldable;
+use Modules\Core\Criteria\ExportRequestCriteria;
+use Modules\Core\Criteria\RequestCriteria;
 use Modules\Core\Facades\Innoclapps;
+use Modules\Core\Fields\BelongsTo;
+use Modules\Core\Fields\FieldsCollection;
 use Modules\Core\Fields\HasMany;
 use Modules\Core\Fields\MorphMany;
+use Modules\Core\Fields\MorphToMany;
+use Modules\Core\Fields\RelationshipCount;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Models\Model;
 use Modules\Core\Models\PinnedTimelineSubject;
 
@@ -30,75 +36,152 @@ trait QueriesResources
     /**
      * Get a new query builder for the resource's model table.
      */
-    public static function newQuery(): Builder
+    public function newQuery(): Builder
     {
-        return static::newModel()->newQuery();
+        return $this->newModel()->newQuery();
+    }
+
+    /**
+     * Get a new query builder for the resource's model table that includes trashed records.
+     */
+    public function newQueryWithTrashed(): Builder
+    {
+        return $this->newModel()->withTrashed();
     }
 
     /**
      * Prepare display query.
      */
-    public function displayQuery(?Builder $query = null): Builder
+    public function displayQuery(): Builder
     {
-        $query ??= static::newQuery();
+        $query = $this->with($this->newQuery(), $this->resolveFields());
 
-        [$with, $withCount] = static::getEagerLoadable($this->resolveFields());
-
-        return $query->withCommon()
-            ->withCount($withCount->all())
-            ->with($with->all());
+        return $query->withCommon();
     }
 
     /**
      * Prepare index query.
      */
-    public function indexQuery(?Builder $query = null): Builder
+    public function indexQuery(ResourceRequest $request): Builder
     {
-        $query ??= static::newQuery();
+        $query = $this->newQueryWithAuthorizedRecordsCriteria();
 
-        [$with, $withCount] = static::getEagerLoadable($this->fieldsForIndexQuery());
+        if ($request->missing(RequestCriteria::ORDER_KEY)) {
+            $this->applyDefaultOrder($query);
+        }
 
-        return $query->withCount($withCount->all())->with($with->all());
+        $query->criteria([
+            $this->getFiltersCriteria($request, 'filters'),
+            $this->getRequestCriteria($request),
+        ]);
+
+        return $this->with($query, $this->fieldsForIndexQuery());
     }
 
     /**
-     * Prepare resource global search query.
+     * Prepare global search query.
      */
-    public function globalSearchQuery(?Builder $query = null): Builder
+    public function globalSearchQuery(ResourceRequest $request): Builder
     {
-        return $query ??= static::newQuery();
+        $query = $this->newQueryWithAuthorizedRecordsCriteria();
+
+        $query->criteria($this->getRequestCriteria($request));
+
+        return $this->applyDefaultOrder($query);
     }
 
     /**
-     * Prepare resource search query.
+     * Prepare search query.
      */
-    public function searchQuery(?Builder $query = null): Builder
+    public function searchQuery(ResourceRequest $request): Builder
     {
-        $query ??= static::newQuery();
+        $query = $this->newQueryWithAuthorizedRecordsCriteria();
 
-        [$with, $withCount] = static::getEagerLoadable($this->resolveFields());
+        $query->criteria($this->getRequestCriteria($request));
 
-        return $query->withCount($withCount->all())->with($with->all());
+        if ($request->missing(RequestCriteria::ORDER_KEY)) {
+            $this->applyDefaultOrder($query);
+        }
+
+        return $this->with($query, $this->resolveFields());
     }
 
     /**
-     * Prepare resource search query when searching trashed records.
+     * Prepare the trashed query.
      */
-    public function searchTrashedQuery(?Builder $query = null): Builder
+    public function trashedQuery(): Builder
     {
-        $query ??= static::newQuery();
+        return $this->newQuery()->onlyTrashed();
+    }
 
-        [$with, $withCount] = static::getEagerLoadable($this->resolveFields());
+    /**
+     * Prepare trashed index query.
+     */
+    public function trashedIndexQuery(ResourceRequest $request): Builder
+    {
+        return $this->indexQuery($request)->onlyTrashed();
+    }
 
-        return $query->withCount($withCount->all())->with($with->all());
+    /**
+     * Prepare trashed display query.
+     */
+    public function trashedDisplayQuery(): Builder
+    {
+        return $this->displayQuery()->onlyTrashed();
+    }
+
+    /**
+     * Prepare search query for trashed records.
+     */
+    public function trashedSearchQuery(ResourceRequest $request): Builder
+    {
+        return $this->searchQuery($request)->onlyTrashed();
+    }
+
+    /**
+     * Prepare an export query.
+     */
+    public function exportQuery(ResourceRequest $request, FieldsCollection $fields = null): Builder
+    {
+        $query = $this->newQueryWithAuthorizedRecordsCriteria();
+
+        $query->criteria(new ExportRequestCriteria($request));
+
+        if ($request->filters) {
+            $query->criteria($this->getFiltersCriteria($request, 'filters'));
+        }
+
+        return $this->with($query, $fields ?? $this->fieldsForExport());
+    }
+
+    /**
+     * Prepare table query.
+     */
+    public function tableQuery(ResourceRequest $request): Builder
+    {
+        return $this->newQueryWithAuthorizedRecordsCriteria();
+    }
+
+    /**
+     * Create new query with the authorized records criteria.
+     */
+    public function newQueryWithAuthorizedRecordsCriteria(): Builder
+    {
+        $query = $this->newQuery();
+
+        if ($criteria = $this->viewAuthorizedRecordsCriteria()) {
+            $query->criteria($criteria);
+        }
+
+        return $query;
     }
 
     /**
      * Create the query when the resource is associated and the data is intended for the timeline.
      */
-    public function timelineQuery(Model $subject): Builder
+    public function timelineQuery(Model $subject, ResourceRequest $request): Builder
     {
-        $query = $this->associatedIndexQuery($subject, false)
+        $query = $this->associatedIndexQuery($subject, $request, false)
             ->with('pinnedTimelineSubjects')
             ->withPinnedTimelineSubjects($subject)
             ->orderBy((new PinnedTimelineSubject)->getQualifiedCreatedAtColumn(), 'desc');
@@ -113,12 +196,14 @@ trait QueriesResources
     /**
      * Create query when the resource is associated for index.
      */
-    public function associatedIndexQuery(Model $primary, bool $latest = true): Builder
+    public function associatedIndexQuery(Model $primary, ResourceRequest $request, bool $latest = true): Builder
     {
-        $model = static::newModel();
+        $model = $this->newModel();
         $relation = Innoclapps::resourceByModel($primary)->associateableName();
 
-        return static::newQuery()->select(static::prefixColumns())
+        return $this->newQuery()
+            ->select($this->newModel()->prefixColumns())
+            ->criteria($this->getRequestCriteria($request))
             ->with($this->withWhenAssociated())
             ->withCount($this->withCountWhenAssociated())
             ->whereHas($relation, function ($query) use ($primary) {
@@ -129,9 +214,9 @@ trait QueriesResources
     }
 
     /**
-     * Apply the order from the resource to the given query.
+     * Apply the default order from the resource to the given query.
      */
-    public function order(Builder $query): Builder
+    public function applyDefaultOrder(Builder $query): Builder
     {
         if (in_array(UserOrderable::class, class_uses_recursive(static::$model))) {
             return $query->userOrdered();
@@ -157,83 +242,45 @@ trait QueriesResources
     }
 
     /**
-     * Get the eager loadable relations from the given fields
+     * Add "with" relations to the given query from the given fields.
      */
-    public static function getEagerLoadable($fields): array
+    public function with(Builder $query, $fields): Builder
     {
-        $with = $fields->pluck('belongsToRelation');
+        $fields = $fields->withoutZapierExcluded();
 
-        $hasMany = $fields->whereInstanceOf(HasMany::class)->reject(function ($field) {
-            return $field->excludeFromZapierResponse && request()->isZapier();
-        });
-
-        $morphMany = $fields->whereInstanceOf(MorphMany::class)->reject(function ($field) {
-            return $field->excludeFromZapierResponse && request()->isZapier();
-        });
-
-        $customFieldAble = $fields->whereInstanceOf(Customfieldable::class);
-
-        $fieldCustomProvided = $fields->filter(function ($field) {
-            return method_exists($field, 'withRelationships');
-        })->map(fn ($field) => $field->withRelationships());
-
-        $with = $with->merge($hasMany->filter(function ($field) {
-            return $field->count === false;
-        })
-            ->pluck('hasManyRelationship'))->merge($morphMany->filter(function ($field) {
-                return $field->count === false;
-            })->pluck('morphManyRelationship'))
-            ->merge($customFieldAble->filter(function ($field) {
+        $relations = $fields->pluck('with')->flatten()
+            ->merge($fields->whereInstanceOf(BelongsTo::class)->pluck('belongsToRelation'))
+            ->merge($fields->whereInstanceOf(HasMany::class)->pluck('hasManyRelationship'))
+            ->merge($fields->whereInstanceOf(MorphMany::class)->pluck('morphManyRelationship'))
+            ->merge($fields->whereInstanceOf(MorphToMany::class)->pluck('morphToManyRelationship'))
+            ->merge($fields->whereInstanceOf(Customfieldable::class)->filter(function ($field) {
                 return $field->isCustomField() && $field->isOptionable();
-            })->pluck('customField.relationName'));
+            })->pluck('customField.relationName'))
+            ->filter()
+            ->unique();
 
-        if ($fieldCustomProvided->isNotEmpty()) {
-            $with = $with->merge(...$fieldCustomProvided->all());
-        }
+        return $this->withCount($query->with($relations->all()), $fields);
+    }
 
-        $withCount = $hasMany->push(...$morphMany->all())->filter(function ($field) {
-            return $field->count === true;
-        })->map(function ($field) {
-            $relationName = $field instanceof HasMany ? 'hasManyRelationship' : 'morphManyRelationship';
-
-            return $field->{$relationName}.' as '.$field->countKey();
-        });
-
-        return array_map(function ($collection) {
-            return $collection->filter()->unique();
-        }, [$with, $withCount]);
+    /**
+     * Add "with count" relations to the given query from the given fields.
+     */
+    public function withCount(Builder $query, $fields)
+    {
+        return $query->withCount(
+            $fields->whereInstanceOf(RelationshipCount::class)
+                ->pluck('countRelation')
+                ->filter()
+                ->unique()
+                ->all()
+        );
     }
 
     /**
      * Get the fields when creating index query
-     *
-     * @return \Illuminate\Support\Collection
      */
-    protected function fieldsForIndexQuery()
+    protected function fieldsForIndexQuery(): FieldsCollection
     {
-        return $this->resolveFields()->reject(function ($field) {
-            return $field instanceof HasMany;
-        });
-    }
-
-    /**
-     * Prefix the database table columns for the given resource
-     *
-     * @param  \Illuminate\Database\Eloquent\Model|string|null  $model
-     */
-    public static function prefixColumns($model = null): array
-    {
-        if ($model instanceof EloquentModel) {
-            $table = $model->getTable();
-        } elseif (is_string($model)) {
-            $table = $model;
-        } else {
-            $table = Innoclapps::resourceByName(static::name())->newModel()->getTable();
-        }
-
-        return collect(\Schema::getColumnListing($table))
-            ->map(function ($column) use ($table) {
-                return $table.'.'.$column;
-            })->all();
+        return $this->resolveFields()->reject->isExcludedFromIndexQuery();
     }
 }

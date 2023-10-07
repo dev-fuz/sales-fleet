@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,7 +14,7 @@ namespace Modules\Calls\Policies;
 
 use Illuminate\Auth\Access\HandlesAuthorization;
 use Modules\Calls\Models\Call;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Users\Models\User;
 
 class CallPolicy
@@ -64,7 +64,7 @@ class CallPolicy
     /**
      * Perform pre-authorization checks.
      */
-    public function before(User $user, string $ability): bool|null
+    public function before(User $user, string $ability): ?bool
     {
         $request = app(ResourceRequest::class);
 

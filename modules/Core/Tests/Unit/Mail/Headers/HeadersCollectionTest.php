@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,11 +12,11 @@
 
 namespace Modules\Core\Tests\Unit\Mail\Headers;
 
-use Modules\Core\Mail\Headers\AddressHeader;
-use Modules\Core\Mail\Headers\DateHeader;
-use Modules\Core\Mail\Headers\Header;
-use Modules\Core\Mail\Headers\HeadersCollection;
-use Modules\Core\Mail\Headers\IdHeader;
+use Modules\Core\Support\Mail\Headers\AddressHeader;
+use Modules\Core\Support\Mail\Headers\DateHeader;
+use Modules\Core\Support\Mail\Headers\Header;
+use Modules\Core\Support\Mail\Headers\HeadersCollection;
+use Modules\Core\Support\Mail\Headers\IdHeader;
 use Tests\TestCase;
 
 class HeadersCollectionTest extends TestCase

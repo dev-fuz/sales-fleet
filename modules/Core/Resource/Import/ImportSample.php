@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,36 +15,23 @@ namespace Modules\Core\Resource\Import;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Facades\Excel;
 use Modules\Core\Contracts\Fields\Dateable;
-use Modules\Core\Fields\FieldsCollection;
+use Modules\Core\Fields\Field;
 use Modules\Core\Resource\Resource;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ImportSample implements FromArray
 {
-    use ProvidesImportableFields;
-
     /**
      * Create new Import instance.
      */
-    public function __construct(protected Resource $resource)
+    public function __construct(protected Resource $resource, protected readonly int $totalRows = 1)
     {
-    }
-
-    /**
-     * Resolve the fields for the sample data
-     */
-    public function resolveSampleFields(): FieldsCollection
-    {
-        return $this->resolveFields()->reject(
-            fn ($field) => $field->excludeFromImportSample
-        );
     }
 
     /**
      * Download sample
-     *
-     * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
      */
-    public function download()
+    public function download(): BinaryFileResponse
     {
         return Excel::download($this, 'sample.csv');
     }
@@ -54,10 +41,15 @@ class ImportSample implements FromArray
      */
     public function array(): array
     {
-        return [
+        $data = [
             $this->getHeadings(),
-            $this->getRow(),
         ];
+
+        for ($i = 1; $i <= $this->totalRows; $i++) {
+            $data[] = $this->generateRow();
+        }
+
+        return $data;
     }
 
     /**
@@ -65,32 +57,26 @@ class ImportSample implements FromArray
      */
     public function getHeadings(): array
     {
-        return $this->resolveSampleFields()->map(function ($field) {
-            if ($field instanceof Dateable) {
-                return $field->label.' ('.config('app.timezone').')';
-            }
+        return $this->resource->fieldsForImportSample()
+            ->map(function (Field $field) {
+                if ($field instanceof Dateable) {
+                    return $field->label.' ('.config('app.timezone').')';
+                }
 
-            return $field->label;
-        })->all();
+                return $field->label;
+            })->all();
     }
 
     /**
      * Prepares import sample row
      */
-    public function getRow(): array
+    public function generateRow(): array
     {
-        return $this->resolveSampleFields()->reduce(function ($carry, $field) {
-            $carry[] = $field->sampleValueForImport();
+        return $this->resource->fieldsForImportSample()
+            ->reduce(function ($carry, $field) {
+                $carry[] = $field->sampleValueForImport();
 
-            return $carry;
-        }, []);
-    }
-
-    /**
-     * Provide the resource fields
-     */
-    public function fields(): FieldsCollection
-    {
-        return $this->resource->resolveFields();
+                return $carry;
+            }, []);
     }
 }

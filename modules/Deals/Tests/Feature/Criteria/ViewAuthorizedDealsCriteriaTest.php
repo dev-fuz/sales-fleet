@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,7 +12,6 @@
 
 namespace Modules\Deals\Tests\Feature\Criteria;
 
-use Modules\Core\Database\Seeders\PermissionsSeeder;
 use Modules\Deals\Criteria\ViewAuthorizedDealsCriteria;
 use Modules\Deals\Models\Deal;
 use Tests\TestCase;
@@ -21,7 +20,6 @@ class ViewAuthorizedDealsCriteriaTest extends TestCase
 {
     public function test_own_deals_criteria_queries_only_own_deals()
     {
-        $this->seed(PermissionsSeeder::class);
         $user = $this->asRegularUser()->withPermissionsTo('view own deals')->createUser();
 
         Deal::factory()->for($user)->create();
@@ -34,7 +32,6 @@ class ViewAuthorizedDealsCriteriaTest extends TestCase
 
     public function test_it_returns_all_deals_when_user_is_authorized_to_see_all_deals()
     {
-        $this->seed(PermissionsSeeder::class);
         $user = $this->asRegularUser()->withPermissionsTo('view all deals')->createUser();
 
         Deal::factory()->for($user)->create();

@@ -22,8 +22,8 @@
           <br />
           <div v-if="account.requires_auth">
             <p
-              class="text-sm text-warning-500 dark:text-warning-400"
               v-t="'core::oauth.requires_authentication'"
+              class="text-sm text-warning-500 dark:text-warning-400"
             />
           </div>
           <slot name="after-name"></slot>
@@ -32,10 +32,10 @@
       <div class="ml-0 mt-2 shrink-0 grow sm:ml-auto sm:mt-0 sm:grow-0">
         <div class="flex items-center sm:justify-center">
           <router-link
-            class="link text-sm"
             v-show="showReconnectLink"
-            :to="{ name: 'oauth-accounts', query: { reconnect: account.id } }"
             v-t="'core::oauth.re_authenticate'"
+            class="link text-sm"
+            :to="{ name: 'oauth-accounts', query: { reconnect: account.id } }"
           />
           <slot></slot>
         </div>
@@ -43,6 +43,7 @@
     </div>
   </div>
 </template>
+
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'

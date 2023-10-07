@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,14 +12,18 @@
 
 namespace Modules\Documents\Concerns;
 
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
 use Modules\Billable\Enums\TaxType;
 use Modules\Brands\Models\Brand;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Http\Requests\ResourceRequest;
+use Modules\Core\Rules\ValidLocaleRule;
 use Modules\Core\Rules\VisibleModelRule;
 use Modules\Documents\Enums\DocumentViewType;
+use Modules\Documents\Models\DocumentType;
 
 trait ValidatesDocument
 {
@@ -29,39 +33,74 @@ trait ValidatesDocument
     public function rules(ResourceRequest $request): array
     {
         return [
-            'requires_signature' => 'nullable|boolean',
+            'title' => ['max:191', $request->isMethod('POST') ? 'required' : 'filled', 'string'],
+            'document_type_id' => [
+                (new VisibleModelRule(new DocumentType))->ignore(
+                    fn () => $request->isUpdateRequest() ? $request->record()->brand : null
+                ),
+                $request->isMethod('POST') ? Rule::requiredIf(
+                    function () {
+                        $defaultId = DocumentType::getDefaultType();
+
+                        if (is_null($defaultId)) {
+                            return true;
+                        }
+
+                        $type = DocumentType::find($defaultId);
+
+                        /** @var \Modules\Users\Models\User */
+                        $user = Auth::user();
+
+                        return $type ? $user->cant('view', $type) : true;
+                    }
+                ) : 'filled'],
+
+            'user_id' => $request->isMethod('POST') ? 'required' : 'filled',
+
+            'requires_signature' => ['nullable', 'boolean'],
 
             // If brand field added e.q. to show on table, move the validation to the field
             'brand_id' => [
                 'bail', 'exists:brands,id',
                 $request->isMethod('POST') ? 'required' : 'filled',
-                new VisibleModelRule(new Brand),
+                (new VisibleModelRule(new Brand))->ignore(fn () => $request->isUpdateRequest() ? $request->record()->brand : null),
             ],
 
             'view_type' => ['nullable', new Enum(DocumentViewType::class)],
 
-            'send' => 'nullable|boolean',
+            'locale' => ['sometimes', 'required', 'string', new ValidLocaleRule],
+
+            'pdf.font' => [
+                'nullable',
+                'string',
+                Rule::in(Arr::pluck(config('contentbuilder.fonts'), 'font-family')),
+            ],
+
+            'pdf.orientation' => ['nullable', 'string', 'in:portrait,landscape'],
+            'pdf.size' => ['nullable', 'string', 'in:a4,letter'],
+
+            'send' => ['nullable', 'boolean'],
             'send_mail_account_id' => 'required_if:send,true',
             'send_mail_subject' => 'required_if:send,true',
             'send_mail_body' => 'required_if:send,true',
 
-            'signers' => 'nullable|array',
-            'signers.*.name' => 'required|string|max:191',
-            'signers.*.email' => 'required|email',
+            'signers' => ['nullable', 'array'],
+            'signers.*.name' => ['required', 'string', 'max:191'],
+            'signers.*.email' => ['required', 'email'],
 
-            'recipients' => 'nullable|array',
-            'recipients.*.name' => 'required|string|max:191',
-            'recipients.*.email' => 'required|email',
+            'recipients' => ['nullable', 'array'],
+            'recipients.*.name' => ['required', 'string', 'max:191'],
+            'recipients.*.email' => ['required', 'email'],
 
             'billable.tax_type' => ['nullable', 'string', Rule::in(TaxType::names())],
-            'billable.products.*.name' => 'sometimes|required|string|max:191',
-            'billable.products.*.discount_type' => 'nullable|string|in:fixed,percent',
+            'billable.products.*.name' => ['sometimes', 'required', 'string', 'max:191'],
+            'billable.products.*.discount_type' => ['nullable', 'string', 'in:fixed,percent'],
             'billable.products.*.display_order' => 'integer',
-            'billable.products.*.qty' => 'nullable|regex:/^[0-9]\d*(\.\d{0,2})?$/',
-            'billable.products.*.unit' => 'nullable|max:191',
-            'billable.products.*.tax_label' => 'nullable|string|max:191',
+            'billable.products.*.qty' => ['nullable', 'regex:/^[0-9]\d*(\.\d{0,2})?$/'],
+            'billable.products.*.unit' => ['nullable', 'max:191'],
+            'billable.products.*.tax_label' => ['nullable', 'string', 'max:191'],
             'billable.products.*.tax_rate' => ['nullable', 'numeric', 'decimal:0,3', 'min:0'],
-            'billable.products.*.product_id' => 'nullable|integer',
+            'billable.products.*.product_id' => ['nullable', 'integer'],
         ];
     }
 
@@ -73,6 +112,9 @@ trait ValidatesDocument
     {
         return [
             'title.required' => __('validation.required', [
+                'attribute' => Str::lower(__('documents::document.title')),
+            ]),
+            'title.string' => __('validation.string', [
                 'attribute' => Str::lower(__('documents::document.title')),
             ]),
 

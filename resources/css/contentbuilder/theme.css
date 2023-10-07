@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -626,7 +626,16 @@
         @apply space-x-0.5;
       }
     }
+
     &.pickcolor {
+      &.is-modal {
+        background: transparent;
+
+        .is-modal-overlay {
+          background: transparent;
+        }
+      }
+
       button {
         @apply border border-solid border-neutral-200 text-neutral-700 shadow-sm hover:bg-neutral-100 dark:border-neutral-600 dark:text-neutral-200 dark:hover:bg-neutral-600;
 
@@ -732,6 +741,7 @@
       color: rgba(0, 0, 0, 0.3);
     }
   }
+
   .is-tool {
     &#divImageTool {
       @apply bg-neutral-900/80;
@@ -1111,11 +1121,12 @@
 .is-builder[gray] {
   .is-tool.is-row-tool,
   .is-tool.is-col-tool {
-    @apply bg-neutral-800;
-    svg {
+    @apply !bg-neutral-800;
+    svg, .is-icon-flex {
       @apply !fill-neutral-100;
     }
   }
+
   .is-rowadd-tool {
     @apply border border-solid border-transparent;
 
@@ -1286,7 +1297,7 @@
   }
 
   100% {
-    height: 230px;
+    height: 280px;
   }
 }
 

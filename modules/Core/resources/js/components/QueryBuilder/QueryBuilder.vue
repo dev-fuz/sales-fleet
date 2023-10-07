@@ -12,19 +12,20 @@
     <slot></slot>
   </div>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
-import QueryBuilderGroup from './QueryBuilderGroup.vue'
-import { useQueryBuilderLabels } from './useLabels'
+import { computed, ref } from 'vue'
 import { useStore } from 'vuex'
 
-const { labels: defaultLabels } = useQueryBuilderLabels()
+import { useQueryBuilderLabels } from '../../composables/useQueryBuilder'
+
+import QueryBuilderGroup from './QueryBuilderGroup.vue'
 
 const props = defineProps({
   rules: Array,
   identifier: { type: String, required: true },
   view: { type: String, required: true },
-  readOnly: { type: Boolean, default: false },
+  readOnly: Boolean,
   labels: Object,
   maxDepth: {
     type: Number,
@@ -34,6 +35,8 @@ const props = defineProps({
     },
   },
 })
+
+const { labels: defaultLabels } = useQueryBuilderLabels()
 
 const DefaultNumberAndDateFieldOperators = [
   'equal',

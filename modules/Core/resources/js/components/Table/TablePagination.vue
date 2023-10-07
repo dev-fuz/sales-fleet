@@ -4,23 +4,22 @@
       <IButton
         variant="white"
         :size="size"
-        @click="$emit('go-to-previous')"
         :disabled="!hasPreviousPage || loading"
         :text="$t('pagination.previous')"
+        @click="$emit('go-to-previous')"
       />
 
       <IButton
         variant="white"
         :size="size"
-        @click="$emit('go-to-next')"
         :disabled="!hasNextPage || loading"
         :text="$t('pagination.next')"
+        @click="$emit('go-to-next')"
       />
     </div>
     <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
       <div>
         <p
-          class="text-sm text-neutral-700 dark:text-neutral-200"
           v-t="{
             path: 'core::table.info',
             args: {
@@ -29,6 +28,7 @@
               total: total,
             },
           }"
+          class="text-sm text-neutral-700 dark:text-neutral-200"
         ></p>
       </div>
       <div>
@@ -39,13 +39,13 @@
           <template v-if="renderLinks">
             <a
               href="#"
-              @click.prevent="$emit('go-to-previous')"
               :class="{
                 'px-2 py-1': size === 'sm',
                 'px-2 py-1.5': size === 'md',
                 'pointer-events-none opacity-60': !hasPreviousPage || loading,
               }"
-              class="relative inline-flex items-center rounded-l-md border border-neutral-300 bg-white text-sm font-medium text-neutral-500 focus:outline-none hover:bg-neutral-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+              class="relative inline-flex items-center rounded-l-md border border-neutral-300 bg-white text-sm font-medium text-neutral-500 hover:bg-neutral-50 focus:outline-none dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+              @click.prevent="$emit('go-to-previous')"
             >
               <span class="sr-only">Previous</span>
               <Icon
@@ -73,7 +73,6 @@
                 v-else
                 href="#"
                 aria-current="page"
-                @click.prevent="$emit('go-to-page', page)"
                 :class="[
                   'relative inline-flex items-center border text-sm font-medium focus:outline-none',
                   isCurrentPageCheck(page)
@@ -85,20 +84,22 @@
                     'pointer-events-none opacity-60': loading,
                   },
                 ]"
+                @click.prevent="$emit('go-to-page', page)"
                 v-text="page"
               />
             </template>
+
             <a
               href="#"
-              @click.prevent="$emit('go-to-next')"
               :class="[
-                'relative inline-flex items-center rounded-r-md border border-neutral-300 bg-white text-sm font-medium text-neutral-500 focus:outline-none hover:bg-neutral-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700',
+                'relative inline-flex items-center rounded-r-md border border-neutral-300 bg-white text-sm font-medium text-neutral-500 hover:bg-neutral-50 focus:outline-none dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700',
                 {
                   'px-2 py-1': size === 'sm',
                   'px-2 py-1.5': size === 'md',
                   'pointer-events-none opacity-60': !hasNextPage || loading,
                 },
               ]"
+              @click.prevent="$emit('go-to-next')"
             >
               <span class="sr-only">Next</span>
               <Icon
@@ -115,10 +116,11 @@
     </div>
   </div>
 </template>
+
 <script setup>
 defineEmits(['go-to-previous', 'go-to-next', 'go-to-page'])
 
-const props = defineProps({
+defineProps({
   loading: { type: Boolean, required: false },
   isCurrentPageCheck: { type: Function, required: true },
   renderLinks: { type: Boolean, required: true },

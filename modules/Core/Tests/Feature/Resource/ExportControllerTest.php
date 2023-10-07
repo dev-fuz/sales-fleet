@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,7 +14,6 @@ namespace Modules\Core\Tests\Feature\Resource;
 
 use Illuminate\Database\Eloquent\Factories\Sequence;
 use Modules\Contacts\Models\Contact;
-use Modules\Core\Database\Seeders\PermissionsSeeder;
 use Modules\Core\Tests\Concerns\TestsImportAndExport;
 use Tests\TestCase;
 
@@ -60,8 +59,6 @@ class ExportControllerTest extends TestCase
 
     public function test_own_criteria_is_applied_on_export()
     {
-        $this->seed(PermissionsSeeder::class);
-
         $user = $this->asRegularUser()->withPermissionsTo(['view own contacts', 'export contacts'])->signIn();
 
         Contact::factory()->count(2)->state(new Sequence(
@@ -87,7 +84,6 @@ class ExportControllerTest extends TestCase
 
     public function test_unauthorized_user_cannot_export_data()
     {
-        $this->seed(PermissionsSeeder::class);
         $this->asRegularUser()->signIn();
 
         Contact::factory()->count(2)->create();

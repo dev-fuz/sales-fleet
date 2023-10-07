@@ -5,8 +5,8 @@
       static
       :initial-focus="initialFocus"
       class="dialog fixed inset-0 overflow-hidden"
-      @close="handleDialogClosedEvent"
       :open="localVisible"
+      @close="handleDialogClosedEvent"
     >
       <div class="absolute inset-0 overflow-hidden">
         <DialogOverlay
@@ -26,17 +26,10 @@
           >
             <component
               :is="form ? 'form' : 'div'"
-              @submit.prevent="$emit('submit')"
               :novalidate="form ? true : undefined"
+              :class="['w-screen', sizeClass]"
+              @submit.prevent="$emit('submit')"
               @keydown.passive="$emit('keydown', $event)"
-              :class="[
-                'w-screen',
-                { 'sm:max-w-lg': size === 'sm' },
-                { 'sm:max-w-2xl': size === 'md' },
-                { 'sm:max-w-3xl': size === 'lg' },
-                { 'sm:max-w-4xl': size === 'xl' },
-                { 'sm:max-w-5xl': size === 'xxl' },
-              ]"
             >
               <div
                 class="flex h-full flex-col divide-y divide-neutral-200 bg-white shadow-xl dark:divide-neutral-700 dark:bg-neutral-900"
@@ -44,27 +37,29 @@
                 <div
                   class="flex min-h-0 flex-1 flex-col overflow-y-scroll py-6"
                 >
-                  <div class="px-4 sm:px-6" v-if="!hideHeader">
+                  <div v-if="!hideHeader" class="px-4 sm:px-6">
                     <slot name="modal-header" :cancel="hide">
                       <div class="flex items-start justify-between">
                         <div class="space-y-1">
                           <DialogTitle
                             class="text-lg font-medium text-neutral-700 dark:text-white"
                           >
-                            {{ title }}
+                            <slot name="title" :title="title">
+                              {{ title }}
+                            </slot>
                           </DialogTitle>
                           <p
-                            v-if="description"
+                            v-if="subTitle"
                             class="text-sm text-neutral-500 dark:text-neutral-300"
-                            v-text="description"
+                            v-text="subTitle"
                           />
                         </div>
                         <div class="ml-3 flex h-7 items-center">
                           <button
                             v-if="!hideHeaderClose"
-                            type="button"
                             :id="'modalClose-' + id"
-                            class="rounded-md bg-white text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 hover:text-neutral-500 dark:bg-neutral-800"
+                            type="button"
+                            class="rounded-md bg-white text-neutral-400 hover:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-800"
                             @click="hide"
                           >
                             <Icon icon="X" class="h-6 w-6" />
@@ -91,22 +86,22 @@
                         :title="cancelTitle"
                       >
                         <IButton
-                          @click="hide"
                           :variant="cancelVariant"
                           :disabled="computedCancelDisabled"
                           :size="cancelSize"
                           :text="cancelTitle"
+                          @click="hide"
                         />
                       </slot>
                       <slot name="modal-ok" :title="okTitle">
                         <IButton
-                          @click="handleOkClick"
                           :variant="okVariant"
                           :size="okSize"
                           :type="form ? 'submit' : 'button'"
                           :loading="okLoading"
                           :disabled="computedOkDisabled"
                           :text="okTitle"
+                          @click="handleOkClick"
                         />
                       </slot>
                     </div>
@@ -124,8 +119,9 @@
     </Dialog>
   </TransitionRoot>
 </template>
+
 <script setup>
-import { ref, toRef, computed, watch, nextTick, onMounted } from 'vue'
+import { computed, nextTick, onMounted, ref, toRef, watch } from 'vue'
 import {
   Dialog,
   DialogOverlay,
@@ -133,15 +129,17 @@ import {
   TransitionChild,
   TransitionRoot,
 } from '@headlessui/vue'
-import { useDialog } from './useDialog'
-import propsDefinition from './props'
+
 import emitsDefinition from './emits'
+import propsDefinition from './props'
+import { useDialog, useDialogSize } from './useDialog'
 
 const emit = defineEmits(emitsDefinition)
 const props = defineProps(propsDefinition)
 
 useDialog(show, hide, toRef(props, 'id'))
 
+const sizeClass = useDialogSize(toRef(props, 'size'))
 const localVisible = ref(false)
 const hiding = ref(false)
 

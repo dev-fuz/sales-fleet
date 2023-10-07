@@ -3,21 +3,21 @@
     id="boardSort"
     size="sm"
     form
-    @submit="apply"
     :ok-disabled="!sortBy.field"
     :ok-title="$t('core::app.apply')"
     :title="$t('deals::deal.sort_by')"
+    @submit="apply"
   >
     <div class="flex">
       <div class="mr-2 grow">
         <IFormSelect v-model="sortBy.field">
           <option
-            value="expected_close_date"
             v-t="'deals::fields.deals.expected_close_date'"
+            value="expected_close_date"
           />
-          <option value="created_at" v-t="'core::app.creation_date'" />
-          <option value="amount" v-t="'deals::fields.deals.amount'" />
-          <option value="name" v-t="'deals::deal.name'" />
+          <option v-t="'core::app.creation_date'" value="created_at" />
+          <option v-t="'deals::fields.deals.amount'" value="amount" />
+          <option v-t="'deals::deal.name'" value="name" />
         </IFormSelect>
       </div>
       <div>
@@ -33,6 +33,7 @@
     </div>
   </IModal>
 </template>
+
 <script setup>
 import { ref } from 'vue'
 

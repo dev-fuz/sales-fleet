@@ -7,8 +7,8 @@
       :overlay="!componentReady"
     >
       <p
-        class="mb-3 text-sm font-medium text-neutral-700 dark:text-neutral-200"
         v-t="'core::app.logo.dark'"
+        class="mb-3 text-sm font-medium text-neutral-700 dark:text-neutral-200"
       />
       <CropsAndUploadsImage
         name="logo_dark"
@@ -28,13 +28,12 @@
           <img :src="src" class="h-8 w-auto" />
         </template>
       </CropsAndUploadsImage>
-
       <hr
         class="-mx-7 my-4 border-t border-neutral-200 dark:border-neutral-700"
       />
       <p
-        class="mb-3 text-sm font-medium text-neutral-700 dark:text-neutral-200"
         v-t="'core::app.logo.light'"
+        class="mb-3 text-sm font-medium text-neutral-700 dark:text-neutral-200"
       />
       <CropsAndUploadsImage
         name="logo_light"
@@ -54,19 +53,17 @@
           <img :src="src" class="h-8 w-auto" />
         </template>
       </CropsAndUploadsImage>
-
       <hr
         class="-mx-7 my-4 border-t border-neutral-200 dark:border-neutral-700"
       />
-
       <IFormGroup
         :label="$t('core::app.currency')"
         label-for="currency"
         class="w-auto xl:w-1/3"
       >
         <ICustomSelect
-          input-id="currency"
           v-model="form.currency"
+          input-id="currency"
           :clearable="false"
           :options="currencies"
         >
@@ -86,7 +83,7 @@
                 ? $t('core::settings.system_email_configured')
                 : ''
             "
-            :modelValue="systemEmailAccount"
+            :model-value="systemEmailAccount"
             :disabled="
               !systemEmailAccountIsVisibleToCurrentUser &&
               systemEmailAccountIsConfiguredFromOtherUser
@@ -98,69 +95,48 @@
           />
         </div>
         <IFormText
-          v-text="$t('core::settings.system_email_info')"
           class="mt-2 max-w-3xl"
+          v-text="$t('core::settings.system_email_info')"
         />
         <IFormError v-text="form.getError('system_email_account_id')" />
       </IFormGroup>
-
       <IFormGroup
         :label="$t('core::app.allowed_extensions')"
         :description="$t('core::app.allowed_extensions_info')"
       >
         <IFormTextarea
-          rows="2"
-          v-model="form.allowed_extensions"
           id="allowed_extensions"
+          v-model="form.allowed_extensions"
+          rows="2"
         />
         <IFormError v-text="form.getError('allowed_extensions')" />
       </IFormGroup>
-
       <hr
         class="-mx-7 my-4 border-t border-neutral-200 dark:border-neutral-700"
       />
-
-      <ul class="divide-y divide-neutral-200 dark:divide-neutral-700">
-        <li class="py-4">
-          <div
-            class="space-x-0 space-y-3 md:flex md:items-center md:justify-between md:space-y-0 lg:space-x-3"
-          >
-            <div>
-              <h5
-                class="font-medium leading-relaxed text-neutral-700 dark:text-neutral-100"
-                v-t="'core::settings.phones.require_calling_prefix'"
-              />
-              <p
-                class="break-words text-sm text-neutral-600 dark:text-neutral-300"
-                v-t="'core::settings.phones.require_calling_prefix_info'"
-              />
-            </div>
-            <div>
-              <IFormToggle
-                :value="true"
-                :unchecked-value="false"
-                v-model="form.require_calling_prefix_on_phones"
-              />
-            </div>
-          </div>
-        </li>
-      </ul>
-
+      <SettingsToggleItems class="-mx-6">
+        <SettingsToggleItem
+          v-model="form.require_calling_prefix_on_phones"
+          :heading="$t('core::settings.phones.require_calling_prefix')"
+          :description="$t('core::settings.phones.require_calling_prefix_info')"
+          @change="submit"
+        />
+      </SettingsToggleItems>
       <hr
         class="-mx-7 my-4 border-t border-neutral-200 dark:border-neutral-700"
       />
-
       <div class="my-4 block">
         <IAlert class="mb-5">
           {{ $t('core::settings.update_user_account_info') }}
         </IAlert>
+
         <LocalizationFields
           class="w-auto xl:w-1/3"
           :exclude="['timezone', 'locale']"
-          @update:firstDayOfWeek="form.first_day_of_week = $event"
-          @update:timeFormat="form.time_format = $event"
-          @update:dateFormat="form.date_format = $event"
           :form="form"
+          @update:first-day-of-week="form.first_day_of_week = $event"
+          @update:time-format="form.time_format = $event"
+          @update:date-format="form.date_format = $event"
         />
       </div>
       <template #footer>
@@ -183,7 +159,7 @@
         :label="$t('core::app.company.name')"
         label-for="company_name"
       >
-        <IFormInput v-model="form.company_name" id="company_name" />
+        <IFormInput id="company_name" v-model="form.company_name" />
       </IFormGroup>
 
       <IFormGroup
@@ -195,9 +171,9 @@
           v-model="country"
           :options="countries"
           label="name"
+          input-id="company_country_id"
           @option:selected="form.company_country_id = $event.id"
           @cleared="form.company_country_id = null"
-          input-id="company_country_id"
         />
       </IFormGroup>
 
@@ -209,16 +185,19 @@
         />
       </template>
     </ICard>
+
     <ICard :header="$t('core::app.privacy_policy')" :overlay="!componentReady">
       <Editor v-model="form.privacy_policy" />
+
       <IFormText
-        tabindex="-1"
-        class="mt-2"
         v-t="{
           path: 'core::settings.privacy_policy_info',
           args: { url: privacyPolicyUrl },
         }"
+        tabindex="-1"
+        class="mt-2"
       />
+
       <template #footer>
         <IButton
           type="submit"
@@ -229,15 +208,21 @@
     </ICard>
   </form>
 </template>
+
 <script setup>
-import { shallowRef, computed } from 'vue'
-import CropsAndUploadsImage from '~/Core/resources/js/components/CropsAndUploadsImage.vue'
-import LocalizationFields from './LocalizationFields.vue'
-import { useSettings } from './useSettings'
+import { computed, shallowRef } from 'vue'
+import { useStore } from 'vuex'
 import find from 'lodash/find'
 import map from 'lodash/map'
-import { useStore } from 'vuex'
-import { useApp } from '~/Core/resources/js/composables/useApp'
+
+import CropsAndUploadsImage from '~/Core/components/CropsAndUploadsImage.vue'
+import { useApp } from '~/Core/composables/useApp'
+import SettingsToggleItem from '~/Core/views/Settings/SettingsToggleItem.vue'
+import SettingsToggleItems from '~/Core/views/Settings/SettingsToggleItems.vue'
+
+import { useSettings } from '../../composables/useSettings'
+
+import LocalizationFields from './LocalizationFields.vue'
 
 const store = useStore()
 const { setting, resetStoreState } = useApp()

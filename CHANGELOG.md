@@ -1,3 +1,78 @@
+# Version 1.3.1 - 2023-10-01
+
+- Improve deal board card drag
+- Fix fields values not always updated in the UI
+- Fix detail textarea field new lines
+- Fix import fails when a lot records exists in database
+- Fix moment locale not properly determine
+
+# Version 1.3.0 - 2023-09-28
+
+- Add ability to inline edit fields
+- Add proper detail view on record profiles
+- Add ability to choose which fields to export when exporting a resource
+- Add ability to empty trash
+- Add ability to change activity status directly from edit view
+- Add ability to edit deal amount via deal board
+- Add total amount in record detail deals card
+- Add color custom field
+- Add ability to revert imported record
+- Add bulk edit index view action for specific resources
+- Add new logged calls card for super admins
+- Add red background on required fields without value
+- Updated: New table inline edit actions
+- Updated: Make parent company clickable
+- Updated: Allow to select associated records via edit modal
+- Updated: Remove tags field availability from web form
+- Updated: Removed deal Products tabs in favor of new inline edit features
+- Fix cannot receive Twilio calls
+- Fix error when deleting a user
+- Fix issue where records cannot be updated
+- Fix tags when exporting data
+- Code enhancements
+- Minor fixes
+
+# Version 1.2.2 - 2023-07-11
+
+- Add tags feature for deals, contacts and companies
+- Add document content settings
+- Add ability to re-order products
+- Add Russian translation
+- Improved: Ensure deal create does not fail when pipeline has no stages
+- Improved: Add ability to directly re-order table headings
+- Improved: Logs view UI
+- Updated: Remove border from document sidebar active items
+- Fix queued emails associations
+- Fix compose message modal not displayed properly with many templates
+- Fix duplicate attachments failing mailclient
+- Fix privacy policy view
+- Fix placeholders for subject not always parsed
+
+# Version 1.2.1 - 2023-06-27
+
+- Add URL custom field
+- Add ability to translate brand config values
+- Show user teams in sidebar dropdown
+- Show the teams the user is managing in user profile
+- Enhance UI on products table
+- Improved: Disable dark mode on web forms
+- Improved: Display a warning for empty placeholders before sending a message
+- Improved: When sending message use placeholders from first associated resource or first recipient
+- Performance improvements
+- Fix billable calculations with 100% discount on line item
+- Fix Twilio activation text not in translation file
+- Fix textarea placeholder new lines
+- Fix document error when non authenticated user view
+- Fix message not associated with contact during synchronization
+- Fix cannot search company and contacts by email
+- Fix filter next month not working properly
+- Fix cannot update role
+- Fix cannot delete user with imports
+- Fix navbar command text showing when searching
+- Fix issues with incorrect card results
+- Fix deals board stage sorting not applied
+- Fix incorrect date format
+
 # Version 1.2.0 - 2023-05-09
 
 - Add ability to open preview modal via details view

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,19 +15,23 @@ namespace Modules\Core\Fields;
 use Closure;
 use Illuminate\Support\Arr;
 use JsonSerializable;
-use Modules\Core\Facades\Innoclapps;
 use Modules\Core\HasHelpText;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Http\Resources\CustomFieldResource;
 use Modules\Core\Makeable;
 use Modules\Core\Models\CustomField;
-use Modules\Core\Placeholders\GenericPlaceholder;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Models\Model;
 use Modules\Core\Resource\Import\Import;
 use Modules\Core\Rules\UniqueResourceRule;
+use Modules\Core\Support\Placeholders\GenericPlaceholder;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 
-class Field extends FieldElement implements JsonSerializable
+abstract class Field extends FieldElement implements JsonSerializable
 {
-    use Makeable, ResolvesValue, HasModelEvents, DisplaysOnIndex, HasInputGroup, HasHelpText;
+    use DisplaysOnIndex,
+        HasHelpText,
+        Makeable,
+        ResolvesValue;
 
     /**
      * Default value
@@ -143,21 +147,14 @@ class Field extends FieldElement implements JsonSerializable
     public ?int $order;
 
     /**
-     * Field column class
+     * Field column class (full|half)
      */
-    public string|Closure|null $colClass = null;
+    public string $width = 'full';
 
     /**
      * Field toggle indicator
      */
     public bool $toggleable = false;
-
-    /**
-     * Custom attributes provider for create/update
-     *
-     * @var callable|null
-     */
-    public $saveUsing;
 
     /**
      * Custom callback used to determine if the field is required.
@@ -167,14 +164,63 @@ class Field extends FieldElement implements JsonSerializable
     public $isRequiredCallback;
 
     /**
-     * Field component
+     * Indicates whether field label is hidden on forms.
      */
-    public ?string $component = null;
+    public bool $hideLabel = false;
 
     /**
      * Indicates whether a unique field can be unmarked as unique
      */
     public bool $canUnmarkUnique = false;
+
+    /**
+     * Indicates that the field is available only for authRequired user.
+     */
+    public bool $authRequired = false;
+
+    /**
+     * The inline edit popover width (medium|large).
+     */
+    public string $inlineEditPanelWidth = 'medium';
+
+    /**
+     * Custom check if inline edit is disabled.
+     *
+     * @var bool|callable
+     */
+    public $disableInlineEdit = false;
+
+    /**
+     * Indicates whether the field is excluded from the special "bulk edit" action.
+     */
+    public bool $excludeFromBulkEdit = false;
+
+    /**
+     * Custom fill callback.
+     *
+     * @var null|callable
+     */
+    public $fillCallback = null;
+
+    /**
+     * Field component.
+     */
+    public static $component = null;
+
+    /**
+     * Additional relationships to eager load when quering the resource.
+     */
+    public array $with = [];
+
+    protected static array $formComponents = [];
+
+    protected static array $detailComponents = [];
+
+    protected static array $indexComponents = [];
+
+    protected Field|array $inlineEditWith = [];
+
+    protected static ?ResourceRequest $request = null;
 
     /**
      * Initialize new Field instance class
@@ -187,17 +233,6 @@ class Field extends FieldElement implements JsonSerializable
         $this->attribute = $attribute;
 
         $this->label = $label;
-
-        $this->boot();
-    }
-
-    /**
-     * Custom boot function
-     *
-     * @return void
-     */
-    public function boot()
-    {
     }
 
     /**
@@ -235,11 +270,11 @@ class Field extends FieldElement implements JsonSerializable
     }
 
     /**
-     * Set the field column class
+     * Set the field width for the form view
      */
-    public function colClass(string|Closure|null $class): static
+    public function width(string $width): static
     {
-        $this->colClass = $class;
+        $this->width = $width;
 
         return $this;
     }
@@ -255,20 +290,6 @@ class Field extends FieldElement implements JsonSerializable
     }
 
     /**
-     * Get the field column class
-     */
-    public function getColClass(ResourceRequest $request): ?string
-    {
-        $colClass = $this->colClass;
-
-        if ($colClass instanceof Closure) {
-            return $colClass($request);
-        }
-
-        return $colClass;
-    }
-
-    /**
      * Set default value on creation forms
      *
      * @param  mixed  $value
@@ -278,6 +299,28 @@ class Field extends FieldElement implements JsonSerializable
         $this->value = $value;
 
         return $this;
+    }
+
+    /**
+     * Disable the field inline edit.
+     */
+    public function disableInlineEdit(bool|callable $value = true): static
+    {
+        $this->disableInlineEdit = $value;
+
+        return $this;
+    }
+
+    /**
+     * Check whether inline edit is disabled for the given model.
+     */
+    public function isInlineEditDisabled(Model $model): bool
+    {
+        if ($this->disableInlineEdit === true) {
+            return true;
+        }
+
+        return is_callable($this->disableInlineEdit) && call_user_func_array($this->disableInlineEdit, [$model]);
     }
 
     /**
@@ -345,11 +388,117 @@ class Field extends FieldElement implements JsonSerializable
     }
 
     /**
+     * Indicates whether the field label should be displayed.
+     */
+    public function hideLabel(bool $value = true): static
+    {
+        $this->hideLabel = $value;
+
+        return $this;
+    }
+
+    /**
      * Get the component name for the field.
      */
     public function component(): ?string
     {
-        return $this->component;
+        return static::$component;
+    }
+
+    /**
+     * Get the field form component.
+     */
+    public function formComponent(): ?string
+    {
+        if (isset(static::$formComponents[static::class])) {
+            return static::$formComponents[static::class];
+        }
+
+        if (! static::$component) {
+            return null;
+        }
+
+        return 'form-'.static::$component;
+    }
+
+    /**
+     * Get the field detail component.
+     */
+    public function detailComponent(): ?string
+    {
+        if (isset(static::$detailComponents[static::class])) {
+            return static::$detailComponents[static::class];
+        }
+
+        if (! static::$component) {
+            return null;
+        }
+
+        return 'detail-'.static::$component;
+    }
+
+    /**
+     * Get the field index component.
+     */
+    public function indexComponent(): ?string
+    {
+        if (isset(static::$indexComponents[static::class])) {
+            return static::$indexComponents[static::class];
+        }
+
+        if (! static::$component) {
+            return null;
+        }
+
+        return 'index-'.static::$component;
+    }
+
+    /**
+     * Get the fields to be used when editing inline.
+     *
+     * By default, it's the current instance.
+     */
+    public function inlineEditField(): null|array|Field
+    {
+        if (! empty($this->inlineEditWith)) {
+            return $this->inlineEditWith;
+        }
+
+        return null;
+    }
+
+    /**
+     * Add custom fields to perform inline edit.
+     */
+    public function inlineEditWith(Field|array $field)
+    {
+        $this->inlineEditWith = $field;
+
+        return $this;
+    }
+
+    /**
+     * Change the underlying field form component.
+     */
+    public static function useFormComponent(string $component): void
+    {
+        static::$formComponents[static::class] = $component;
+    }
+
+    /**
+     * Change the underlying field detail component.
+     */
+    public static function useDetailComponent(string $component): void
+    {
+        static::$detailComponents[static::class] = $component;
+    }
+
+    /**
+     * Change the underlying field index component.
+     */
+    public static function useIndexComponent(string $component): void
+    {
+        static::$indexComponents[static::class] = $component;
     }
 
     /**
@@ -399,13 +548,13 @@ class Field extends FieldElement implements JsonSerializable
             return true;
         }
 
-        if (! empty($this->attribute) && is_null($callback)) {
+        if (! empty($this->attribute)) {
             if ($request->isCreateRequest()) {
                 $rules = $this->getCreationRules()[$this->requestAttribute()] ?? [];
             } elseif ($request->isUpdateRequest()) {
                 $rules = $this->getUpdateRules()[$this->requestAttribute()] ?? [];
-            } elseif (Innoclapps::isImportMapping() || Innoclapps::isImportInProgress()) {
-                $rules = $this->getImportRules()[$this->requestAttribute()] ?? [];
+            } elseif ($request->isImportRequest()) {
+                $rules = $this->getImportRules($request)[$this->requestAttribute()] ?? [];
             } else {
                 $rules = $this->getRules()[$this->requestAttribute()] ?? [];
             }
@@ -470,7 +619,7 @@ class Field extends FieldElement implements JsonSerializable
      * Get the mailable template placeholder
      *
      * @param  \Modules\Core\Models\Model|null  $model
-     * @return \Modules\Core\Placeholders\GenericPlaceholder
+     * @return \Modules\Core\Support\Placeholders\GenericPlaceholder|string
      */
     public function mailableTemplatePlaceholder($model)
     {
@@ -507,7 +656,7 @@ class Field extends FieldElement implements JsonSerializable
     /**
      * Indicates whether to emit change event when value is changed
      */
-    public function emitChangeEvent(?string $eventName = null): static
+    public function emitChangeEvent(string $eventName = null): static
     {
         $this->emitChangeEvent = $eventName ?? 'field-'.$this->attribute.'-value-changed';
 
@@ -541,6 +690,19 @@ class Field extends FieldElement implements JsonSerializable
     }
 
     /**
+     * Set field validation rules that are only applied on update request
+     */
+    public function updateRules(mixed $rules): static
+    {
+        $this->updateRules = array_merge(
+            $this->updateRules,
+            is_array($rules) ? $rules : func_get_args()
+        );
+
+        return $this;
+    }
+
+    /**
      * Set field validation rules for import
      */
     public function importRules(mixed $rules): static
@@ -562,25 +724,15 @@ class Field extends FieldElement implements JsonSerializable
             $this->requestAttribute() => $this->importRules,
         ];
 
-        // We will remove the array rule in case found
-        // because the import can handle arrays via coma separated
+        // we will remove the array rule in case found
+        // because the import can handle arrays via coma separated values
+        // for specific fields, other fields must implement their own logic
         return collect(array_merge_recursive(
-            $this->getCreationRules(),
+            $this->getRules(),
             $rules
-        ))->reject(fn ($rule) => $rule === 'array')->all();
-    }
-
-    /**
-     * Set field validation rules that are only applied on update request
-     */
-    public function updateRules(mixed $rules): static
-    {
-        $this->updateRules = array_merge(
-            $this->updateRules,
-            is_array($rules) ? $rules : func_get_args()
-        );
-
-        return $this;
+        ))->mapWithKeys(function ($rules, $attribute) {
+            return [$attribute => collect($rules)->reject(fn ($rule) => $rule === 'array')->values()->all()];
+        })->all();
     }
 
     /**
@@ -712,48 +864,47 @@ class Field extends FieldElement implements JsonSerializable
     }
 
     /**
-     * Create the field attributes for storage for the given request
-     *
-     * @param  string  $requestAttribute
+     * Hydrate the model value.
      */
-    public function storageAttributes(ResourceRequest $request, $requestAttribute): array|callable
+    public function fill(Model $model, string $attribute, ResourceRequest $request, string $requestAttribute): ?callable
     {
-        if (is_callable($this->saveUsing)) {
-            return call_user_func_array($this->saveUsing, [
+        $value = $this->attributeFromRequest($request, $requestAttribute);
+
+        if (is_callable($this->fillCallback)) {
+            return call_user_func_array($this->fillCallback, [
+                $model,
+                $attribute,
                 $request,
+                $value,
                 $requestAttribute,
-                $this->attributeFromRequest($request, $requestAttribute),
-                $this,
             ]);
         }
 
-        return [
-            $this->attribute => $this->attributeFromRequest($request, $requestAttribute),
-        ];
+        $model->{$attribute} = $value;
+
+        return null;
     }
 
     /**
-     * Get the field value for the given request
-     *
-     * @param  string  $requestAttribute
+     * Add custom fill callback for the field.
      */
-    public function attributeFromRequest(ResourceRequest $request, $requestAttribute): mixed
+    public function fillUsing(callable $callback): static
     {
-        return $request->exists($requestAttribute) ? $request[$requestAttribute] : null;
-    }
-
-    /**
-     * Add custom attributes provider callback when creating/updating
-     */
-    public function saveUsing(callable $callable): static
-    {
-        $this->saveUsing = $callable;
+        $this->fillCallback = $callback;
 
         return $this;
     }
 
     /**
-     * Check whether the field is optionable
+     * Get the field value for the given request
+     */
+    public function attributeFromRequest(ResourceRequest $request, string $requestAttribute): mixed
+    {
+        return $request->exists($requestAttribute) ? $request[$requestAttribute] : null;
+    }
+
+    /**
+     * Check whether the field has options
      */
     public function isOptionable(): bool
     {
@@ -765,27 +916,45 @@ class Field extends FieldElement implements JsonSerializable
     }
 
     /**
-     * Check whether the field is not optionable
-     */
-    public function isNotOptionable(): bool
-    {
-        return ! $this->isOptionable();
-    }
-
-    /**
      * Check whether the field is multi optionable
      */
     public function isMultiOptionable(): bool
     {
-        return $this instanceof HasMany || $this instanceof MultiSelect || $this instanceof Checkbox;
+        return $this instanceof MultiSelect || $this instanceof Checkbox;
     }
 
     /**
-     * Check whether the field is not multi optionable
+     * Mark the the field should be available only when there is an authenticated user.
      */
-    public function isNotMultiOptionable(): bool
+    public function authRequired(): static
     {
-        return ! $this->isMultiOptionable();
+        $this->authRequired = true;
+
+        return $this;
+    }
+
+    /**
+     * Check whether the field is excluded from index query.
+     */
+    public function isExcludedFromIndexQuery(): bool
+    {
+        return false;
+    }
+
+    /**
+     * Get the import data type.
+     */
+    public function importValueDataType(): string
+    {
+        return DataType::TYPE_STRING;
+    }
+
+    /**
+     * Set the request for the field.
+     */
+    public static function setRequest(?ResourceRequest $request): void
+    {
+        static::$request = $request;
     }
 
     /**
@@ -795,8 +964,8 @@ class Field extends FieldElement implements JsonSerializable
      */
     protected function resolveRequest()
     {
-        if (Innoclapps::isImportInProgress()) {
-            return Import::$currentRequest;
+        if (static::$request) {
+            return static::$request;
         }
 
         return app(ResourceRequest::class);
@@ -807,24 +976,19 @@ class Field extends FieldElement implements JsonSerializable
      */
     public function jsonSerialize(): array
     {
-        // Determine if the field is required and then clear import status when mapping
-        $isRequired = $this->isRequired(resolve(ResourceRequest::class));
-
-        if (Innoclapps::isImportMapping()) {
-            Innoclapps::setImportStatus(false);
-        }
-
         return array_merge([
             'component' => $this->component(),
+            'formComponent' => $this->formComponent(),
+            'detailComponent' => $this->detailComponent(),
+            'indexComponent' => $this->indexComponent(),
+            'inlineEditWith' => $this->inlineEditField(),
             'attribute' => $this->attribute,
             'label' => $this->label,
             'helpText' => $this->helpText,
             'helpTextDisplay' => $this->helpTextDisplay,
             'readonly' => $this->isReadOnly(),
-            'supportsInputGroup' => $this->supportsInputGroup(),
             'collapsed' => $this->collapsed,
             'primary' => $this->isPrimary(),
-            'icon' => $this->icon,
             'showOnIndex' => $this->showOnIndex,
             'showOnCreation' => $this->showOnCreation,
             'showOnUpdate' => $this->showOnUpdate,
@@ -835,11 +999,13 @@ class Field extends FieldElement implements JsonSerializable
             'toggleable' => $this->toggleable,
             'displayNone' => $this->displayNone,
             'emitChangeEvent' => $this->emitChangeEvent,
-            'colClass' => $this->getColClass(resolve(ResourceRequest::class)),
-            'value' => $this->defaultValue(resolve(ResourceRequest::class)),
-            'isRequired' => $isRequired,
+            'width' => $this->width,
+            'value' => $this->defaultValue($this->resolveRequest()),
+            'isRequired' => $this->isRequired($this->resolveRequest()),
             'isUnique' => $this->isUnique(),
             'canUnmarkUnique' => $this->canUnmarkUnique,
+            'inlineEditPanelWidth' => $this->inlineEditPanelWidth,
+            'hideLabel' => $this->hideLabel,
             'customField' => $this->isCustomField() ? new CustomFieldResource($this->customField) : null,
         ], $this->meta());
     }

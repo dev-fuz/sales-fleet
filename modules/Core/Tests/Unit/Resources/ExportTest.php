@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,11 +13,11 @@
 namespace Modules\Core\Tests\Unit\Resources;
 
 use Modules\Contacts\Models\Contact;
-use Modules\Core\Export\Exceptions\InvalidExportTypeException;
 use Modules\Core\Facades\Fields;
 use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Fields\DateTime;
 use Modules\Core\Fields\Text;
+use Modules\Core\Resource\Exceptions\InvalidExportTypeException;
 use Modules\Core\Resource\Export;
 use Tests\TestCase;
 
@@ -88,7 +88,7 @@ class ExportTest extends TestCase
 
         $export = $this->createExportInstance();
 
-        $this->assertCount(1, $export->resolveFields());
+        $this->assertCount(1, $export->getFields());
     }
 
     public function test_it_creates_the_export_collection()

@@ -5,6 +5,7 @@
     class="w-72"
     :title="$t('activities::activity.guests')"
     :placement="placement"
+    @hide="cancelSearch"
   >
     <button
       type="button"
@@ -16,16 +17,16 @@
       <div class="p-4">
         <IFormGroup class="relative">
           <IFormInput
-            @input="search"
             v-model="searchQuery"
             :placeholder="searchPlaceholder"
             class="pr-8"
+            @input="search"
           />
           <a
-            href="#"
-            @click.prevent="cancelSearch"
             v-show="searchQuery"
+            href="#"
             class="absolute right-3 top-2.5 focus:outline-none"
+            @click.prevent="cancelSearch"
           >
             <Icon icon="X" class="h-5 w-5 text-neutral-400" />
           </a>
@@ -38,16 +39,16 @@
               !isLoading &&
               !minimumAsyncCharactersRequirement
             "
-            class="text-center text-sm text-neutral-600 dark:text-neutral-300"
             v-t="'core::app.no_search_results'"
+            class="text-center text-sm text-neutral-600 dark:text-neutral-300"
           />
           <p
             v-show="isSearching && minimumAsyncCharactersRequirement"
-            class="text-center text-sm text-neutral-600 dark:text-neutral-300"
             v-t="{
               path: 'core::app.type_more_to_search',
               args: { characters: totalCharactersLeftToPerformSearch },
             }"
+            class="text-center text-sm text-neutral-600 dark:text-neutral-300"
           />
           <div class="max-h-96 overflow-y-auto break-all px-1">
             <div v-for="data in guestables" :key="data.resource">
@@ -58,11 +59,11 @@
               />
               <IFormCheckbox
                 v-for="record in data.records"
-                :key="data.resource + '-' + record.id"
                 :id="data.resource + '-' + record.id"
+                :key="data.resource + '-' + record.id"
+                v-model:checked="selected[data.resource]"
                 :value="record.id"
                 @change="onChange(record, data.resource, data.is_search)"
-                v-model:checked="selected[data.resource]"
               >
                 {{ record.guest_display_name }}
                 {{ record.guest_email ? `(${record.guest_email})` : '' }}
@@ -74,19 +75,21 @@
     </template>
   </IPopover>
 </template>
+
 <script setup>
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
-import findIndex from 'lodash/findIndex'
-import debounce from 'lodash/debounce'
-import map from 'lodash/map'
-import filter from 'lodash/filter'
-import uniq from 'lodash/uniq'
-import isObject from 'lodash/isObject'
-import sortBy from 'lodash/sortBy'
-import { CancelToken } from '~/Core/resources/js/services/HTTP'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useLoader } from '~/Core/resources/js/composables/useLoader'
-import { useApp } from '~/Core/resources/js/composables/useApp'
+import debounce from 'lodash/debounce'
+import filter from 'lodash/filter'
+import findIndex from 'lodash/findIndex'
+import isObject from 'lodash/isObject'
+import map from 'lodash/map'
+import sortBy from 'lodash/sortBy'
+import uniq from 'lodash/uniq'
+
+import { useApp } from '~/Core/composables/useApp'
+import { useLoader } from '~/Core/composables/useLoader'
+import { CancelToken } from '~/Core/services/HTTP'
 
 const emit = defineEmits(['update:modelValue', 'change'])
 
@@ -111,23 +114,15 @@ const props = defineProps({
 
   /**
    * Indicates whether the popover is disabled
-   *
-   * @type {Boolean}
    */
-  disabled: {
-    type: Boolean,
-    default: false,
-  },
+  disabled: Boolean,
 
   /**
    * The popover placement
    *
    * @type {String}
    */
-  placement: {
-    type: String,
-    default: 'bottom',
-  },
+  placement: { type: String, default: 'bottom' },
 })
 
 const { t } = useI18n()
@@ -199,6 +194,7 @@ const hasSearchResults = computed(() => {
     hasSearchResult = searchResults.value[resource]
       ? searchResults.value[resource].records.length > 0
       : false
+
     return hasSearchResult ? false : true
   })
 
@@ -338,6 +334,7 @@ function onChange(record, resource, fromSearch) {
         selectedFromSearch.value[resource].records,
         ['id', Number(record.id)]
       )
+
       if (selectedIndex != -1) {
         selectedFromSearch.value[resource].records.splice(selectedIndex, 1)
       }
@@ -369,6 +366,7 @@ const search = debounce(function (q) {
 
   if (totalCharacters === 0) {
     searchResults.value = {}
+
     return
   }
 
@@ -389,6 +387,7 @@ const search = debounce(function (q) {
       searchResults.value[resource] = Object.assign({}, template[resource], {
         records: map(values[key].data, record => {
           record.from_search = true
+
           return record
         }),
         is_search: true,
@@ -408,6 +407,7 @@ function setSelectedGuests() {
   let selectedGuests = {}
   resources.value.forEach(resource => {
     let resourceSelected = []
+
     if (props.modelValue && props.modelValue[resource]) {
       resourceSelected = isObject(props.modelValue[resource][0])
         ? map(props.modelValue[resource], record => record.id)

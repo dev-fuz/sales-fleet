@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex">
 
-    <title>Concord CRM - Installation</title>
+    <title>{{ $title ?? 'Concord CRM - Installation' }}</title>
 
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 

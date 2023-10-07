@@ -23,35 +23,41 @@
         </template>
         <IAlert
           v-if="oAuthCalendarsFetchError"
-          @dismissed="oAuthCalendarsFetchError = null"
           variant="warning"
           dismissible
           class="mb-4"
+          @dismissed="oAuthCalendarsFetchError = null"
         >
           {{ oAuthCalendarsFetchError }}
         </IAlert>
         <div
           v-if="
-            (!calendar || (calendar && calendar.is_sync_disabled)) &&
+            (!calendar ||
+              (calendar && calendar.is_sync_disabled) ||
+              !calendar.account) &&
             !accountConnectionInProgress
           "
         >
           <ConnectAccount />
-          <IButton
-            variant="secondary"
-            v-i-modal="'calendarConnectNewAccount'"
-            :text="$t('core::oauth.add')"
-            :class="{ 'mr-1': hasOAuthAccounts }"
-          />
-          <span
-            v-show="hasOAuthAccounts"
-            class="mt-3 block text-neutral-800 dark:text-neutral-300 sm:mt-0 sm:inline"
-            v-t="'core::oauth.or_choose_existing'"
-          />
+
           <div
-            v-if="hasOAuthAccounts && !accountConnectionInProgress"
-            class="mt-4"
+            v-if="!calendar || (calendar && calendar.is_sync_disabled)"
+            class="mb-4"
           >
+            <IButton
+              v-i-modal="'calendarConnectNewAccount'"
+              variant="secondary"
+              :text="$t('core::oauth.add')"
+              :class="{ 'mr-1': hasOAuthAccounts }"
+            />
+            <span
+              v-show="hasOAuthAccounts"
+              v-t="'core::oauth.or_choose_existing'"
+              class="mt-3 block text-neutral-800 dark:text-neutral-300 sm:mt-0 sm:inline"
+            />
+          </div>
+
+          <div v-if="hasOAuthAccounts && !accountConnectionInProgress">
             <OAuthAccount
               v-for="account in oAuthAccounts"
               :key="account.id"
@@ -74,6 +80,7 @@
             accountConnectionInProgress ||
             (calendar && !calendar.is_sync_disabled)
           "
+          class="mt-4"
         >
           <OAuthAccount
             v-if="calendar && !calendar.is_sync_disabled && calendar.account"
@@ -84,9 +91,9 @@
               size="sm"
               variant="danger"
               class="ml-2"
-              @click="stopSync"
               :disabled="syncStopInProgress"
               :loading="syncStopInProgress"
+              @click="stopSync"
             >
               {{
                 calendar.is_sync_stopped
@@ -94,7 +101,7 @@
                   : $t('core::oauth.stop_syncing')
               }}
             </IButton>
-            <template #after-name v-if="calendar.sync_state_comment">
+            <template v-if="calendar.sync_state_comment" #after-name>
               <span
                 class="text-sm text-danger-500"
                 v-text="calendar.sync_state_comment"
@@ -117,15 +124,15 @@
                 class="col-span-12 self-start lg:col-span-3 lg:flex lg:items-center lg:justify-end"
               >
                 <p
-                  class="font-medium text-neutral-800 dark:text-neutral-100 lg:text-sm"
                   v-t="'activities::calendar.calendar'"
+                  class="font-medium text-neutral-800 dark:text-neutral-100 lg:text-sm"
                 />
               </div>
 
               <div class="col-span-12 lg:col-span-4">
                 <ICustomSelect
                   :options="availableOAuthCalendars"
-                  :modelValue="selectedCalendar"
+                  :model-value="selectedCalendar"
                   label="title"
                   :disabled="connectedOAuthAccountRequiresAuthentication"
                   :placeholder="
@@ -133,8 +140,8 @@
                       ? $t('core::app.loading')
                       : ''
                   "
-                  @option:selected="form.calendar_id = $event.id"
                   :clearable="false"
+                  @option:selected="form.calendar_id = $event.id"
                 />
                 <IFormText
                   v-t="'activities::calendar.sync_support_only_primary'"
@@ -144,21 +151,20 @@
               </div>
             </div>
           </div>
-
           <div class="mb-3">
             <div class="grid grid-cols-12 gap-1 lg:gap-6">
               <div
                 class="col-span-12 lg:col-span-3 lg:flex lg:items-center lg:justify-end"
               >
                 <p
-                  class="font-medium text-neutral-800 dark:text-neutral-100 lg:text-sm"
                   v-t="'activities::calendar.save_events_as'"
+                  class="font-medium text-neutral-800 dark:text-neutral-100 lg:text-sm"
                 />
               </div>
               <div class="col-span-12 lg:col-span-4">
                 <ICustomSelect
                   :options="activityTypesByName"
-                  :modelValue="selectedActivityTypeValue"
+                  :model-value="selectedActivityTypeValue"
                   label="name"
                   :clearable="false"
                   @option:selected="form.activity_type_id = $event.id"
@@ -170,8 +176,8 @@
           <div class="grid grid-cols-12 gap-1 lg:gap-6">
             <div class="col-span-12 lg:col-span-3 lg:text-right">
               <p
-                class="font-medium text-neutral-800 dark:text-neutral-100 lg:text-sm"
                 v-t="'activities::calendar.sync_activity_types'"
+                class="font-medium text-neutral-800 dark:text-neutral-100 lg:text-sm"
               />
             </div>
             <div class="col-span-12 lg:col-span-4">
@@ -188,11 +194,11 @@
           </div>
         </div>
         <template
-          #footer
           v-if="
             accountConnectionInProgress ||
             (calendar && !calendar.is_sync_disabled)
           "
+          #footer
         >
           <div>
             <div class="flex flex-col lg:flex-row lg:items-center">
@@ -215,9 +221,9 @@
                     (calendar && calendar.is_sync_disabled) ||
                     calendar.is_sync_stopped
                   "
-                  @click="accountConnectionInProgress = null"
                   :disabled="form.busy"
                   :text="$t('core::app.cancel')"
+                  @click="accountConnectionInProgress = null"
                 />
                 <IButton
                   v-show="!calendar || (calendar && !calendar.is_sync_stopped)"
@@ -252,17 +258,21 @@
     </div>
   </ILayout>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
-import OAuthAccount from '~/Core/resources/js/views/OAuth/OAuthAccount.vue'
-import ConnectAccount from './CalendarSyncConnectAccount.vue'
-import orderBy from 'lodash/orderBy'
-import filter from 'lodash/filter'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useDates } from '~/Core/resources/js/composables/useDates'
 import { useRoute } from 'vue-router'
-import { useForm } from '~/Core/resources/js/composables/useForm'
+import filter from 'lodash/filter'
+import orderBy from 'lodash/orderBy'
+
+import { useDates } from '~/Core/composables/useDates'
+import { useForm } from '~/Core/composables/useForm'
+import OAuthAccount from '~/Core/views/OAuth/OAuthAccount.vue'
+
 import { useActivityTypes } from '../composables/useActivityTypes'
+
+import ConnectAccount from './CalendarSyncConnectAccount.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -308,7 +318,7 @@ const startSyncFromText = computed(() => {
     (!accountConnectionInProgress.value && !calendar.value) ||
     (calendar.value && calendar.value.is_sync_stopped)
   ) {
-    return
+    return ''
   }
 
   // If the calendar is not yet created, this means that we don't have any
@@ -357,6 +367,8 @@ const startSyncFromText = computed(() => {
       return t('activities::calendar.only_future_events_will_be_synced')
     }
   }
+
+  return ''
 })
 
 function getLatestCreatedOAuthAccount() {
@@ -408,6 +420,7 @@ function stopSync() {
 async function retrieveOAuthAccountCalendars(id) {
   oAuthAccountCalendarsFetchRequestInProgress.value = true
   oAuthCalendarsFetchError.value = null
+
   try {
     let { data } = await Innoclapps.request().get(`/calendars/${id}`)
     availableOAuthCalendars.value = data
@@ -450,11 +463,9 @@ Promise.all([
     !connectedOAuthAccountRequiresAuthentication.value
   ) {
     // perhaps deleted or requires auth?
-    retrieveOAuthAccountCalendars(calendar.value.account.id).then(
-      oAuthCalendars => {
-        form.set('calendar_id', calendar.value.calendar_id)
-      }
-    )
+    retrieveOAuthAccountCalendars(calendar.value.account.id).then(() => {
+      form.set('calendar_id', calendar.value.calendar_id)
+    })
   }
 
   componentReady.value = true

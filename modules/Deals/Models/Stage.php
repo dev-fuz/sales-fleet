@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -18,14 +18,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Lang;
-use Modules\Core\Models\Model;
+use Modules\Core\Concerns\HasDisplayOrder;
+use Modules\Core\Models\CacheModel;
 use Modules\Deals\Database\Factories\StageFactory;
 use Modules\Users\Models\User;
 
-class Stage extends Model
+class Stage extends CacheModel
 {
-    use HasFactory;
+    use HasDisplayOrder,
+        HasFactory;
 
     /**
      * The attributes that are mass assignable.
@@ -48,16 +51,16 @@ class Stage extends Model
     ];
 
     /**
-     * The fields for the model that are searchable.
+     * The columns for the model that are searchable.
      */
-    protected static array $searchableFields = [
+    protected static array $searchableColumns = [
         'name' => 'like',
     ];
 
     /**
      * Boot the model.
      */
-    protected static function boot()
+    protected static function boot(): void
     {
         parent::boot();
 
@@ -90,14 +93,6 @@ class Stage extends Model
     }
 
     /**
-     * Scope a query to include incomplete and in future activities.
-     */
-    public function scopeOrderByDisplayOrder(Builder $query): void
-    {
-        $query->orderBy('display_order');
-    }
-
-    /**
      * Get all stages for that can be used on option fields.
      */
     public static function allStagesForOptions(User $user): Collection
@@ -109,6 +104,14 @@ class Stage extends Model
                 'id' => $stage->getKey(),
                 'name' => "{$stage->name} ({$stage->pipeline->name})",
             ]);
+    }
+
+    /**
+     * Scope a query to only include only deals of the given pipeline.
+     */
+    public function scopeOfPipeline(Builder $query, Pipeline|int $pipeline): void
+    {
+        $query->where('pipeline_id', is_int($pipeline) ? $pipeline : $pipeline->getKey());
     }
 
     /**
@@ -133,6 +136,18 @@ class Stage extends Model
 
             return $value;
         });
+    }
+
+    /**
+     * Find stage by given ID.
+     *
+     * Caches results because of import to prevent thousands of queries.
+     */
+    public static function findFromObjectCache(int|string $id): Stage
+    {
+        return Cache::driver('array')->rememberForever(
+            'deal-save-stage-'.$id, fn () => static::find($id)
+        );
     }
 
     /**

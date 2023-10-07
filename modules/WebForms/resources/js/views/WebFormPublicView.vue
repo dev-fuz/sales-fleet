@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/no-v-html -->
 <template>
   <div
     :class="['m-auto', { 'w-full': isEmbedded, 'max-w-2xl': !isEmbedded }]"
@@ -26,8 +27,8 @@
           v-text="submitData.success_title"
         />
         <div
-          class="wysiwyg-text"
           v-show="submitData.success_message"
+          class="wysiwyg-text"
           v-html="submitData.success_message"
         />
       </div>
@@ -38,11 +39,11 @@
       >
         {{ $t('webforms::form.no_sections') }}
       </IAlert>
-      <form v-else @submit.prevent="submit" novalidate="true">
+      <form v-else novalidate="true" @submit.prevent="submit">
         <component
+          :is="fieldComponents[section.type]"
           v-for="(section, index) in filteredSections"
           :key="index"
-          :is="fieldComponents[section.type]"
           :form="form"
           :section="section"
         />
@@ -50,20 +51,24 @@
     </ICard>
   </div>
 </template>
+
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import hexRgb from 'hex-rgb'
+import filter from 'lodash/filter'
+import map from 'lodash/map'
+
+import { getContrast, lightenDarkenColor } from '@/utils'
+
+import { useFieldsForm } from '~/Core/composables/useFieldsForm'
+import { useResourceFields } from '~/Core/composables/useResourceFields'
+
 import FieldSection from '../components/DisplaySections/FieldSection.vue'
 import FileSection from '../components/DisplaySections/FileSection.vue'
 import IntroductionSection from '../components/DisplaySections/IntroductionSection.vue'
 import MessageSection from '../components/DisplaySections/MessageSection.vue'
 import SubmitButtonSection from '../components/DisplaySections/SubmitButtonSection.vue'
-import filter from 'lodash/filter'
-import map from 'lodash/map'
-import { lightenDarkenColor, getContrast } from '@/utils'
-import { useResourceFields } from '~/Core/resources/js/composables/useResourceFields'
-import { useRoute } from 'vue-router'
-import { useFieldsForm } from '~/Core/resources/js/components/Fields/useFieldsForm'
 
 const props = defineProps({
   sections: { required: true, type: Array },
@@ -100,6 +105,7 @@ const filteredSections = computed(() => {
     if (isFieldSection(section)) {
       section.field = fields.value.find(section.requestAttribute)
     }
+
     return section
   })
 
@@ -121,7 +127,7 @@ const filteredSections = computed(() => {
 const hasDefinedSections = computed(() => filteredSections.value.length > 0)
 
 const bgColor = computed(() => {
-  if (route.query.hasOwnProperty('bgColor')) {
+  if (Object.hasOwn(route.query, 'bgColor')) {
     return route.query.bgColor
   }
 
@@ -129,7 +135,7 @@ const bgColor = computed(() => {
 })
 
 const primaryColor = computed(() => {
-  if (route.query.hasOwnProperty('primaryColor')) {
+  if (Object.hasOwn(route.query, 'primaryColor')) {
     return '#' + route.query.primaryColor
   }
 
@@ -166,7 +172,7 @@ function submit() {
   form
     .hydrate()
     .post(props.publicUrl)
-    .then(data => {
+    .then(() => {
       if (props.submitData.action === 'redirect') {
         if (window.top) {
           window.top.location.href = props.submitData.success_redirect_url
@@ -179,7 +185,7 @@ function submit() {
     })
 }
 
-window.addEventListener('DOMContentLoaded', e => {
+window.addEventListener('DOMContentLoaded', () => {
   document.body.style.backgroundColor = bgColor.value
   document.getElementById('app').style.backgroundColor = bgColor.value
 })
@@ -191,6 +197,7 @@ let originalStyles = new WeakMap() //  or a plain object storing ids
 let nativeSupport = (function () {
   let bodyStyles = window.getComputedStyle(document.body)
   let fooBar = bodyStyles.getPropertyValue('--color-primary-50') // some variable from CSS
+
   return !!fooBar
 })()
 
@@ -207,6 +214,7 @@ function processCSSVariables(input) {
     Object.keys(overwrites).forEach(function (property) {
       document.body.style.setProperty('--' + property, overwrites[property])
     })
+
     return
   }
 

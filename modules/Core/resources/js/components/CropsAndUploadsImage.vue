@@ -10,6 +10,8 @@
       <!-- https://github.com/lian-yue/vue-upload-component/issues/294 -->
       <div class="flex space-x-2">
         <FileUpload
+          ref="uploadRef"
+          v-model="tmpFile"
           extensions="jpg,jpeg,png"
           accept="image/png,image/jpeg"
           :name="name"
@@ -18,13 +20,11 @@
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRF-TOKEN': CSRFToken,
           }"
-          class="!flex cursor-pointer items-center rounded-full bg-primary-50 px-5 py-2 text-sm font-medium text-primary-800 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 focus:ring-offset-primary-50 hover:bg-primary-100"
+          class="!flex cursor-pointer items-center rounded-full bg-primary-50 px-5 py-2 text-sm font-medium text-primary-800 hover:bg-primary-100 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 focus:ring-offset-primary-50"
           :post-action="uploadUrl"
           :drop="false"
-          v-model="tmpFile"
           @input-filter="inputFilter"
           @input-file="inputFile"
-          ref="uploadRef"
         >
           <Icon
             v-if="!(uploadRef && uploadRef.active)"
@@ -39,10 +39,10 @@
         </FileUpload>
         <button
           v-if="hasImage && showDelete"
-          type="button"
-          @click="remove"
-          class="inline-flex items-center rounded-full bg-danger-50 px-5 py-2 text-sm font-medium text-danger-800 focus:outline-none focus:ring-2 focus:ring-danger-600 focus:ring-offset-2 focus:ring-offset-danger-50 hover:bg-danger-100"
           v-t="'core::app.remove'"
+          type="button"
+          class="inline-flex items-center rounded-full bg-danger-50 px-5 py-2 text-sm font-medium text-danger-800 hover:bg-danger-100 focus:outline-none focus:ring-2 focus:ring-danger-600 focus:ring-offset-2 focus:ring-offset-danger-50"
+          @click="remove"
         />
       </div>
     </div>
@@ -51,13 +51,13 @@
         <IButton
           type="submit"
           variant="secondary"
-          @click="editSave"
           :text="saveTextLocal"
+          @click="editSave"
         />
         <IButton
           variant="white"
-          @click="() => uploadRef.clear()"
           :text="cancelTextLocal"
+          @click="() => uploadRef.clear()"
         />
       </div>
       <div
@@ -69,21 +69,23 @@
     </div>
   </div>
 </template>
+
 <script setup>
 import {
-  ref,
   computed,
-  watch,
+  defineAsyncComponent,
   nextTick,
   onBeforeUnmount,
-  defineAsyncComponent,
+  ref,
+  watch,
 } from 'vue'
-import Cropper from 'cropperjs'
-import 'cropperjs/dist/cropper.css'
 import { useI18n } from 'vue-i18n'
-const FileUpload = defineAsyncComponent(() => import('vue-upload-component'))
+import Cropper from 'cropperjs'
+
+import 'cropperjs/dist/cropper.css'
 
 const emit = defineEmits(['success', 'cleared'])
+
 const props = defineProps({
   showDelete: { type: Boolean, default: true },
   chooseText: String,
@@ -94,6 +96,8 @@ const props = defineProps({
   name: { type: String, default: 'image' },
   cropperOptions: { type: Object, default: () => ({}) },
 })
+
+const FileUpload = defineAsyncComponent(() => import('vue-upload-component'))
 
 const { t } = useI18n()
 
@@ -157,13 +161,16 @@ function remove() {
 function editSave() {
   edit.value = false
   let oldFile = tmpFile.value[0]
+
   let binStr = atob(
     cropper.getCroppedCanvas().toDataURL(oldFile.type).split(',')[1]
   )
   let arr = new Uint8Array(binStr.length)
+
   for (let i = 0; i < binStr.length; i++) {
     arr[i] = binStr.charCodeAt(i)
   }
+
   let file = new File([arr], oldFile.name, {
     type: oldFile.type,
   })
@@ -175,6 +182,7 @@ function editSave() {
   })
 }
 
+// eslint-disable-next-line no-unused-vars
 function inputFile(newFile, oldFile, prevent) {
   if (newFile && !oldFile) {
     nextTick(function () {
@@ -220,9 +228,11 @@ function inputFilter(newFile, oldFile, prevent) {
       return prevent()
     }
   }
+
   if (newFile && (!oldFile || newFile.file !== oldFile.file)) {
     newFile.url = ''
     let URL = window.URL || window.webkitURL
+
     if (URL && URL.createObjectURL) {
       newFile.url = URL.createObjectURL(newFile.file)
     }

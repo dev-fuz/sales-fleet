@@ -8,17 +8,17 @@
       size="sm"
       class="flex-1"
       :placeholder="$t('core::filters.placeholders.select_date')"
-      :modelValue="query.value"
-      @input="updateValue($event)"
+      :model-value="query.value"
       :disabled="readOnly"
+      @input="updateValue($event)"
     />
     <DatePicker
       v-if="isBetween"
       :placeholder="$t('core::filters.placeholders.select_date')"
-      :modelValue="query.value[0]"
+      :model-value="query.value[0]"
       size="sm"
-      @input="updateValue([$event, query.value[1]])"
       :disabled="readOnly"
+      @input="updateValue([$event, query.value[1]])"
     />
     <Icon
       v-if="isBetween"
@@ -31,16 +31,16 @@
       :placeholder="$t('core::filters.placeholders.select_date')"
       :min-date="query.value[0] || null"
       :disabled="readOnly || !query.value[0]"
-      :modelValue="query.value[1]"
+      :model-value="query.value[1]"
       @input="updateValue([query.value[0], $event])"
     />
   </div>
   <IFormSelect
     v-else
     size="sm"
-    :modelValue="query.value"
-    @input="updateValue($event)"
+    :model-value="query.value"
     :disabled="readOnly"
+    @input="updateValue($event)"
   >
     <option value=""></option>
     <option
@@ -52,18 +52,19 @@
     </option>
   </IFormSelect>
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
-import { toRef, computed } from 'vue'
-import { useType } from './useType'
-import propsDefinition from './props'
+import { computed, toRef } from 'vue'
 import map from 'lodash/map'
 
+import propsDefinition from './props'
+import { useType } from './useType'
+
 const props = defineProps(propsDefinition)
+
+defineOptions({
+  inheritAttrs: false,
+})
 
 const { updateValue } = useType(
   toRef(props, 'query'),

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,7 +12,10 @@
 
 namespace Modules\Core\Card;
 
-class TableCard extends Card
+use DateTimeInterface;
+use Illuminate\Http\Request;
+
+abstract class TableCard extends Card
 {
     /**
      * The primary key for the table row
@@ -28,7 +31,15 @@ class TableCard extends Card
     }
 
     /**
-     * Provide the table fields
+     * Get the card value.
+     */
+    public function value(Request $request): iterable
+    {
+        return $this->items($request);
+    }
+
+    /**
+     * Provide the table fields.
      */
     public function fields(): array
     {
@@ -36,19 +47,27 @@ class TableCard extends Card
     }
 
     /**
-     * Provide the table data
+     * Provide the table items.
      */
-    public function items(): iterable
+    public function items(Request $request): iterable
     {
         return [];
     }
 
     /**
-     * Table empty text
+     * Table empty text.
      */
     public function emptyText(): ?string
     {
         return null;
+    }
+
+    /**
+     * Determine for how many minutes the card value should be cached.
+     */
+    public function cacheFor(): DateTimeInterface
+    {
+        return now()->addMinutes(5);
     }
 
     /**
@@ -58,7 +77,6 @@ class TableCard extends Card
     {
         return array_merge(parent::jsonSerialize(), [
             'fields' => $this->fields(),
-            'items' => $this->items(),
             'emptyText' => $this->emptyText(),
             'primaryKey' => $this->primaryKey,
         ]);

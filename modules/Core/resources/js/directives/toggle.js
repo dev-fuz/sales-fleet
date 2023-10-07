@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -10,8 +10,9 @@
  */
 export default {
   beforeMount: function (el, binding) {
-    el._toggle = e => {
+    el._toggle = () => {
       const toggleElement = document.getElementById(binding.value)
+
       if (
         toggleElement.style.display === 'none' ||
         toggleElement.classList.contains('hidden')
@@ -25,6 +26,7 @@ export default {
 
     el.addEventListener('click', el._toggle)
   },
+  // eslint-disable-next-line no-unused-vars
   unmounted: function (el, binding) {
     el.removeEventListener('click', el._toggle)
   },

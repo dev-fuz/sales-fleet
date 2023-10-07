@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -157,6 +157,7 @@ class CreateContactFromEmailAccountMessage
         }
 
         $nameArray = explode(' ', $addressHeader->name);
+
         // Removes the first key as it's casted as first name
         // and the left keys, are separate by space as last name
         return trim(implode(' ', array_slice($nameArray, 1)));

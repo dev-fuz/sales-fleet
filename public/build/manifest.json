@@ -1,0 +1,71 @@
+{
+  "_twilio.min-49e68ed9.js": {
+    "file": "assets/twilio.min-49e68ed9.js",
+    "imports": [
+      "_vendor-462626fd.js"
+    ],
+    "isDynamicEntry": true
+  },
+  "_vendor-462626fd.js": {
+    "file": "assets/vendor-462626fd.js"
+  },
+  "_vue-upload-component-3e25ed60.js": {
+    "file": "assets/vue-upload-component-3e25ed60.js",
+    "imports": [
+      "_vendor-462626fd.js"
+    ],
+    "isDynamicEntry": true
+  },
+  "modules/Activities/resources/js/views/ActivitiesCalendar.css": {
+    "file": "assets/ActivitiesCalendar-3d57a825.css",
+    "src": "modules/Activities/resources/js/views/ActivitiesCalendar.css"
+  },
+  "modules/Activities/resources/js/views/ActivitiesCalendar.vue": {
+    "css": [
+      "assets/ActivitiesCalendar-3d57a825.css"
+    ],
+    "file": "assets/ActivitiesCalendar-a9342957.js",
+    "imports": [
+      "_vendor-462626fd.js",
+      "resources/js/app.js"
+    ],
+    "isDynamicEntry": true,
+    "src": "modules/Activities/resources/js/views/ActivitiesCalendar.vue"
+  },
+  "modules/Core/resources/js/components/TextCollapse.vue": {
+    "file": "assets/TextCollapse-36c46725.js",
+    "imports": [
+      "_vendor-462626fd.js",
+      "resources/js/app.js"
+    ],
+    "isDynamicEntry": true,
+    "src": "modules/Core/resources/js/components/TextCollapse.vue"
+  },
+  "resources/css/contentbuilder/theme.css": {
+    "file": "assets/theme-f7538a43.css",
+    "isEntry": true,
+    "src": "resources/css/contentbuilder/theme.css"
+  },
+  "resources/js/app.css": {
+    "file": "assets/app-505ce292.css",
+    "src": "resources/js/app.css"
+  },
+  "resources/js/app.js": {
+    "css": [
+      "assets/app-505ce292.css"
+    ],
+    "dynamicImports": [
+      "modules/Core/resources/js/components/TextCollapse.vue",
+      "_vue-upload-component-3e25ed60.js",
+      "_vue-upload-component-3e25ed60.js",
+      "modules/Activities/resources/js/views/ActivitiesCalendar.vue",
+      "_twilio.min-49e68ed9.js"
+    ],
+    "file": "assets/app-d4a74776.js",
+    "imports": [
+      "_vendor-462626fd.js"
+    ],
+    "isEntry": true,
+    "src": "resources/js/app.js"
+  }
+}

@@ -1,37 +1,32 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import randomString from './randomString'
-import isValueEmpty from './isValueEmpty'
-import passiveEventArg from './passiveEventArg'
-import isVisible from './isVisible'
-import getLocale from './getLocale'
-import windowState from './windowState'
-import isISODate from './isISODate'
-import isDate from './isDate'
-import isStandardDateTime from './isStandardDateTime'
-import strTitle from './strTitle'
-import strTruncate from './strTruncate'
-import getContrast from './getContrast'
-import lightenDarkenColor from './lightenDarkenColor'
-import timelineLabels from './timelineLabels'
 import formatBytes from './formatBytes'
-import shadeColor from './shadeColor'
-import throwConfetti from './throwConfetti'
-import isPurchaseKey from './isPurchaseKey'
+import getContrast from './getContrast'
+import getLocale from './getLocale'
 import isDarkMode from './isDarkMode'
-
+import isPurchaseKey from './isPurchaseKey'
+import isValueEmpty from './isValueEmpty'
+import isVisible from './isVisible'
+import lightenDarkenColor from './lightenDarkenColor'
+import passiveEventArg from './passiveEventArg'
+import randomString from './randomString'
 import {
   determineReminderTypeBasedOnMinutes,
   determineReminderValueBasedOnMinutes,
 } from './reminders'
+import shadeColor from './shadeColor'
+import strTitle from './strTitle'
+import strTruncate from './strTruncate'
+import throwConfetti from './throwConfetti'
+import timelineLabels from './timelineLabels'
 
 export {
   randomString,
@@ -39,10 +34,6 @@ export {
   passiveEventArg,
   isVisible,
   getLocale,
-  windowState,
-  isDate,
-  isStandardDateTime,
-  isISODate,
   strTitle,
   strTruncate,
   getContrast,

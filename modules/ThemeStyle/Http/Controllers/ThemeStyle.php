@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -29,8 +29,8 @@ class ThemeStyle extends Controller
         $modifiedAt = DateTime::createFromFormat('U', $modifiedTimestamp);
 
         return response(
-            $this->parseCss(settings('theme_style')),
-            200,
+            $content = $this->parseCss(settings('theme_style')),
+            empty($content) ? 204 : 200,
             [
                 'Content-Type' => 'text/css',
             ]

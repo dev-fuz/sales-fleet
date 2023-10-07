@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,8 +12,8 @@
 
 namespace Modules\MailClient\Client\Compose;
 
-use Modules\Core\Mail\EmbeddedImagesProcessor;
-use Modules\Core\Mail\InteractsWithSymfonyMessage;
+use Modules\Core\Support\Mail\EmbeddedImagesProcessor;
+use Modules\Core\Support\Mail\InteractsWithSymfonyMessage;
 
 trait PreparesSymfonyMessage
 {

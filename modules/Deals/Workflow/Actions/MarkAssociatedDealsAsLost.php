@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -36,8 +36,6 @@ class MarkAssociatedDealsAsLost extends Action
 
     /**
      * Run the trigger
-     *
-     * @return null
      */
     public function run()
     {
@@ -45,7 +43,7 @@ class MarkAssociatedDealsAsLost extends Action
 
         Deal::open()->whereHas($this->relation, function ($query) {
             $query->where($this->model->getKeyName(), $this->model->getKey());
-        })->get()->each(function ($deal) {
+        })->get()->each(function (Deal $deal) {
             $deal->broadcastToCurrentUser()->markAsLost($this->lost_reason);
         });
 

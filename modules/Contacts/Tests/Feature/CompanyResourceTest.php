@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -18,18 +18,21 @@ use Modules\Contacts\Models\Contact;
 use Modules\Contacts\Models\Phone;
 use Modules\Contacts\Models\Source;
 use Modules\Core\Database\Seeders\CountriesSeeder;
-use Modules\Core\Database\Seeders\PermissionsSeeder;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Models\Country;
-use Modules\Core\Resource\Http\ResourceRequest;
 use Modules\Core\Tests\ResourceTestCase;
 use Modules\Deals\Models\Deal;
 use Modules\Notes\Models\Note;
+use Modules\Users\Models\Team;
+use Modules\Users\Models\User;
 
 class CompanyResourceTest extends ResourceTestCase
 {
     protected $resourceName = 'companies';
 
-    public function test_user_can_create_resource_record()
+    protected $samplePayload = ['name' => 'KONKORD DIGITAL'];
+
+    public function test_user_can_create_company()
     {
         $this->signIn();
         $this->seed(CountriesSeeder::class);
@@ -80,7 +83,7 @@ class CompanyResourceTest extends ResourceTestCase
             ]);
     }
 
-    public function test_user_can_update_resource_record()
+    public function test_user_can_update_company()
     {
         $this->seed(CountriesSeeder::class);
         $user = $this->signIn();
@@ -95,8 +98,7 @@ class CompanyResourceTest extends ResourceTestCase
             'domain' => 'concordcrm.com',
             'email' => 'concordcrm@example.com',
             'phones' => [
-                ['id' => $record->phones[0]->id, 'number' => $record->phones[0]->number, '_delete' => true],
-                ['id' => $record->phones[1]->id, 'number' => '+136547-96636', 'type' => 'work'],
+                ['number' => '+136547-96636', 'type' => 'work'],
                 ['number' => '+123654-88-885', 'type' => 'work'],
                 ['number' => '+123654-77-885', 'type' => 'mobile'],
                 ['number' => '+123654-66-885', 'type' => 'other'],
@@ -118,6 +120,12 @@ class CompanyResourceTest extends ResourceTestCase
             ->assertJsonCount(1, 'contacts')
             ->assertJsonCount(1, 'deals')
             ->assertJson([
+                'phones' => [
+                    ['number' => '+136547-96636', 'type' => 'work'],
+                    ['number' => '+123654-88-885', 'type' => 'work'],
+                    ['number' => '+123654-77-885', 'type' => 'mobile'],
+                    ['number' => '+123654-66-885', 'type' => 'other'],
+                ],
                 'contacts' => [['id' => $contact->id]],
                 'deals' => [['id' => $deal->id]],
                 'name' => 'KONKORD DIGITAL',
@@ -134,39 +142,7 @@ class CompanyResourceTest extends ResourceTestCase
             ]);
     }
 
-    public function test_unauthorized_user_cannot_update_resource_record()
-    {
-        $this->asRegularUser()->signIn();
-        $record = $this->factory()->create();
-
-        $this->putJson($this->updateEndpoint($record), [
-            'name' => 'KONKORD DIGITAL',
-        ])->assertForbidden();
-    }
-
-    public function test_authorized_user_can_update_own_resource_record()
-    {
-        $this->seed(PermissionsSeeder::class);
-        $user = $this->asRegularUser()->withPermissionsTo('edit own companies')->signIn();
-        $record = $this->factory()->for($user)->create();
-
-        $this->putJson($this->updateEndpoint($record), [
-            'name' => 'KONKORD DIGITAL',
-        ])->assertOk();
-    }
-
-    public function test_authorized_user_can_update_resource_record()
-    {
-        $this->seed(PermissionsSeeder::class);
-        $this->asRegularUser()->withPermissionsTo('edit all companies')->signIn();
-        $record = $this->factory()->create();
-
-        $this->putJson($this->updateEndpoint($record), [
-            'name' => 'KONKORD DIGITAL',
-        ])->assertOk();
-    }
-
-    public function test_it_can_retrieve_resource_records()
+    public function test_it_can_retrieve_companies()
     {
         $this->signIn();
 
@@ -175,7 +151,7 @@ class CompanyResourceTest extends ResourceTestCase
         $this->getJson($this->indexEndpoint())->assertJsonCount(5, 'data');
     }
 
-    public function test_it_can_retrieve_resource_record()
+    public function test_it_can_retrieve_company()
     {
         $this->signIn();
 
@@ -197,9 +173,9 @@ class CompanyResourceTest extends ResourceTestCase
             ->assertJsonPath('0.data.0.display_name', $record->display_name);
     }
 
-    public function test_an_unauthorized_user_can_global_search_only_own_records()
+    public function test_an_unauthorized_user_can_global_search_only_companies()
     {
-        $this->seed(PermissionsSeeder::class);
+
         $user = $this->asRegularUser()->withPermissionsTo('view own companies')->signIn();
         $user1 = $this->createUser();
 
@@ -228,40 +204,12 @@ class CompanyResourceTest extends ResourceTestCase
             ->assertJsonPath('0.data.0.name', $record->display_name);
     }
 
-    public function test_it_can_force_delete_resource_record()
-    {
-        $this->signIn();
-
-        $record = $this->factory()
-            ->has(Contact::factory())
-            ->has(Note::factory())
-            ->has(Call::factory())
-            ->has(Activity::factory())
-            ->has(Deal::factory())
-            ->create();
-
-        $record->delete();
-
-        $this->deleteJson($this->forceDeleteEndpoint($record))->assertNoContent();
-        $this->assertDatabaseCount($this->tableName(), 0);
-    }
-
-    public function test_it_can_soft_delete_resource_record()
-    {
-        $this->signIn();
-
-        $record = $this->factory()->create();
-
-        $this->deleteJson($this->deleteEndpoint($record))->assertNoContent();
-        $this->assertDatabaseCount($this->tableName(), 1);
-    }
-
     public function test_user_can_export_companies()
     {
         $this->performExportTest();
     }
 
-    public function test_user_can_create_resource_record_with_custom_fields()
+    public function test_user_can_create_company_with_custom_fields()
     {
         $this->signIn();
 
@@ -272,7 +220,7 @@ class CompanyResourceTest extends ResourceTestCase
         $this->assertThatResponseHasCustomFieldsValues($response);
     }
 
-    public function test_user_can_update_resource_record_with_custom_fields()
+    public function test_user_can_update_company_with_custom_fields()
     {
         $this->signIn();
         $record = $this->factory()->create();
@@ -314,6 +262,26 @@ class CompanyResourceTest extends ResourceTestCase
         ]);
 
         $this->performImportWithDuplicateTest($overrideValues);
+    }
+
+    public function test_it_restores_trashed_duplicate_company_during_import()
+    {
+        $this->seed(CountriesSeeder::class);
+        $this->createUser();
+
+        $company = $this->factory()->create(['email' => 'duplicate@example.com']);
+
+        $company->delete();
+
+        $import = $this->performImportUpload($this->createFakeImportFile(
+            [$this->createImportHeader(), $this->createImportRow(['email' => 'duplicate@example.com'])]
+        ));
+
+        $this->postJson($this->importEndpoint($import), [
+            'mappings' => $import->data['mappings'],
+        ])->assertOk();
+
+        $this->assertFalse($company->fresh()->trashed());
     }
 
     public function test_user_properly_finds_duplicate_companies_during_import_via_email()
@@ -358,19 +326,148 @@ class CompanyResourceTest extends ResourceTestCase
         $this->assertCount(2, $settings->getCustomizedOrder());
     }
 
-    public function test_companies_table_has_trashed_actions()
+    public function test_it_can_force_delete_company()
     {
         $this->signIn();
 
-        $table = $this->resource()->resolveTrashedTable($this->createRequestForTable());
+        $record = $this->factory()
+            ->has(Contact::factory())
+            ->has(Note::factory())
+            ->has(Call::factory())
+            ->has(Activity::factory())
+            ->has(Deal::factory())
+            ->create();
 
-        $this->assertCount(2, $table->actionsForTrashedTable());
+        $record->delete();
+
+        $this->deleteJson($this->forceDeleteEndpoint($record))->assertNoContent();
+        $this->assertDatabaseCount($this->tableName(), 0);
+    }
+
+    public function test_it_can_soft_delete_company()
+    {
+        $this->signIn();
+
+        $record = $this->factory()->create();
+
+        $this->deleteJson($this->deleteEndpoint($record))->assertNoContent();
+        $this->assertDatabaseCount($this->tableName(), 1);
+    }
+
+    public function test_edit_all_companies_permission()
+    {
+        $this->asRegularUser()->withPermissionsTo('edit all companies')->signIn();
+        $record = $this->factory()->create();
+
+        $this->putJson($this->updateEndpoint($record), $this->samplePayload)->assertOk();
+    }
+
+    public function test_edit_own_companies_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('edit own companies')->signIn();
+        $record1 = $this->factory()->for($user)->create();
+        $record2 = $this->factory()->create();
+
+        $this->putJson($this->updateEndpoint($record1), $this->samplePayload)->assertOk();
+        $this->putJson($this->updateEndpoint($record2), $this->samplePayload)->assertForbidden();
+    }
+
+    public function test_edit_team_companies_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('edit team companies')->signIn();
+        $teamUser = User::factory()->has(Team::factory()->for($user, 'manager'))->create();
+
+        $record = $this->factory()->for($teamUser)->create();
+
+        $this->putJson($this->updateEndpoint($record))->assertOk();
+    }
+
+    public function test_unauthorized_user_cannot_update_company()
+    {
+        $this->asRegularUser()->signIn();
+        $record = $this->factory()->create();
+
+        $this->putJson($this->updateEndpoint($record), $this->samplePayload)->assertForbidden();
+    }
+
+    public function test_view_all_companies_permission()
+    {
+        $this->asRegularUser()->withPermissionsTo('view all companies')->signIn();
+        $record = $this->factory()->create();
+
+        $this->getJson($this->showEndpoint($record))->assertOk();
+    }
+
+    public function test_view_team_companies_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('view team companies')->signIn();
+        $teamUser = User::factory()->has(Team::factory()->for($user, 'manager'))->create();
+
+        $record = $this->factory()->for($teamUser)->create();
+
+        $this->getJson($this->showEndpoint($record))->assertOk();
+    }
+
+    public function test_user_can_view_own_company()
+    {
+        $user = $this->asRegularUser()->signIn();
+        $record = $this->factory()->for($user)->create();
+
+        $this->getJson($this->showEndpoint($record))->assertOk();
+    }
+
+    public function test_unauthorized_user_cannot_view_company()
+    {
+        $this->asRegularUser()->signIn();
+        $record = $this->factory()->create();
+
+        $this->getJson($this->showEndpoint($record))->assertForbidden();
+    }
+
+    public function test_delete_any_company_permission()
+    {
+        $this->asRegularUser()->withPermissionsTo('delete any company')->signIn();
+
+        $record = $this->factory()->create();
+
+        $this->deleteJson($this->deleteEndpoint($record))->assertNoContent();
+    }
+
+    public function test_delete_own_companies_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('delete own companies')->signIn();
+
+        $record1 = $this->factory()->for($user)->create();
+        $record2 = $this->factory()->create();
+
+        $this->deleteJson($this->deleteEndpoint($record1))->assertNoContent();
+        $this->deleteJson($this->deleteEndpoint($record2))->assertForbidden();
+    }
+
+    public function test_delete_team_companies_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('delete team companies')->signIn();
+        $teamUser = User::factory()->has(Team::factory()->for($user, 'manager'))->create();
+
+        $record1 = $this->factory()->for($teamUser)->create();
+        $record2 = $this->factory()->create();
+
+        $this->deleteJson($this->deleteEndpoint($record1))->assertNoContent();
+        $this->deleteJson($this->deleteEndpoint($record2))->assertForbidden();
+    }
+
+    public function test_unauthorized_user_cannot_delete_company()
+    {
+        $this->asRegularUser()->signIn();
+        $record = $this->factory()->create();
+
+        $this->deleteJson($this->showEndpoint($record))->assertForbidden();
     }
 
     protected function assertResourceJsonStructure($response)
     {
         $response->assertJsonStructure([
-            'actions', 'calls_count', 'changelog', 'city', 'contacts', 'contacts_count', 'country', 'country_id', 'created_at', 'deals', 'deals_count', 'display_name', 'domain', 'email', 'id', 'industry', 'industry_id', 'media', 'name', 'next_activity_date', 'notes_count', 'owner_assigned_date', 'parent', 'parent_company_id', 'parents', 'phones', 'postal_code', 'source', 'source_id', 'state', 'street', 'timeline_subject_key', 'incomplete_activities_for_user_count', 'unread_emails_for_user_count', 'updated_at', 'path', 'user', 'user_id', 'was_recently_created', 'authorizations' => [
+            'actions', 'calls_count', 'city', 'contacts', 'contacts_count', 'country', 'country_id', 'created_at', 'deals', 'deals_count', 'display_name', 'domain', 'email', 'id', 'industry', 'industry_id', 'media', 'name', 'next_activity_date', 'notes_count', 'owner_assigned_date', 'parent', 'parent_company_id', 'parents', 'phones', 'postal_code', 'source', 'source_id', 'state', 'street', 'timeline_subject_key', 'incomplete_activities_for_user_count', 'unread_emails_for_user_count', 'updated_at', 'path', 'user', 'user_id', 'was_recently_created', 'tags', 'authorizations' => [
                 'create', 'delete', 'update', 'view', 'viewAny',
             ],
         ]);

@@ -1,24 +1,24 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import i18n from '~/Core/resources/js/i18n'
+import i18n from '~/Core/i18n'
 
-import ProductIndex from './views/ProductIndex.vue'
-import CreateProduct from './views/CreateProduct.vue'
-import EditProduct from './views/EditProduct.vue'
+import ProductsCreate from './views/ProductsCreate.vue'
+import ProductsEdit from './views/ProductsEdit.vue'
+import ProductsIndex from './views/ProductsIndex.vue'
 
 export default [
   {
     path: '/products',
     name: 'product-index',
-    component: ProductIndex,
+    component: ProductsIndex,
     meta: {
       title: i18n.t('billable::product.products'),
     },
@@ -26,18 +26,18 @@ export default [
       {
         path: 'create',
         name: 'create-product',
-        component: CreateProduct,
+        component: ProductsCreate,
         meta: { title: i18n.t('billable::product.create') },
       },
       {
         path: ':id',
         name: 'view-product',
-        component: EditProduct,
+        component: ProductsEdit,
       },
       {
         path: ':id/edit',
         name: 'edit-product',
-        component: EditProduct,
+        component: ProductsEdit,
       },
     ],
   },

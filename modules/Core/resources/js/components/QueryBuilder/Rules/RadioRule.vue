@@ -1,29 +1,31 @@
 <template>
-  <div class="mt-1 flex space-x-2">
+  <div class="mt-1 space-y-1">
     <IFormRadio
       v-for="option in options"
+      :id="rule.id + '_' + option[rule.valueKey] + '_' + index"
       :key="option[rule.valueKey]"
       v-model="value"
       :value="option[rule.valueKey]"
       :disabled="readOnly"
-      :id="rule.id + '_' + option[rule.valueKey] + '_' + index"
       :name="rule.id + '_' + option[rule.valueKey]"
       :label="option[rule.labelKey]"
     />
   </div>
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
-import { toRef, computed } from 'vue'
-import { useType } from './useType'
+import { computed, toRef } from 'vue'
+
+import { useElementOptions } from '~/Core/composables/useElementOptions'
+
 import propsDefinition from './props'
-import { useElementOptions } from '~/Core/resources/js/composables/useElementOptions'
+import { useType } from './useType'
 
 const props = defineProps(propsDefinition)
+
+defineOptions({
+  inheritAttrs: false,
+})
 
 const { options, setOptions, getOptions } = useElementOptions()
 

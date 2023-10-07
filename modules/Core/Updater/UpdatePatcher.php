@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -65,12 +65,6 @@ abstract class UpdatePatcher
      */
     protected function getColumnIndexes(string $table, string $column): array
     {
-        return DB::select(
-            DB::raw(
-                'SHOW KEYS
-                FROM '.DB::getTablePrefix().$table.'
-                WHERE Column_name="'.$column.'"'
-            )->getValue(DB::connection()->getQueryGrammar())
-        );
+        return DB::listIndexes($table, $column);
     }
 }

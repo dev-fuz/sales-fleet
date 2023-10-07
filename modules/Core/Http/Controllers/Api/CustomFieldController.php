@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -29,7 +29,7 @@ class CustomFieldController extends ApiController
     {
         $fields = CustomField::with('options')
             ->latest()
-            ->paginate($request->integer('per_page', null));
+            ->paginate($request->integer('per_page') ?: null);
 
         return $this->response(
             CustomFieldResource::collection($fields)
@@ -51,7 +51,7 @@ class CustomFieldController extends ApiController
      */
     public function update(string $id, CustomFieldRequest $request, CustomFieldService $service): JsonResponse
     {
-        $field = $service->update($request->except(['field_type', 'field_id', 'is_unique']), (int) $id);
+        $field = $service->update($request->except(['field_type', 'field_id', 'resource_name']), (int) $id);
 
         return $this->response(new CustomFieldResource($field));
     }

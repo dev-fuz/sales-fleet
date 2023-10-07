@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,12 +12,14 @@
 
 namespace Modules\Core\Workflow\Actions;
 
+use Closure;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Modules\Core\Fields\Text;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Fields\Url;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Workflow\Action;
 
 class WebhookAction extends Action implements ShouldQueue
@@ -41,7 +43,7 @@ class WebhookAction extends Action implements ShouldQueue
             ->withHeaders($this->getHeaders())
             ->post('https://'.$this->url, $payload = $this->getPayload())
             ->onError(function ($error) {
-                Log::debug('Webhook action failed with status:'.$error->status().', reason:'.$error->reason());
+                Log::debug('Webhook action failed with status: '.$error->status().', reason: '.$error->reason());
             });
 
         return $payload;
@@ -71,12 +73,11 @@ class WebhookAction extends Action implements ShouldQueue
     public function fields(): array
     {
         return [
-            Text::make('url')->inputType('url')
-                ->inputGroupPrepend('https://')
-                ->withMeta(['attributes' => ['class' => '!pl-16']])
+            Url::make('url')
+                ->https()
                 ->help(__('core::workflow.actions.webhook_url_info'))
                 ->helpDisplay('text')
-                ->rules(['required', function ($attribute, $value, $fail) {
+                ->rules(['required', function (string $attribute, mixed $value, Closure $fail) {
                     if (Str::startsWith($value, ['https://', 'http://'])) {
                         $fail('core::workflow.validation.invalid_webhook_url')->translate();
                     }

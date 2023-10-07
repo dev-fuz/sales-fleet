@@ -12,39 +12,39 @@
       saving ? $t('core::filters.save_and_apply') : $t('core::filters.apply')
     "
     :ok-disabled="!filtersCanBeApplied || form.busy"
-    @ok="submit"
     :cancel-title="$t('core::app.hide')"
     :hide-footer="isReadonly"
+    @ok="submit"
     @shown="handleModalShown"
     @hidden="rulesAreVisible = false"
   >
-    <IAlert class="mb-3 border border-info-200" v-if="isReadonly">
+    <IAlert v-if="isReadonly" class="mb-3 border border-info-200">
       {{ $t('core::filters.is_readonly') }}
     </IAlert>
 
     <div class="mb-3 flex items-center justify-end space-x-2">
       <a
         v-if="!isCurrentFilterDefault && isReadonly"
-        href="#"
-        class="rounded-md px-2 py-1.5 text-sm font-medium text-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 focus:ring-offset-primary-50 hover:bg-primary-50"
-        @click.prevent="markAsDefault"
         v-t="'core::filters.mark_as_default'"
+        href="#"
+        class="rounded-md px-2 py-1.5 text-sm font-medium text-primary-700 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 focus:ring-offset-primary-50"
+        @click.prevent="markAsDefault"
       />
 
       <a
         v-if="isCurrentFilterDefault && isReadonly"
-        href="#"
-        class="rounded-md px-2 py-1.5 text-sm font-medium text-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 focus:ring-offset-primary-50 hover:bg-primary-50"
-        @click.prevent="unmarkAsDefault"
         v-t="'core::filters.unmark_as_default'"
+        href="#"
+        class="rounded-md px-2 py-1.5 text-sm font-medium text-primary-700 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 focus:ring-offset-primary-50"
+        @click.prevent="unmarkAsDefault"
       />
 
       <a
         v-show="!isReadonly && localHasRulesApplied"
-        class="rounded-md px-2 py-1.5 text-sm font-medium text-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 focus:ring-offset-primary-50 hover:bg-primary-50"
+        v-t="'core::filters.clear_rules'"
+        class="rounded-md px-2 py-1.5 text-sm font-medium text-primary-700 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 focus:ring-offset-primary-50"
         href="#"
         @click.prevent="clearRules"
-        v-t="'core::filters.clear_rules'"
       />
 
       <span
@@ -82,10 +82,10 @@
             required
           >
             <IFormInput
+              id="filter_name"
               v-model="form.name"
               size="sm"
               :placeholder="$t('core::filters.name')"
-              id="filter_name"
               name="name"
               type="text"
             />
@@ -106,12 +106,12 @@
               <IDropdownItem @click="form.is_shared = false">
                 <div class="flex flex-col">
                   <p
-                    class="text-neutral-900 dark:text-white"
                     v-t="'core::filters.share.private'"
+                    class="text-neutral-900 dark:text-white"
                   />
                   <p
-                    class="text-neutral-500 dark:text-neutral-300"
                     v-t="'core::filters.share.private_info'"
+                    class="text-neutral-500 dark:text-neutral-300"
                   />
                 </div>
               </IDropdownItem>
@@ -121,12 +121,12 @@
               >
                 <div class="flex flex-col">
                   <p
-                    class="text-neutral-900 dark:text-white"
                     v-t="'core::filters.share.everyone'"
+                    class="text-neutral-900 dark:text-white"
                   />
                   <p
-                    class="text-neutral-500 dark:text-neutral-300"
                     v-t="'core::filters.share.everyone_info'"
+                    class="text-neutral-500 dark:text-neutral-300"
                   />
                 </div>
               </IDropdownItem>
@@ -150,12 +150,13 @@
         :label="$t('core::filters.is_default')"
       />
     </IFormGroup>
+
     <template #modal-cancel="{ cancel, title }">
       <div class="flex space-x-4">
         <IFormToggle
           v-show="!editing && !activeFilter && localHasRulesApplied"
-          label-class="font-semibold"
           v-model="saving"
+          label-class="font-semibold"
           :label="$t('core::filters.save_as_new')"
         />
         <IButton
@@ -169,29 +170,28 @@
     </template>
   </IModal>
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
-import QueryBuilder from '~/Core/resources/js/components/QueryBuilder'
-import { useQueryBuilder } from '~/Core/resources/js/components/QueryBuilder/useQueryBuilder'
-import { useFilterable } from './useFilterable'
+import { computed, nextTick, ref, watch } from 'vue'
+import { useStore } from 'vuex'
+import cloneDeep from 'lodash/cloneDeep'
 import each from 'lodash/each'
 import find from 'lodash/find'
-import cloneDeep from 'lodash/cloneDeep'
-import { useForm } from '~/Core/resources/js/composables/useForm'
+
 import { isValueEmpty } from '@/utils'
-import { useStore } from 'vuex'
-import { useApp } from '~/Core/resources/js/composables/useApp'
-import { useGate } from '~/Core/resources/js/composables/useGate'
-import { useGlobalEventListener } from '~/Core/resources/js/composables/useGlobalEventListener'
+
+import QueryBuilder from '~/Core/components/QueryBuilder'
 import {
-  isNullableOperator,
   isBetweenOperator,
-} from '~/Core/resources/js/components/QueryBuilder/utils'
+  isNullableOperator,
+} from '~/Core/components/QueryBuilder/utils'
+import { useApp } from '~/Core/composables/useApp'
+import { useForm } from '~/Core/composables/useForm'
+import { useGate } from '~/Core/composables/useGate'
+import { useGlobalEventListener } from '~/Core/composables/useGlobalEventListener'
+import { useQueryBuilder } from '~/Core/composables/useQueryBuilder'
+
+import { useFilterable } from '../../composables/useFilterable'
 
 const emit = defineEmits(['apply'])
 
@@ -200,6 +200,10 @@ const props = defineProps({
   identifier: { required: true, type: String },
   activeFilterId: Number,
   initialApply: { default: true, type: Boolean },
+})
+
+defineOptions({
+  inheritAttrs: false,
 })
 
 const store = useStore()
@@ -341,6 +345,7 @@ const canUpdate = computed(() => gate.allows('update', activeFilter.value))
 const canDelete = computed(() => gate.allows('delete', activeFilter.value))
 const PUSH_FILTER = (...params) => store.commit('filters/PUSH', ...params)
 const UPDATE_FILTER = (...params) => store.commit('filters/UPDATE', ...params)
+
 const UNMARK_AS_DEFAULT = (...params) =>
   store.commit('filters/UNMARK_AS_DEFAULT', ...params)
 
@@ -403,6 +408,7 @@ async function submit() {
   if (!saving.value) {
     apply()
     rulesAreVisible.value = false
+
     return
   }
 
@@ -416,7 +422,7 @@ async function submit() {
   } else {
     if (isCurrentFilterDefault.value && !defaulting.value) {
       unmarkAsDefault()
-    } else if (isCurrentFilterDefault.value && defaulting.value) {
+    } else if (!isCurrentFilterDefault.value && defaulting.value) {
       markAsDefault()
     }
   }
@@ -535,11 +541,12 @@ function clearRules() {
 function getValuesForValidation(query) {
   let vals = []
 
-  each(query.children, (rule, key) => {
+  each(query.children, rule => {
     if (rule.query.children) {
       vals = vals.concat(getValuesForValidation(rule.query))
     } else {
       let filter = find(availableRules.value, ['id', rule.query.rule])
+
       if (filter && filter.isStatic) {
         // Push true so it can trigger true rule
         // static rules are always valid as they do not receive any values
@@ -567,6 +574,7 @@ function getValuesForValidation(query) {
 
   return vals
 }
+
 /**
  *  Update the store on rules are valid change
  */
@@ -588,6 +596,12 @@ watch(
   },
   { immediate: true }
 )
+
+watch(hasRulesAppliedWithAuthorization, (newVal, oldVal) => {
+  if (!oldVal && newVal) {
+    form.is_shared = false
+  }
+})
 
 useGlobalEventListener(
   `${props.identifier}-${props.view}-filter-selected`,

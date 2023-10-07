@@ -19,11 +19,8 @@
     </template>
   </IVerticalNavigationItem>
 </template>
-<script>
-export default {
-  name: 'InboxFolderMenuItem',
-}
-</script>
+
+<script></script>
 
 <script setup>
 import { computed } from 'vue'
@@ -31,6 +28,10 @@ import { useRoute } from 'vue-router'
 
 const props = defineProps({
   folder: { required: true, type: Object },
+})
+
+defineOptions({
+  name: 'InboxFolderMenuItem',
 })
 
 const route = useRoute()

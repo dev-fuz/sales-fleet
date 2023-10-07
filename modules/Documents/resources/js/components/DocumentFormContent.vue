@@ -1,15 +1,15 @@
 <template>
-  <div class="mx-auto max-w-6xl" v-show="visible">
+  <div v-show="visible" class="mx-auto max-w-6xl">
     <div class="mb-8 flex justify-end space-x-2 text-right">
       <IModal
         id="saveAsTemplateModal"
         size="sm"
-        @shown="templatesModalShownHandler"
         :ok-title="$t('core::app.save')"
         :ok-disabled="saveTemplateForm.busy"
         static-backdrop
         :title="$t('documents::document.template.save_as_template')"
         form
+        @shown="templatesModalShownHandler"
         @submit="saveContentAsTemplate"
         @keydown="saveTemplateForm.onKeydown($event)"
       >
@@ -19,9 +19,9 @@
           required
         >
           <IFormInput
+            id="name"
             ref="inputNameRef"
             v-model="saveTemplateForm.name"
-            id="name"
           />
           <IFormError v-text="saveTemplateForm.getError('name')" />
         </IFormGroup>
@@ -29,8 +29,8 @@
         <IFormGroup>
           <IFormCheckbox
             id="is_shared"
-            name="is_shared"
             v-model:checked="saveTemplateForm.is_shared"
+            name="is_shared"
             :label="$t('documents::document.template.share_with_team_members')"
           />
           <IFormError v-text="saveTemplateForm.getError('is_shared')" />
@@ -38,25 +38,25 @@
       </IModal>
 
       <IButtonIcon
-        @click="showSettings = !showSettings"
         icon="AdjustmentsVertical"
         class="mr-2 mt-2 shrink-0 self-start"
+        @click="showSettings = !showSettings"
       />
 
       <IButton
-        @click="showSnippets"
         icon="Sparkles"
         size="sm"
         :disabled="document.status === 'accepted'"
         variant="white"
         class="shrink-0 self-start"
         :text="$t('core::contentbuilder.builder.Snippets')"
+        @click="showSnippets"
       />
 
       <IButton
+        v-show="form.content"
         v-i-modal="'saveAsTemplateModal'"
         variant="white"
-        v-show="form.content"
         size="sm"
         icon="Bookmark"
         class="shrink-0 self-start"
@@ -65,6 +65,7 @@
 
       <div class="relative w-72">
         <ICustomSelect
+          v-model="selectedTemplate"
           label="name"
           size="sm"
           :clearable="false"
@@ -72,14 +73,13 @@
           :disabled="document.status === 'accepted'"
           :placeholder="$t('documents::document.template.insert_template')"
           :options="templatesForOptions"
-          v-model="selectedTemplate"
           @option:selected="templateSelectedHandler"
         />
         <a
           v-show="!templatesAreBeingLoaded"
           href="#"
+          class="absolute right-9 top-2 mt-px text-neutral-400 hover:text-neutral-600 focus:outline-none"
           @click.prevent.stop="loadTemplates"
-          class="absolute right-9 top-2 mt-px text-neutral-400 focus:outline-none hover:text-neutral-600"
         >
           <Icon icon="Refresh" class="h-4 w-4" />
         </a>
@@ -96,30 +96,134 @@
 
     <div
       v-show="showSettings"
-      class="border-b border-neutral-200 pb-3 dark:border-neutral-700"
+      class="border-b border-neutral-200 pb-3 dark:border-neutral-600"
     >
-      <div class="inline-flex items-center">
-        <i18n-t
-          scope="global"
-          keypath="documents::document.add_pdf_padding"
-          class="text-base text-neutral-800 dark:text-neutral-200"
-          tag="span"
+      <h4
+        class="mb-4 inline-flex w-full items-center border-b border-neutral-200 pb-2 text-sm font-medium text-neutral-700 dark:border-neutral-600 dark:text-neutral-100"
+      >
+        <Icon icon="Document" class="mr-1.5 h-4 w-4" />
+        {{ $t('documents::pdf.settings') }}
+      </h4>
+
+      <div class="grid auto-cols-max grid-flow-col gap-4">
+        <IFormLabel
+          :label="$t('documents::pdf.padding')"
+          for="pdf-padding"
+          class="mt-2.5 w-32"
+        />
+
+        <div class="w-72">
+          <IFormInput
+            id="pdf-padding"
+            v-model="form.pdf.padding"
+            :placeholder="$t('documents::pdf.no_padding')"
+          />
+
+          <IFormError v-text="form.getError('pdf.padding')" />
+        </div>
+      </div>
+
+      <div class="grid auto-cols-max grid-flow-col gap-4">
+        <IFormLabel
+          :label="$t('documents::pdf.default_font')"
+          for="pdf-font"
+          class="mt-2.5 w-32"
+        />
+
+        <div class="w-72">
+          <ICustomSelect
+            v-model="form.pdf.font"
+            input-id="pdf-font"
+            :placeholder="
+              $t('documents::document.settings.inherits_setting_from_brand')
+            "
+            :options="fontNames"
+          />
+          <IFormError v-text="form.getError('pdf.font')" />
+        </div>
+
+        <span
+          v-i-tooltip="
+            $t('documents::pdf.default_font_info', {
+              fontName: 'DejaVu Sans',
+            })
+          "
+          class="mt-2.5"
         >
-          <template #px>
-            <input
-              type="text"
-              v-model="form.pdf.padding"
-              placeholder="px"
-              class="h-6 w-auto max-w-[60px] rounded-sm border-neutral-200 bg-white px-1 text-center text-sm focus:ring-0 dark:border-neutral-500 dark:bg-neutral-600"
-            />
-          </template>
-        </i18n-t>
+          <Icon icon="QuestionMarkCircle" class="h-5 w-5" />
+        </span>
+      </div>
+
+      <div class="grid auto-cols-max grid-flow-col gap-4">
+        <IFormLabel
+          :label="$t('documents::pdf.size')"
+          for="pdf-size"
+          class="mt-2.5 w-32"
+        />
+
+        <div class="w-72">
+          <ICustomSelect
+            v-model="form.pdf.size"
+            input-id="pdf-size"
+            :options="['a4', 'letter']"
+            :placeholder="
+              $t('documents::document.settings.inherits_setting_from_brand')
+            "
+          />
+          <IFormError v-text="form.getError('pdf.size')" />
+        </div>
+      </div>
+
+      <div class="grid auto-cols-max grid-flow-col gap-4">
+        <IFormLabel
+          :label="$t('documents::pdf.orientation')"
+          for="pdf-orientation"
+          class="mt-2.5 w-32"
+        />
+
+        <div class="w-72">
+          <ICustomSelect
+            v-model="form.pdf.orientation"
+            input-id="pdf-orientation"
+            :options="['portrait', 'landscape']"
+            :placeholder="
+              $t('documents::document.settings.inherits_setting_from_brand')
+            "
+          />
+          <IFormError v-text="form.getError('pdf.orientation')" />
+        </div>
       </div>
     </div>
 
     <div class="mt-10">
-      <IAlert class="mb-4" v-if="displayPlaceholdersMessage">
+      <IAlert v-if="displayPlaceholdersMessage" class="mb-4">
         {{ $t('documents::document.placeholders_replacement_info') }}
+      </IAlert>
+
+      <IAlert v-if="displayProductsMissingMessage" class="mb-4">
+        <i18n-t
+          scope="global"
+          :keypath="'documents::document.products_snippet_missing'"
+          tag="span"
+          class="inline-flex"
+        >
+          <template #icon>
+            <Icon icon="Plus" class="h-5 w-5" />
+          </template>
+        </i18n-t>
+      </IAlert>
+
+      <IAlert v-if="displaySignaturesMissingMessage" class="mb-4">
+        <i18n-t
+          scope="global"
+          :keypath="'documents::document.signatures_snippet_missing'"
+          tag="span"
+          class="inline-flex"
+        >
+          <template #icon>
+            <Icon icon="Plus" class="h-5 w-5" />
+          </template>
+        </i18n-t>
       </IAlert>
 
       <div
@@ -135,22 +239,28 @@
     </div>
   </div>
 </template>
+
 <script setup>
-import { ref, computed, watch } from 'vue'
-import propsDefinition from './formSectionProps'
+import { computed, ref, watch } from 'vue'
 import { whenever } from '@vueuse/core'
 import find from 'lodash/find'
 import omit from 'lodash/omit'
 import sortBy from 'lodash/sortBy'
-import ContentBuilder from '~/Core/resources/js/components/ContentBuilder/ContentBuilder.vue'
-import { addGoogleFontsStyle } from '~/Core/resources/js/components/ContentBuilder/utils'
-import { useForm } from '~/Core/resources/js/composables/useForm'
-import IAlert from '~/Core/resources/js/components/UI/IAlert.vue'
+
+import ContentBuilder from '~/Core/components/ContentBuilder/ContentBuilder.vue'
+import { addGoogleFontsStyle } from '~/Core/components/ContentBuilder/utils'
+import IAlert from '~/Core/components/UI/IAlert.vue'
+import { useForm } from '~/Core/composables/useForm'
+
+import propsDefinition from './formSectionProps'
 
 const props = defineProps({
   ...propsDefinition,
   ...{ isReady: { default: true, type: Boolean } },
 })
+
+const fonts = Innoclapps.config('contentbuilder.fonts')
+const fontNames = computed(() => fonts.map(font => font['font-family']))
 
 const builderRef = ref(null)
 const inputNameRef = ref(null)
@@ -205,6 +315,20 @@ const hasAssociations = computed(() => {
 
   return val
 })
+
+const displayProductsMissingMessage = computed(
+  () =>
+    props.form.billable.products.length > 0 &&
+    (!props.form.content ||
+      props.form.content.indexOf('products-section') === -1)
+)
+
+const displaySignaturesMissingMessage = computed(
+  () =>
+    props.form.signers.length > 0 &&
+    (!props.form.content ||
+      props.form.content.indexOf('signatures-section') === -1)
+)
 
 const displayPlaceholdersMessage = computed(
   () =>
@@ -283,6 +407,7 @@ defineExpose({
   builderRef,
 })
 </script>
+
 <style>
 body:not(.document-section-content) #divSnippetHandle {
   display: none;

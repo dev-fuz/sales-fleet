@@ -1,30 +1,38 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import { ref, unref, computed, onBeforeMount } from 'vue'
-import { watchDebounced } from '@vueuse/core'
-import findIndex from 'lodash/findIndex'
-import find from 'lodash/find'
-import { useRecordStore } from '~/Core/resources/js/composables/useRecordStore'
+import { computed, onBeforeMount, ref, unref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { randomString } from '@/utils'
 import { useStore } from 'vuex'
-import { useForm } from '~/Core/resources/js/composables/useForm'
-import { useSignature } from '../views/Emails/useSignature'
+import { watchDebounced } from '@vueuse/core'
+import find from 'lodash/find'
+import findIndex from 'lodash/findIndex'
 
-export function useMessageComposer(viaResource, resourceRecord) {
+import { randomString } from '@/utils'
+
+import { useForm } from '~/Core/composables/useForm'
+
+import { useActivities } from '~/Activities/composables/useActivities'
+
+import { useSignature } from './useSignature'
+
+export function useMessageComposer(
+  viaResource,
+  relatedResource,
+  synchronizeResource
+) {
   const { t } = useI18n()
   const store = useStore()
   const { addSignature } = useSignature()
-  const { addResourceRecordHasManyRelationship, incrementResourceRecordCount } =
-    useRecordStore()
+
+  const { createFollowUpActivity } = useActivities()
 
   const sending = ref(false)
   const customAssociationsValue = ref({})
@@ -34,16 +42,36 @@ export function useMessageComposer(viaResource, resourceRecord) {
   const subject = ref(null)
 
   const { form } = useForm({
-    with_task: false,
-    task_date: null,
+    subject: null,
     message: addSignature(),
     to: [],
     cc: null,
     bcc: null,
     associations: {},
+    task_date: null,
   })
 
   const placeholders = computed(() => store.state.fields.placeholders)
+
+  const hasEmptyPlaceholders = computed(() => {
+    if (!form.message) {
+      return false
+    }
+
+    let template = document.createElement('template')
+    template.innerHTML = form.message.trim() // Never return a text node of whitespace as the result
+
+    const usedPlaceholders =
+      template.content.firstChild.querySelectorAll('._placeholder')
+
+    if (usedPlaceholders.length === 0) {
+      return false
+    }
+
+    return (
+      Array.from(usedPlaceholders).filter(p => p.value.trim() === '').length > 0
+    )
+  })
 
   const allPlaceholders = computed(() => {
     let all = []
@@ -75,23 +103,73 @@ export function useMessageComposer(viaResource, resourceRecord) {
     }, [])
   })
 
+  function showWillUsePlaceholdersIconToAssociateResourceRecord(
+    record,
+    selectedRecords,
+    resourceName,
+    isSelected,
+    isSearching
+  ) {
+    if (isSearching || !isSelected) {
+      return false
+    }
+
+    const isFirstSelectedRecord = selectedRecords[0] === record.id
+
+    const isContactOrCompany =
+      resourceName === 'contacts' || resourceName === 'companies'
+
+    if (isContactOrCompany) {
+      const firstRecipientByResource = form.to.filter(
+        r => r.resourceName === resourceName
+      )[0]
+
+      if (!firstRecipientByResource) {
+        return isFirstSelectedRecord
+      }
+
+      return firstRecipientByResource.id === record.id
+    }
+
+    return isFirstSelectedRecord
+  }
+
+  // When there are "contacts" or "companies" recipients, use placeholders from the first resource recipient,
+  // otherwise, use placeholders from the first associated record.
   const resourcesForPlaceholders = computed(() => {
     const resources = []
 
-    if (form.to.length > 0 && form.to[0].resourceName) {
-      resources.push({
-        name: form.to[0].resourceName,
-        id: form.to[0].id,
-      })
-    }
+    Object.keys(form.associations).forEach(resourceName => {
+      if (form.associations[resourceName].length === 0) {
+        return
+      }
 
-    // viaResource
-    if (viaResource) {
-      resources.push({
-        name: viaResource,
-        id: unref(resourceRecord).id,
-      })
-    }
+      const isContactOrCompany =
+        resourceName === 'contacts' || resourceName === 'companies'
+
+      if (isContactOrCompany) {
+        const firstRecipientByResource = form.to.filter(
+          r => r.resourceName === resourceName
+        )[0]
+
+        if (firstRecipientByResource) {
+          resources.push({
+            name: resourceName,
+            id: firstRecipientByResource.id,
+          })
+        } else {
+          resources.push({
+            name: resourceName,
+            id: form.associations[resourceName][0],
+          })
+        }
+      } else {
+        resources.push({
+          name: resourceName,
+          id: form.associations[resourceName][0],
+        })
+      }
+    })
 
     return resources
   })
@@ -104,7 +182,7 @@ export function useMessageComposer(viaResource, resourceRecord) {
     const usedPlaceholders = []
 
     allPlaceholdersInterpolations.value.forEach(i => {
-      const matches = new RegExp(`${i[0]}\\s?(.*)\\s?${i[1]}`).exec(
+      const matches = new RegExp(`${i[0]}\\s?(.*?)\\s?${i[1]}`).exec(
         subject.value
       )
 
@@ -126,6 +204,7 @@ export function useMessageComposer(viaResource, resourceRecord) {
     subjectPlaceholders.value.forEach(p => {
       if (!find(allPlaceholders.value, ['tag', p.tag])) {
         value = true
+
         return false
       }
 
@@ -150,9 +229,11 @@ export function useMessageComposer(viaResource, resourceRecord) {
           ).test(subject.value)
         ) {
           value = false
+
           return false
         }
       }
+
       return true
     })
 
@@ -209,38 +290,53 @@ export function useMessageComposer(viaResource, resourceRecord) {
     )
   }
 
-  function handleCreatedFollowUpTask(task) {
-    addResourceRecordHasManyRelationship(task, 'activities')
-    incrementResourceRecordCount('incomplete_activities_for_user_count')
+  function handleCreatedFollowUpTask(activity) {
+    synchronizeResource({
+      activities: [activity],
+      incomplete_activities_for_user_count:
+        relatedResource.incomplete_activities_for_user_count + 1,
+    })
   }
 
-  function sendRequest(url) {
+  async function sendRequest(url) {
     sending.value = true
     form.subject = parsedSubject.value || subject.value
     form.fill('attachments_draft_id', attachmentsDraftId)
 
     if (viaResource) {
       form.fill('via_resource', viaResource)
-      form.fill('via_resource_id', unref(resourceRecord).id)
+      form.fill('via_resource_id', unref(relatedResource).id)
     }
 
-    return Innoclapps.request()
-      .post(url, form.data())
-      .then(response => {
-        form.reset()
+    try {
+      let response = await Innoclapps.request().post(url, form.data())
 
-        if (response.status !== 202) {
-          Innoclapps.success(t('mailclient::inbox.message_sent'))
-          Innoclapps.$emit('email-sent', response.data.message)
-        } else {
-          Innoclapps.info(t('mailclient::mail.message_queued_for_sending'))
-        }
+      if (response.status !== 202) {
+        Innoclapps.success(t('mailclient::inbox.message_sent'))
+        Innoclapps.$emit('email-sent', response.data.message)
+      } else {
+        Innoclapps.info(t('mailclient::mail.message_queued_for_sending'))
+      }
 
-        if (response.data.createdActivity && viaResource) {
-          handleCreatedFollowUpTask(response.data.createdActivity)
-        }
-      })
-      .finally(() => (sending.value = false))
+      if (form.task_date && viaResource) {
+        let activity = await createFollowUpActivity(
+          form.task_date,
+          viaResource,
+          unref(relatedResource).id,
+          unref(relatedResource).display_name
+        )
+
+        handleCreatedFollowUpTask(activity)
+      }
+
+      form.reset()
+
+      return response
+    } catch (e) {
+      Promise.reject(e)
+    } finally {
+      sending.value = false
+    }
   }
 
   function setWantsCC() {
@@ -287,48 +383,70 @@ export function useMessageComposer(viaResource, resourceRecord) {
   function dissociateRemovedRecipients(option) {
     if (
       !option.resourceName ||
-      !customAssociationsValue.value[option.resourceName]
+      !customAssociationsValue.value[option.resourceName] ||
+      // Do not auto dissociated the primary record
+      (viaResource === option.resourceName &&
+        unref(relatedResource).id === option.id)
     ) {
       return
     }
 
-    let index = findIndex(customAssociationsValue.value[option.resourceName], [
-      'id',
-      option.id,
-    ])
+    let associateablesIndex = findIndex(
+      customAssociationsValue.value[option.resourceName],
+      ['id', option.id]
+    )
 
-    if (index !== -1) {
-      customAssociationsValue.value[option.resourceName].splice(index, 1)
+    let modelIndex = form.associations[option.resourceName].findIndex(
+      associatedId => associatedId === option.id
+    )
+
+    if (associateablesIndex !== -1) {
+      customAssociationsValue.value[option.resourceName].splice(
+        associateablesIndex,
+        1
+      )
+    }
+
+    if (modelIndex !== -1) {
+      form.associations[option.resourceName].splice(modelIndex, 1)
+    }
+  }
+
+  function associateMessageRecord(record, resourceName) {
+    if (!customAssociationsValue.value[resourceName]) {
+      customAssociationsValue.value[resourceName] = []
+    }
+
+    if (!find(customAssociationsValue.value[resourceName], ['id', record.id])) {
+      customAssociationsValue.value[resourceName].push(record)
+    }
+
+    if (!Object.hasOwn(form.associations, resourceName)) {
+      form.associations[resourceName] = []
+    }
+
+    if (!form.associations[resourceName].find(id => id == record.id)) {
+      form.associations[resourceName].push(record.id)
     }
   }
 
   /**
-   * When a recipient is selected we will associate automatically to the associatiosn component
+   * When a recipient is selected we will associate automatically to the association component
    *
    * @param  {Array} records
    *
    * @return {Void}
    */
   function associateSelectedRecipients(records) {
-    records.forEach(record => {
-      if (record.resourceName) {
-        if (!customAssociationsValue.value[record.resourceName]) {
-          customAssociationsValue.value[record.resourceName] = []
-        }
-
-        if (
-          !find(customAssociationsValue.value[record.resourceName], [
-            'id',
-            record.id,
-          ])
-        ) {
-          customAssociationsValue.value[record.resourceName].push({
-            id: record.id,
-            display_name: record.name,
-          })
-        }
-      }
-    })
+    records
+      .filter(record => Boolean(record.resourceName))
+      .forEach(record => {
+        record.disabled = true
+        associateMessageRecord(
+          { ...record, ...{ display_name: record.name } },
+          record.resourceName
+        )
+      })
   }
 
   async function makeParsePlaceholdersRequest(resources, content, type) {
@@ -366,6 +484,7 @@ export function useMessageComposer(viaResource, resourceRecord) {
     placeholders,
     resourcesForPlaceholders,
     parsedSubject,
+    hasEmptyPlaceholders,
     subject,
     hasInvalidAddresses,
     wantsCc,
@@ -376,11 +495,13 @@ export function useMessageComposer(viaResource, resourceRecord) {
     parsePlaceholdersForMessage,
     parsePlaceholdersForSubject,
     subjectPlaceholdersSyntaxIsValid,
+    showWillUsePlaceholdersIconToAssociateResourceRecord,
     hasInvalidSubjectPlaceholders,
     handleAttachmentUploaded,
     destroyPendingAttachment,
     associateSelectedRecipients,
     dissociateRemovedRecipients,
+    associateMessageRecord,
     handleRecipientSelectedEvent,
     handleToRecipientRemovedEvent,
     setWantsBCC,

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,7 +14,6 @@ namespace Modules\Core\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Modules\Core\Filters\UserFiltersService;
 use Modules\Core\Http\Controllers\ApiController;
 use Modules\Core\Http\Requests\FilterRequest;
 use Modules\Core\Http\Resources\FilterResource;
@@ -25,11 +24,11 @@ class FilterController extends ApiController
     /**
      * Get filters from storage by identifier for logged in user.
      */
-    public function index(string $identifier, Request $request, UserFiltersService $service): JsonResponse
+    public function index(string $identifier, Request $request): JsonResponse
     {
         $userId = $request->user()->getKey();
 
-        $filters = $service->get($userId, $identifier);
+        $filters = Filter::forUser($userId, $identifier)->get();
 
         return $this->response(
             FilterResource::collection($filters)
@@ -37,7 +36,7 @@ class FilterController extends ApiController
     }
 
     /**
-     * Create new table filter.
+     * Create filter in storage.
      */
     public function store(FilterRequest $request): JsonResponse
     {
@@ -49,7 +48,7 @@ class FilterController extends ApiController
     }
 
     /**
-     * Update table filter.
+     * Update given filter.
      */
     public function update(Filter $filter, FilterRequest $request): JsonResponse
     {
@@ -67,7 +66,7 @@ class FilterController extends ApiController
     }
 
     /**
-     * Delete table filter.
+     * Delete given filter.
      */
     public function destroy(Filter $filter): JsonResponse
     {

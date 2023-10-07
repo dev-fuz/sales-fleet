@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -20,7 +20,7 @@ use Modules\Core\Workflow\Trigger;
 use Modules\MailClient\Workflow\Actions\ResourcesSendEmailToField;
 use Modules\MailClient\Workflow\Actions\SendEmailAction;
 
-class ContactCreated extends Trigger implements ModelTrigger, EventTrigger
+class ContactCreated extends Trigger implements EventTrigger, ModelTrigger
 {
     /**
      * Trigger name

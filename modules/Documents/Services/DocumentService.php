@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,20 +15,18 @@ namespace Modules\Documents\Services;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Modules\Billable\Services\BillableService;
-use Modules\Core\Contracts\Services\CreateService;
-use Modules\Core\Contracts\Services\Service;
-use Modules\Core\Contracts\Services\UpdateService;
 use Modules\Core\Models\Model;
 use Modules\Documents\Enums\DocumentStatus;
 use Modules\Documents\Models\Document;
 use Modules\Documents\Models\DocumentType;
+use Modules\Documents\Notifications\UserAssignedToDocument;
 
-class DocumentService implements Service, CreateService, UpdateService
+class DocumentService
 {
     /**
      * Create new document in storage.
      */
-    public function create(array $attributes): Document
+    public function create(Document $model, array $attributes): Document
     {
         $signers = $attributes['signers'] ?? [];
 
@@ -46,7 +44,13 @@ class DocumentService implements Service, CreateService, UpdateService
             $attributes['requires_signature'] = count($signers) > 0 ? true : false;
         }
 
-        $model = new Document($attributes);
+        if (! isset($attributes['locale'])) {
+            $attributes['locale'] = Auth::user()->preferredLocale();
+        }
+
+        $model->fill($attributes);
+
+        $model->owner_assigned_date = now();
         $model->status = DocumentStatus::DRAFT;
 
         $model->save();
@@ -59,6 +63,10 @@ class DocumentService implements Service, CreateService, UpdateService
             (new BillableService())->save($billable, $model);
         }
 
+        if ($model->user_id != Auth::id()) {
+            $model->user->notify(new UserAssignedToDocument($model, Auth::user()));
+        }
+
         return $model;
     }
 
@@ -67,6 +75,8 @@ class DocumentService implements Service, CreateService, UpdateService
      */
     public function update(Model $model, array $attributes): Document
     {
+        $originalOwnerId = $model->user_id;
+
         $signers = Arr::pull($attributes, 'signers');
 
         if ($model->status === DocumentStatus::ACCEPTED) {
@@ -85,7 +95,13 @@ class DocumentService implements Service, CreateService, UpdateService
             $data['send_initiated_by'] = Auth::id();
         }
 
-        $model->fill([...$attributes, ...['data' => $data]])->save();
+        $model->fill([...$attributes, ...['data' => $data]]);
+
+        if ($originalOwnerId != $model->user_id) {
+            $model->owner_assigned_date = now();
+        }
+
+        $model->save();
 
         if ($model->requires_signature === false) {
             $model->signers()->delete();
@@ -99,6 +115,10 @@ class DocumentService implements Service, CreateService, UpdateService
 
         if ($attributes['send'] ?? false) {
             (new DocumentSendService())->send($model);
+        }
+
+        if ($originalOwnerId != $model->user_id && Auth::id() !== $model->user_id) {
+            $model->user->notify(new UserAssignedToDocument($model, Auth::user()));
         }
 
         return $model;

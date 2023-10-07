@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -22,12 +22,30 @@ trait ChecksPermissions
     protected static $permissionsCheckerFinderUsing;
 
     /**
+     * @var callable|null
+     */
+    protected static $checkPermissionsUsing;
+
+    /**
+     * Add custom permissions checker.
+     */
+    public static function checkPermissionsUsing(?callable $callable): void
+    {
+        static::$checkPermissionsUsing = $callable;
+    }
+
+    /**
      * Check a given directory recursively if all files are writeable.
      */
     protected function checkPermissions(string $path, array $excludedFolders): bool
     {
+        $finder = $this->getPermissionsCheckerFinder($path, $excludedFolders);
+
+        if (static::$checkPermissionsUsing) {
+            return call_user_func_array(static::$checkPermissionsUsing, [$finder, $path, $excludedFolders]);
+        }
+
         $passes = true;
-        $finder = $this->getPermissionsCheckerFinderInstance($path, $excludedFolders);
 
         foreach ($finder as $file) {
             if ($file->isWritable() === false) {
@@ -43,7 +61,7 @@ trait ChecksPermissions
     /**
      * Get the finder instance for the permissions checker
      */
-    protected function getPermissionsCheckerFinderInstance(string $path, array $excludedFolders): Finder
+    protected function getPermissionsCheckerFinder(string $path, array $excludedFolders): Finder
     {
         if (static::$permissionsCheckerFinderUsing) {
             return call_user_func_array(static::$permissionsCheckerFinderUsing, [$path]);

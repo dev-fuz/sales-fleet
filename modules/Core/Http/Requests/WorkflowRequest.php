@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,10 +12,12 @@
 
 namespace Modules\Core\Http\Requests;
 
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Modules\Core\Contracts\Workflow\FieldChangeTrigger;
+use Modules\Core\Fields\Field;
 use Modules\Core\Workflow\Trigger;
 use Modules\Core\Workflow\Workflows;
 
@@ -57,7 +59,7 @@ class WorkflowRequest extends FormRequest
         return array_merge(
             [
                 'trigger_type' => ['required', Rule::in(Workflows::availableTriggers())],
-                'action_type' => ['required', function ($attribute, $value, $fail) {
+                'action_type' => ['required', function (string $attribute, mixed $value, Closure $fail) {
                     if (! $this->getTrigger()) {
                         return;
                     }
@@ -87,7 +89,7 @@ class WorkflowRequest extends FormRequest
             return [];
         }
 
-        return $this->actionFields()->mapWithKeys(fn ($field) => $field->getRules())->all();
+        return $this->actionFields()->mapWithKeys(fn (Field $field) => $field->getRules())->all();
     }
 
     /**
@@ -135,6 +137,6 @@ class WorkflowRequest extends FormRequest
      */
     public function fieldsAttributes(): array
     {
-        return $this->actionFields()->map(fn ($field) => $field->requestAttribute())->all();
+        return $this->actionFields()->map(fn (Field $field) => $field->requestAttribute())->all();
     }
 }

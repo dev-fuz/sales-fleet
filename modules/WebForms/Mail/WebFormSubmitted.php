@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,10 +15,10 @@ namespace Modules\WebForms\Mail;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Modules\Core\MailableTemplate\DefaultMailable;
 use Modules\Core\MailableTemplate\MailableTemplate;
-use Modules\Core\Placeholders\Collection as BasePlaceholders;
-use Modules\Core\Placeholders\GenericPlaceholder;
+use Modules\Core\Support\Placeholders\GenericPlaceholder;
+use Modules\Core\Support\Placeholders\Placeholders as BasePlaceholders;
 use Modules\WebForms\Models\WebForm;
-use Modules\WebForms\Submission\FormSubmission;
+use Modules\WebForms\Services\FormSubmission;
 
 class WebFormSubmitted extends MailableTemplate implements ShouldQueue
 {
@@ -55,7 +55,7 @@ class WebFormSubmitted extends MailableTemplate implements ShouldQueue
      */
     public static function defaultHtmlTemplate(): string
     {
-        return '<p>There is new submission via the {{ title }} web form.<br /><br /></p>
+        return '<p>There is new submission via the {{ form.title }} web form.<br /><br /></p>
                 <p>{{{ payload }}}</p>';
     }
 

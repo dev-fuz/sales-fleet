@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -57,9 +57,9 @@ class UpcomingUserActivitiesTest extends ResourceTestCase
         Carbon::setTestNow(null);
         Carbon::setTestNow(now()->startOfMonth());
         $this->getJson("api/cards/{$this->card->uriKey()}?range=this_month")
-            ->assertJsonCount(1, 'items.data')
+            ->assertJsonCount(1, 'value.data')
             ->assertJson(function (AssertableJson $json) use ($activity) {
-                $json->has('items.data.0', function ($json) use ($activity) {
+                $json->has('value.data.0', function ($json) use ($activity) {
                     $json->where('id', $activity->id)
                         ->where('title', $activity->title)
                         ->where('path', $activity->path)
@@ -82,7 +82,7 @@ class UpcomingUserActivitiesTest extends ResourceTestCase
         ]);
 
         $this->getJson("api/cards/{$this->card->uriKey()}?range=this_month")
-            ->assertJsonCount(0, 'items.data');
+            ->assertJsonCount(0, 'value.data');
     }
 
     public function test_it_does_not_query_the_completed_activities_on_upcoming_activities_card()
@@ -100,6 +100,6 @@ class UpcomingUserActivitiesTest extends ResourceTestCase
         ]);
 
         $this->getJson("api/cards/{$this->card->uriKey()}?range=this_month")
-            ->assertJsonCount(1, 'items.data');
+            ->assertJsonCount(1, 'value.data');
     }
 }

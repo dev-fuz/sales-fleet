@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,21 +12,72 @@
 
 namespace Modules\Core\Fields;
 
+use Modules\Core\Contracts\Fields\Deleteable;
 use Modules\Core\EditorPendingMediaProcessor;
-use Modules\Core\Placeholders\GenericPlaceholder;
+use Modules\Core\Fields\Deleteable as DeleteableTrait;
+use Modules\Core\Http\Requests\ResourceRequest;
+use Modules\Core\Models\Model;
+use Modules\Core\Support\Placeholders\GenericPlaceholder;
+use Modules\Users\Mention\PendingMention;
 
-class Editor extends Field
+class Editor extends Field implements Deleteable
 {
+    use DeleteableTrait;
+
     /**
-     * Field component
+     * Field component.
      */
-    public ?string $component = 'editor-field';
+    public static $component = 'editor-field';
+
+    /**
+     * The inline edit popover width (medium|large).
+     */
+    public string $inlineEditPanelWidth = 'large';
+
+    /**
+     * Initialize new Editor instance.
+     */
+    public function __construct()
+    {
+        parent::__construct(...func_get_args());
+
+        $this
+            ->deleteUsing(function (Model $model) {
+                $this->createImagesProcessor()->deleteAllViaModel(
+                    $model,
+                    $this->attribute
+                );
+            })
+            ->fillUsing(function (Model $model, string $attribute, ResourceRequest $request, ?string $value) {
+                $mention = new PendingMention($value ?: '');
+
+                if ($mention->hasMentions()) {
+                    $value = $mention->getUpdatedText();
+                }
+
+                $model->{$attribute} = $value;
+
+                return function () use ($mention, $model, $request) {
+                    $this->runImagesProcessor($model);
+
+                    $intermediate = $request->viaResource() ?
+                        $request->findResource($request->via_resource)->newQuery()->find($request->via_resource_id) :
+                        $model;
+
+                    $mention->setUrl($intermediate->path)->withUrlQueryParameter([
+                        'section' => $request->viaResource() ? $model->resource()->name() : null,
+                        'resourceId' => $request->viaResource() ? $model->getKey() : null,
+                    ])->notify();
+                };
+            })
+            ->resolveUsing(fn ($model, $attribute) => clean($model->{$attribute}));
+    }
 
     /**
      * Get the mailable template placeholder
      *
      * @param  \Modules\Core\Models\Model|null  $model
-     * @return \Modules\Core\Placeholders\GenericPlaceholder
+     * @return \Modules\Core\Support\Placeholders\GenericPlaceholder
      */
     public function mailableTemplatePlaceholder($model)
     {
@@ -40,39 +91,17 @@ class Editor extends Field
     }
 
     /**
-     * Handle the resource record "created" event
-     *
-     * @param  \Modules\Core\Models\Model  $model
-     * @return void
+     * Add mention support to the editor.
      */
-    public function recordCreated($model)
+    public function withMentions(): static
     {
-        $this->runImagesProcessor($model);
-    }
+        $this->withMeta([
+            'attributes' => [
+                'with-mention' => true,
+            ],
+        ]);
 
-    /**
-     * Handle the resource record "updated" event
-     *
-     * @param  \Modules\Core\Models\Model  $model
-     * @return void
-     */
-    public function recordUpdated($model)
-    {
-        $this->runImagesProcessor($model);
-    }
-
-    /**
-     * Handle the resource record "deleted" event
-     *
-     * @param  \Modules\Core\Models\Model  $model
-     * @return void
-     */
-    public function recordDeleted($model)
-    {
-        $this->createImagesProcessor()->deleteAllViaModel(
-            $model,
-            $this->attribute
-        );
+        return $this;
     }
 
     /**
@@ -87,17 +116,6 @@ class Editor extends Field
             $model,
             $this->attribute
         );
-    }
-
-    /**
-     * Resolve the field value
-     *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return string
-     */
-    public function resolve($model)
-    {
-        return clean(parent::resolve($model));
     }
 
     /**

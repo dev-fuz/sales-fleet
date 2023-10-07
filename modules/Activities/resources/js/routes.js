@@ -1,21 +1,20 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import i18n from '~/Core/resources/js/i18n'
-
 import { useStorage } from '@vueuse/core'
 
-import ActivityIndex from './views/ActivityIndex.vue'
-import CreateActivity from './views/CreateActivity.vue'
-import EditActivity from './views/EditActivity.vue'
+import i18n from '~/Core/i18n'
 
+import ActivitiesCreate from './views/ActivitiesCreate.vue'
+import ActivitiesEdit from './views/ActivitiesEdit.vue'
+import ActivitiesIndex from './views/ActivitiesIndex.vue'
 import CalendarSync from './views/CalendarSync.vue'
 
 const isCalendarDefaultView = useStorage(
@@ -35,7 +34,7 @@ export default [
   {
     path: '/activities/calendar',
     name: 'activity-calendar',
-    component: () => import('./views/ActivityCalendar.vue'),
+    component: () => import('./views/ActivitiesCalendar.vue'),
     meta: { title: i18n.t('activities::calendar.calendar') },
     beforeEnter: () => {
       isCalendarDefaultView.value = true
@@ -44,7 +43,7 @@ export default [
   {
     path: '/activities',
     name: 'activity-index',
-    component: ActivityIndex,
+    component: ActivitiesIndex,
     meta: {
       title: i18n.t('activities::activity.activities'),
       subRoutes: ['create-activity', 'edit-activity', 'view-activity'],
@@ -74,7 +73,7 @@ export default [
         path: 'create',
         name: 'create-activity',
         components: {
-          create: CreateActivity,
+          create: ActivitiesCreate,
         },
         meta: { title: i18n.t('activities::activity.create') },
       },
@@ -85,7 +84,7 @@ export default [
           scrollToTop: false,
         },
         components: {
-          edit: EditActivity,
+          edit: ActivitiesEdit,
         },
       },
       {
@@ -95,7 +94,7 @@ export default [
           scrollToTop: false,
         },
         components: {
-          edit: EditActivity,
+          edit: ActivitiesEdit,
         },
       },
     ],

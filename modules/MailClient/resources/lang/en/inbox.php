@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -43,6 +43,10 @@ return [
     'date' => 'Date',
     'message' => 'Message',
     'unread_count' => 'Total Unread Emails',
+
+    'pre_send_empty_placeholders_found' => 'You are about to send an email with empty placeholders. Before proceeding, please confirm that you really want to proceed with this action.',
+
+    'will_use_placeholders_from_record' => 'The placeholders added in the message content related to the :resourceName resource will be taken form this record',
 
     'filters' => [
         'is_read' => 'Is Read',

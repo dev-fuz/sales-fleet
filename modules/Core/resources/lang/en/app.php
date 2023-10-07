@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -22,6 +22,8 @@ return [
     'exit' => 'Exit',
     'edit' => 'Edit',
     'copy' => 'Copy',
+    'copy_link' => 'Copy Link',
+    'copy_api_key' => 'Copy API Key',
     'clone' => 'Clone',
     'create' => 'Create',
     'change' => 'Change',
@@ -32,6 +34,8 @@ return [
     'system_info' => 'System Info',
     'add_note' => 'Add Note',
     'add_another' => 'Add Another',
+    'is_primary' => 'Primary',
+    'is_default' => 'Default',
     'note_is_private' => 'Private note',
     'create_and_add_another' => 'Create & Add Another',
     'create_and_go_to_list' => 'Create & Go To List',
@@ -70,6 +74,7 @@ return [
     'attach' => 'Attach',
     'changelog' => 'Changelog',
     'go_back' => 'Go Back',
+    'back' => 'Back',
     'attach_files' => 'Attach Files',
     'file_too_large' => 'File too large, increase max upload size.',
     'no_attachments' => 'There are no attachments uploaded.',
@@ -120,7 +125,7 @@ return [
     'yes' => 'Yes',
     'no' => 'No',
     'no_associations' => 'No associations',
-    'associated_with_total_records' => 'Associated with :total records',
+    'associated_with_total_records' => 'Associated with :count record|Associated with :count records',
     'action_not_authorized' => 'Your account is not authorized to perform this action',
 
     'record_view' => [
@@ -138,6 +143,7 @@ return [
         'restore' => 'Restore',
         'force_delete' => 'Permenently Delete',
         'move_to_trash' => 'Move to Trash',
+        'empty_trash' => 'Empty Trash',
         'trashed_pruning_info' => 'Trashed records will be deleted after :total days.',
     ],
 

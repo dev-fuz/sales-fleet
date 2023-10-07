@@ -151,3 +151,8 @@ a[data-content="divMyButtons"]{
 
 /* Icon support */
 @import '../../public/assets/contentbuilder/assets/ionicons/css/ionicons';
+
+// Do not allow applying element styles to the row, it may mess up the PDF if padding is added.
+.is-side.elementstyles .elm-list a:first-child {
+    pointer-events: none;
+}

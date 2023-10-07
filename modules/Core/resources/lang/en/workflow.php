@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -40,7 +40,6 @@ return [
         'for_owner' => 'For: Owner (Responsible person)',
 
         'dates' => [
-            'due_at' => 'Due at',
             'now' => 'With due date: at the moment',
             'in_1_day' => 'With due date: in one day',
             'in_2_days' => 'With due date: in two days',

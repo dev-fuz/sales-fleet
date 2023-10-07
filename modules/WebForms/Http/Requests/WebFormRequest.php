@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,27 +13,28 @@
 namespace Modules\WebForms\Http\Requests;
 
 use Illuminate\Support\Facades\Auth;
+use Modules\Core\Fields\Field;
 use Modules\Core\Fields\FieldsCollection;
-use Modules\Core\Resource\Http\CreateResourceRequest;
+use Modules\Core\Http\Requests\InteractsWithResourceFields;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Resource\Resource;
 use Modules\WebForms\Models\WebForm;
 
-class WebFormRequest extends CreateResourceRequest
+class WebFormRequest extends ResourceRequest
 {
+    use InteractsWithResourceFields {
+        InteractsWithResourceFields::prepareForValidation as basePrepareForValidation;
+    }
+
     /**
      * Original input for the request before any modifications.
      */
-    protected array $originalInput = [];
+    protected array $formInput = [];
 
     /**
      * The web form instance for the current request.
      */
     protected ?WebForm $webForm = null;
-
-    /**
-     * Request state (validating|creating)
-     */
-    public string $state = 'validating';
 
     /**
      * Get the web form for the request.
@@ -66,6 +67,10 @@ class WebFormRequest extends CreateResourceRequest
     {
         $this->resource = $this->findResource($resourceName);
 
+        $this->setFields($this->allFields()->filter(function (Field $field) use ($resourceName) {
+            return $field->meta()['resourceName'] === $resourceName;
+        }));
+
         $this->replaceInputForCurrentResource();
 
         return $this;
@@ -82,12 +87,12 @@ class WebFormRequest extends CreateResourceRequest
         // when using in FormSubmissionService ->replace method, there may be conflicts
 
         /** @var array */
-        $input = collect($this->webForm()->fileSections())->reduce(function ($input, $section) { // merge with initial
-        $input[$section['requestAttribute']] = $this->originalInput[$section['requestAttribute']];
+        $input = collect($this->webForm()->fileSections())->reduce(function (array $input, array $section) { // merge with initial
+            $input[$section['requestAttribute']] = $this->formInput[$section['requestAttribute']];
 
             return $input;
-        }, $this->fields()->reduce(function ($input, $field) { // initial
-        $input[$field->requestAttribute] = $this->originalInput[$field->requestAttribute];
+        }, $this->getFields()->reduce(function (array $input, Field $field) { // initial
+            $input[$field->requestAttribute] = $this->formInput[$field->requestAttribute];
 
             return $input;
         }, []));
@@ -108,17 +113,9 @@ class WebFormRequest extends CreateResourceRequest
      */
     public function resources(): array
     {
-        return $this->fields()->unique(function ($field) {
+        return $this->getFields()->unique(function (Field $field) {
             return $field->meta()['resourceName'];
-        })->map(fn ($field) => $field->meta()['resourceName'])->values()->all();
-    }
-
-    /**
-     * Get the resource authorized fields for the request.
-     */
-    public function authorizedFields(): FieldsCollection
-    {
-        return $this->fields()->filter->authorizedToSee();
+        })->map(fn (Field $field) => $field->meta()['resourceName'])->values()->all();
     }
 
     /**
@@ -130,17 +127,11 @@ class WebFormRequest extends CreateResourceRequest
     }
 
     /**
-     * Get the web form fields.
+     * Provide the fields available for the request.
      */
     public function fields(): FieldsCollection
     {
-        if ($this->state === 'validating') {
-            return $this->allFields();
-        }
-
-        return $this->allFields()->filter(function ($field) {
-            return $field->meta()['resourceName'] === $this->resource->name();
-        });
+        return $this->allFields();
     }
 
     /**
@@ -156,18 +147,11 @@ class WebFormRequest extends CreateResourceRequest
      */
     public function messages(): array
     {
-        return array_merge(parent::messages(), collect($this->requiredFileSections())
-            ->mapWithKeys(function ($section) {
+        return array_merge(
+            $this->messagesFromFields(), collect($this->requiredFileSections())->mapWithKeys(function (array $section) {
                 return [$section['requestAttribute'].'.required' => __('validation.required_file')];
-            })->all());
-    }
-
-    /**
-     * Get the error messages that are defined from the resource class.
-     */
-    public function messagesFromResource(): array
-    {
-        return [];
+            })->all()
+        );
     }
 
     /**
@@ -177,27 +161,27 @@ class WebFormRequest extends CreateResourceRequest
     {
         app()->setLocale($this->webForm()->locale);
 
-        parent::prepareForValidation();
+        $this->basePrepareForValidation();
 
-        $this->setOriginalInput();
+        $this->rememberFormInput();
     }
 
     /**
-     * Set the request original input.
+     * Remember the request input from all resources.
      */
-    public function setOriginalInput(): static
+    public function rememberFormInput(): static
     {
-        $this->originalInput = $this->all();
+        $this->formInput = $this->all();
 
         return $this;
     }
 
     /**
-     * Get the request original input.
+     * Get the request input from all resources.
      */
-    public function getOriginalInput(): array
+    public function getFormInput(string $key = null): mixed
     {
-        return $this->originalInput;
+        return is_string($key) ? $this->formInput[$key] ?? null : $this->formInput;
     }
 
     /**
@@ -208,20 +192,22 @@ class WebFormRequest extends CreateResourceRequest
     public function rules(): array
     {
         $rules = $this->allFields()->mapWithKeys(
-            fn ($field) => $field->getCreationRules()
+            fn (Field $field) => $field->getCreationRules()
         )->all();
 
         if ($this->privacyPolicyAcceptIsRequired()) {
             $rules['_privacy-policy'] = 'accepted';
         }
 
-        return $this->addFileSectionValidationRules($rules);
+        $this->addFileSectionValidationRules($rules);
+
+        return $this->formatRules($rules);
     }
 
     /**
      * Add validation for the file sections.
      */
-    protected function addFileSectionValidationRules(array $rules): array
+    protected function addFileSectionValidationRules(array &$rules): void
     {
         foreach ($this->requiredFileSections() as $section) {
             $attribute = $section['requestAttribute'];
@@ -235,8 +221,6 @@ class WebFormRequest extends CreateResourceRequest
             $rules[$attribute.($section['multiple'] ? '.*' : '')][] = 'max:'.config('mediable.max_size');
             $rules[$attribute.($section['multiple'] ? '.*' : '')][] = 'mimes:'.implode(',', config('mediable.allowed_extensions'));
         }
-
-        return $rules;
     }
 
     /**

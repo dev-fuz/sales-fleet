@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -42,143 +42,143 @@ class BillableModelTest extends TestCase
         $this->assertFalse($billable->isTaxable());
     }
 
-    public function test_billable_has_total_tax_attribute()
+    public function test_it_can_calculate_billable_total_tax()
     {
         $noTax = $this->makeBillableWithProducts()->noTax()->create();
-        $this->assertEquals(0, $noTax->total_tax);
+        $this->assertEquals(0, $noTax->totalTax()->getValue());
 
         $exclusive = $this->makeBillableWithProducts(['tax_rate' => 10])->taxExclusive()->create();
-        $this->assertEquals(400, $exclusive->total_tax);
+        $this->assertEquals(400, $exclusive->totalTax()->getValue());
 
         $inclusive = $this->makeBillableWithProducts(['tax_rate' => 10])->taxInclusive();
-        $this->assertEquals(363.64, $inclusive->create()->total_tax);
+        $this->assertEquals(363.64, $inclusive->create()->totalTax()->getValue());
     }
 
-    public function test_billable_has_sub_total_attribute()
+    public function test_it_can_calculate_billable_subtotal()
     {
         $noTax = $this->makeBillableWithProducts()->noTax()->create();
-        $this->assertEquals(4000, $noTax->sub_total);
+        $this->assertEquals(4000, $noTax->subtotal()->getValue());
 
         $noTaxWithFixedDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'fixed', 'discount_total' => 200]
         )->noTax()->create();
-        $this->assertEquals(3600, $noTaxWithFixedDiscount->sub_total);
+        $this->assertEquals(3600, $noTaxWithFixedDiscount->subtotal()->getValue());
 
         $noTaxWithPercentDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'percent', 'discount_total' => 10]
         )->noTax()->create();
-        $this->assertEquals(3600, $noTaxWithPercentDiscount->sub_total);
+        $this->assertEquals(3600, $noTaxWithPercentDiscount->subtotal()->getValue());
 
         // Exclusive
         $exclusive = $this->makeBillableWithProducts(['tax_rate' => 10])->taxExclusive()->create();
-        $this->assertEquals(4000, $exclusive->sub_total);
+        $this->assertEquals(4000, $exclusive->subtotal()->getValue());
 
         $exclusiveWithFixedDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'fixed', 'discount_total' => 200, 'tax_rate' => 10]
         )->taxExclusive()->create();
-        $this->assertEquals(3600, $exclusiveWithFixedDiscount->sub_total);
+        $this->assertEquals(3600, $exclusiveWithFixedDiscount->subtotal()->getValue());
 
         $exclusiveWithPercentDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'percent', 'discount_total' => 10, 'tax_rate' => 10]
         )->taxExclusive()->create();
-        $this->assertEquals(3600, $exclusiveWithPercentDiscount->sub_total);
+        $this->assertEquals(3600, $exclusiveWithPercentDiscount->subtotal()->getValue());
 
         // Inclusive
         $inclusive = $this->makeBillableWithProducts(['tax_rate' => 10])->taxInclusive()->create();
-        $this->assertEquals(4000, $inclusive->sub_total);
+        $this->assertEquals(4000, $inclusive->subtotal()->getValue());
 
         $inclusiveWithFixedDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'fixed', 'discount_total' => 200, 'tax_rate' => 10]
         )->taxInclusive()->create();
-        $this->assertEquals(3600, $inclusiveWithFixedDiscount->sub_total);
+        $this->assertEquals(3600, $inclusiveWithFixedDiscount->subtotal()->getValue());
 
         $inclusiveWithPercentDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'percent', 'discount_total' => 10, 'tax_rate' => 10]
         )->taxInclusive()->create();
-        $this->assertEquals(3600, $inclusiveWithPercentDiscount->sub_total);
+        $this->assertEquals(3600, $inclusiveWithPercentDiscount->subtotal()->getValue());
     }
 
-    public function test_no_tax_billable_total_attribute_is_calculated_properly()
+    public function test_no_tax_billable_total_is_calculated_properly()
     {
         $noTax = $this->makeBillableWithProducts()->noTax()->create();
-        $this->assertEquals(4000, $noTax->total);
+        $this->assertEquals(4000, $noTax->total()->getValue());
 
         $noTaxWithFixedDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'fixed', 'discount_total' => 200]
         )->noTax()->create();
-        $this->assertEquals(3600, $noTaxWithFixedDiscount->total);
+        $this->assertEquals(3600, $noTaxWithFixedDiscount->total()->getValue());
 
         $noTaxWithPercentDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'percent', 'discount_total' => 10]
         )->noTax()->create();
-        $this->assertEquals(3600, $noTaxWithPercentDiscount->total);
+        $this->assertEquals(3600, $noTaxWithPercentDiscount->total()->getValue());
     }
 
-    public function test_tax_exclusive_billable_total_attribute_is_calculated_properly()
+    public function test_tax_exclusive_billable_total_is_calculated_properly()
     {
         $exclusive = $this->makeBillableWithProducts(['tax_rate' => 10])->taxExclusive()->create();
-        $this->assertEquals(4400, $exclusive->total);
+        $this->assertEquals(4400, $exclusive->total()->getValue());
 
         $exclusiveWithFixedDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'fixed', 'discount_total' => 200, 'tax_rate' => 10]
         )->taxExclusive()->create();
-        $this->assertEquals(3960, $exclusiveWithFixedDiscount->total);
+        $this->assertEquals(3960, $exclusiveWithFixedDiscount->total()->getValue());
 
         $exclusiveWithPercentDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'percent', 'discount_total' => 10, 'tax_rate' => 10]
         )->taxExclusive()->create();
-        $this->assertEquals(3960, $exclusiveWithPercentDiscount->total);
+        $this->assertEquals(3960, $exclusiveWithPercentDiscount->total()->getValue());
     }
 
-    public function test_tax_inclusive_billable_total_attribute_is_calculated_properly()
+    public function test_tax_inclusive_billable_total_is_calculated_properly()
     {
         $inclusive = $this->makeBillableWithProducts(['tax_rate' => 10])->taxInclusive()->create();
-        $this->assertEquals(4000, $inclusive->total);
+        $this->assertEquals(4000, $inclusive->total()->getValue());
 
         $inclusiveWithFixedDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'fixed', 'discount_total' => 200, 'tax_rate' => 10]
         )->taxInclusive()->create();
-        $this->assertEquals(3600, $inclusiveWithFixedDiscount->total);
+        $this->assertEquals(3600, $inclusiveWithFixedDiscount->total()->getValue());
 
         $inclusiveWithPercentDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'percent', 'discount_total' => 10, 'tax_rate' => 10]
         )->taxInclusive()->create();
-        $this->assertEquals(3600, $inclusiveWithPercentDiscount->total);
+        $this->assertEquals(3600, $inclusiveWithPercentDiscount->total()->getValue());
     }
 
-    public function test_billable_has_total_discount_attribute()
+    public function test_it_can_calculate_billable_total_discount()
     {
         $noTaxWithFixedDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'fixed', 'discount_total' => 200]
         )->noTax()->create();
-        $this->assertEquals(400, $noTaxWithFixedDiscount->total_discount);
+        $this->assertEquals(400, $noTaxWithFixedDiscount->discountedAmount()->getValue());
 
         $noTaxWithPercentDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'percent', 'discount_total' => 10]
         )->noTax()->create();
-        $this->assertEquals(400, $noTaxWithPercentDiscount->total_discount);
+        $this->assertEquals(400, $noTaxWithPercentDiscount->discountedAmount()->getValue());
 
         // Exclusive
         $exclusiveWithFixedDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'fixed', 'discount_total' => 200, 'tax_rate' => 10]
         )->taxExclusive()->create();
-        $this->assertEquals(400, $exclusiveWithFixedDiscount->total_discount);
+        $this->assertEquals(400, $exclusiveWithFixedDiscount->discountedAmount()->getValue());
 
         $exclusiveWithPercentDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'percent', 'discount_total' => 10, 'tax_rate' => 10]
         )->taxExclusive()->create();
-        $this->assertEquals(400, $exclusiveWithPercentDiscount->total_discount);
+        $this->assertEquals(400, $exclusiveWithPercentDiscount->discountedAmount()->getValue());
 
         // Inclusive
         $inclusiveWithFixedDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'fixed', 'discount_total' => 200, 'tax_rate' => 10]
         )->taxInclusive()->create();
-        $this->assertEquals(400, $inclusiveWithFixedDiscount->total_discount);
+        $this->assertEquals(400, $inclusiveWithFixedDiscount->discountedAmount()->getValue());
 
         $inclusiveWithPercentDiscount = $this->makeBillableWithProducts(
             ['discount_type' => 'percent', 'discount_total' => 10, 'tax_rate' => 10]
         )->taxInclusive()->create();
-        $this->assertEquals(400, $inclusiveWithPercentDiscount->total_discount);
+        $this->assertEquals(400, $inclusiveWithPercentDiscount->discountedAmount()->getValue());
     }
 
     public function test_can_determine_if_billable_has_discount_applied()
@@ -187,7 +187,7 @@ class BillableModelTest extends TestCase
             ['discount_type' => 'fixed', 'discount_total' => 200]
         )->taxInclusive()->create();
 
-        $this->assertTrue($billable->has_discount);
+        $this->assertTrue($billable->hasDiscount());
     }
 
     public function test_billable_taxes_are_unique()
@@ -201,32 +201,26 @@ class BillableModelTest extends TestCase
             ['tax_label' => 'TAX1', 'tax_rate' => 10],
             ['tax_label' => 'TAX1', 'tax_rate' => 15],
             ['tax_label' => 'TAX4', 'tax_rate' => 15],
-        ))->create();
+        ))->make();
 
         $billable->products()->saveMany($products);
 
-        $taxes = $billable->getAppliedTaxes();
-
-        $this->assertCount(3, $taxes);
+        $this->assertCount(3, $billable->taxes());
     }
 
     public function test_billable_taxes_are_calculated_properly()
     {
         $billable = Billable::factory()->withBillableable()
             ->taxExclusive()
+            ->has(BillableProduct::factory(['tax_label' => 'TAX1', 'tax_rate' => 10, 'unit_price' => 2000]), 'products')
+            ->has(BillableProduct::factory(['tax_label' => 'TAX1', 'tax_rate' => 10, 'unit_price' => 2000]), 'products')
+            ->has(BillableProduct::factory(['tax_label' => 'TAX2', 'tax_rate' => 15, 'unit_price' => 2000]), 'products')
             ->create();
 
-        $products = BillableProduct::factory()->count(3)->state(new Sequence(
-            ['tax_label' => 'TAX1', 'tax_rate' => 10],
-            ['tax_label' => 'TAX1', 'tax_rate' => 10],
-            ['tax_label' => 'TAX2', 'tax_rate' => 15]
-        ))->create(['unit_price' => 2000]);
+        $taxes = $billable->taxes();
 
-        $billable->products()->saveMany($products);
-        $taxes = $billable->getAppliedTaxes();
-
-        $this->assertEquals(400, $taxes[0]['total']);
-        $this->assertEquals(300, $taxes[1]['total']);
+        $this->assertEquals(400, $taxes[0]['total']->getValue());
+        $this->assertEquals(300, $taxes[1]['total']->getValue());
     }
 
     public function test_billable_has_billableable()

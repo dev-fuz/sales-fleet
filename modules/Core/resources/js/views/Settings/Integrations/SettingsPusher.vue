@@ -7,9 +7,9 @@
       <template #header>
         <div class="flex items-center">
           <Icon
+            v-if="isConfigured && componentReady"
             icon="CheckCircleSolid"
             class="mr-1 h-5 w-5 text-success-600"
-            v-if="isConfigured && componentReady"
           />
           <ICardHeading>Pusher</ICardHeading>
         </div>
@@ -24,7 +24,6 @@
           Pusher.com <Icon icon="ExternalLink" class="ml-1 h-4 w-4" />
         </a>
       </template>
-
       <IAlert
         :show="!isConfigured && componentReady"
         variant="info"
@@ -34,18 +33,17 @@
         the page, after synchronization, automatically updates the calendar,
         total unread emails and new emails.
       </IAlert>
-
       <div class="sm:flex sm:space-x-4">
         <IFormGroup class="w-full" label="App ID" label-for="pusher_app_id">
           <IFormInput
-            v-model="form.pusher_app_id"
             id="pusher_app_id"
+            v-model="form.pusher_app_id"
           ></IFormInput>
         </IFormGroup>
         <IFormGroup class="w-full" label="App Key" label-for="pusher_app_key">
           <IFormInput
-            v-model="form.pusher_app_key"
             id="pusher_app_key"
+            v-model="form.pusher_app_key"
           ></IFormInput>
         </IFormGroup>
       </div>
@@ -56,9 +54,9 @@
           label-for="pusher_app_secret"
         >
           <IFormInput
-            type="password"
-            v-model="form.pusher_app_secret"
             id="pusher_app_secret"
+            v-model="form.pusher_app_secret"
+            type="password"
           ></IFormInput>
         </IFormGroup>
         <IFormGroup class="w-full">
@@ -83,12 +81,11 @@
             </div>
           </template>
           <IFormInput
-            v-model="form.pusher_app_cluster"
             id="pusher_app_cluster"
+            v-model="form.pusher_app_cluster"
           ></IFormInput>
         </IFormGroup>
       </div>
-
       <template #footer>
         <IButton
           type="submit"
@@ -99,9 +96,11 @@
     </ICard>
   </form>
 </template>
+
 <script setup>
 import { computed } from 'vue'
-import { useSettings } from './../useSettings'
+
+import { useSettings } from '../../../composables/useSettings'
 
 const {
   form,
@@ -118,6 +117,6 @@ const isConfigured = computed(
 )
 
 function submitPusherIntegrationSettings() {
-  submit(form => window.location.reload())
+  submit(() => window.location.reload())
 }
 </script>

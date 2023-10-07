@@ -1,9 +1,6 @@
 <template>
   <ISlideover
-    @shown="handleModalShownEvent"
-    @hidden="handleModalHiddenEvent"
-    @submit="createUsing ? createUsing(create) : create()"
-    @update:visible="$emit('update:visible', $event)"
+    id="createContactModal"
     :visible="visible"
     :title="title || $t('contacts::contact.create')"
     :ok-title="$t('core::app.create')"
@@ -11,29 +8,32 @@
     :cancel-title="$t('core::app.cancel')"
     static-backdrop
     :initial-focus="modalCloseElement"
-    id="createContactModal"
     form
+    @shown="handleModalShownEvent"
+    @hidden="handleModalHiddenEvent"
+    @submit="createUsing ? createUsing(create) : create()"
+    @update:visible="$emit('update:visible', $event)"
   >
     <FieldsPlaceholder v-if="fields.isEmpty()" />
 
-    <slot name="top" :isReady="fields.isNotEmpty()"></slot>
+    <slot name="top" :is-ready="fields.isNotEmpty()"></slot>
 
     <div v-show="fieldsVisible">
-      <FieldsGenerator
-        focus-first
-        :form-id="form.formId"
+      <FormFields
         :fields="fields"
-        view="create"
-        :is-floating="true"
+        :form-id="form.formId"
+        :resource-name="resourceName"
+        is-floating
+        focus-first
       >
         <template #after-deals-field>
           <span class="-mt-2 block text-right">
             <a
               href="#"
-              @click.prevent="dealBeingCreated = true"
               class="link text-sm"
+              @click.prevent="dealBeingCreated = true"
             >
-              + {{ $t('deals::deal.create') }}
+              &plus; {{ $t('deals::deal.create') }}
             </a>
           </span>
         </template>
@@ -42,15 +42,15 @@
           <span class="-mt-2 block text-right">
             <a
               href="#"
-              @click.prevent="companyBeingCreated = true"
               class="link text-sm"
+              @click.prevent="companyBeingCreated = true"
             >
-              + {{ $t('contacts::company.create') }}
+              &plus; {{ $t('contacts::company.create') }}
             </a>
           </span>
         </template>
 
-        <template #after-email-field v-if="trashedContactByEmail !== null">
+        <template v-if="trashedContactByEmail !== null" #after-email-field>
           <IAlert
             dismissible
             class="mb-3"
@@ -66,8 +66,8 @@
                 <IButtonMinimal
                   v-show="!recentlyRestored.byEmail"
                   variant="info"
-                  @click="restoreTrashed(trashedContactByEmail.id, 'byEmail')"
                   :text="$t('core::app.soft_deletes.restore')"
+                  @click="restoreTrashed(trashedContactByEmail.id, 'byEmail')"
                 />
                 <IButtonMinimal
                   v-show="recentlyRestored.byEmail"
@@ -82,7 +82,8 @@
             </div>
           </IAlert>
         </template>
-        <template #after-phones-field v-if="trashedContactsByPhone.length > 0">
+
+        <template v-if="trashedContactsByPhone.length > 0" #after-phones-field>
           <IAlert
             v-for="(contact, index) in trashedContactsByPhone"
             :key="contact.id"
@@ -107,8 +108,8 @@
                 <IButtonMinimal
                   v-show="!recentlyRestored.byPhone[contact.id]"
                   variant="info"
-                  @click="restoreTrashed(contact.id, 'byPhone')"
                   :text="$t('core::app.soft_deletes.restore')"
+                  @click="restoreTrashed(contact.id, 'byPhone')"
                 />
                 <IButtonMinimal
                   v-show="recentlyRestored.byPhone[contact.id]"
@@ -123,10 +124,10 @@
             </div>
           </IAlert>
         </template>
-      </FieldsGenerator>
+      </FormFields>
     </div>
 
-    <template #modal-ok v-if="withExtendedSubmitButtons">
+    <template v-if="withExtendedSubmitButtons" #modal-ok>
       <IDropdownButtonGroup
         type="submit"
         placement="top-end"
@@ -135,13 +136,13 @@
         :text="$t('core::app.create')"
       >
         <IDropdownItem
-          @click="createAndAddAnother"
           :text="$t('core::app.create_and_add_another')"
+          @click="createAndAddAnother"
         />
         <IDropdownItem
           v-show="goToList"
-          @click="createAndGoToList"
           :text="$t('core::app.create_and_go_to_list')"
+          @click="createAndGoToList"
         />
       </IDropdownButtonGroup>
     </template>
@@ -170,13 +171,15 @@
 
 <script setup>
 import { ref, shallowRef } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { whenever } from '@vueuse/core'
 import { watchDebounced } from '@vueuse/shared'
-import { useResourceFields } from '~/Core/resources/js/composables/useResourceFields'
-import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { useFieldsForm } from '~/Core/resources/js/components/Fields/useFieldsForm'
 import { computedWithControl } from '@vueuse/shared'
+
+import { useFieldsForm } from '~/Core/composables/useFieldsForm'
+import { useResourceable } from '~/Core/composables/useResourceable'
+import { useResourceFields } from '~/Core/composables/useResourceFields'
 
 const emit = defineEmits([
   'created',
@@ -190,9 +193,9 @@ const emit = defineEmits([
 const props = defineProps({
   visible: { type: Boolean, default: true },
   goToList: { type: Boolean, default: true },
-  redirectToView: { type: Boolean, default: false },
+  redirectToView: Boolean,
   createUsing: Function,
-  withExtendedSubmitButtons: { type: Boolean, default: false },
+  withExtendedSubmitButtons: Boolean,
   fieldsVisible: { type: Boolean, default: true },
   title: String,
 
@@ -205,6 +208,8 @@ const props = defineProps({
   companies: Array,
   deals: Array,
 })
+
+const resourceName = Innoclapps.resourceName('contacts')
 
 const { t } = useI18n()
 const router = useRouter()
@@ -224,6 +229,7 @@ const recentlyRestored = ref({
 })
 
 const { fields, getCreateFields } = useResourceFields()
+const { createResource } = useResourceable(resourceName)
 
 const { form } = useFieldsForm(fields, {
   avatar: null,
@@ -244,11 +250,12 @@ watchDebounced(
   newVal => {
     if (!newVal) {
       trashedContactByEmail.value = null
+
       return
     }
 
     Innoclapps.request()
-      .get(`/trashed/contacts/search`, {
+      .get('/trashed/contacts/search', {
         params: {
           q: newVal,
           search_fields: 'email:=',
@@ -279,11 +286,12 @@ watchDebounced(
 
     if (numbers.length === 0) {
       trashedContactsByPhone.value = []
+
       return
     }
 
     Innoclapps.request()
-      .get(`/trashed/contacts/search`, {
+      .get('/trashed/contacts/search', {
         params: {
           q: numbers.join(','),
           search_fields: 'phones.number:in',
@@ -296,7 +304,7 @@ watchDebounced(
   { debounce: 500, deep: true }
 )
 
-function createdHandler(data) {
+function onAfterCreate(data) {
   data.indexRoute = { name: 'contact-index' }
 
   if (data.action === 'go-to-list') {
@@ -328,6 +336,7 @@ function handleModalHiddenEvent() {
   emit('modal-hidden')
 
   fields.value.set([])
+  form.reset()
 }
 
 function restoreTrashed(id, type) {
@@ -345,34 +354,32 @@ function restoreTrashed(id, type) {
 }
 
 function create() {
-  request().then(createdHandler)
+  makeCreateRequest().then(onAfterCreate)
 }
 
 function createAndAddAnother() {
-  request('create-another').then(data => {
+  makeCreateRequest('create-another').then(data => {
     form.reset()
-    createdHandler(data)
+    onAfterCreate(data)
   })
 }
 
 function createAndGoToList() {
-  request('go-to-list').then(createdHandler)
+  makeCreateRequest('go-to-list').then(onAfterCreate)
 }
 
-async function request(actionType = null) {
+async function makeCreateRequest(actionType = null) {
   if (props.associations) {
     form.fill(props.associations)
   }
 
-  let contact = await form
-    .hydrate()
-    .post('/contacts')
-    .catch(e => {
-      if (e.isValidationError()) {
-        Innoclapps.error(t('core::app.form_validation_failed'), 3000)
-      }
-      return Promise.reject(e)
-    })
+  let contact = await createResource(form).catch(e => {
+    if (e.isValidationError()) {
+      Innoclapps.error(t('core::app.form_validation_failed'), 3000)
+    }
+
+    return Promise.reject(e)
+  })
 
   let payload = {
     contact: contact,
@@ -388,11 +395,7 @@ async function request(actionType = null) {
 }
 
 async function prepareComponent() {
-  let createFields = await getCreateFields(
-    Innoclapps.config('fields.groups.contacts')
-  )
-
-  fields.value.set(createFields)
+  fields.value.set(await getCreateFields(resourceName))
 
   // From props, same attribute name and prop name
   ;['companies', 'deals'].forEach(attribute => {

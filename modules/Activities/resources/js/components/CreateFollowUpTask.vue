@@ -1,19 +1,19 @@
 <template>
   <div class="flex items-center">
     <IFormCheckbox
-      v-model:checked="form.with_task"
-      @change="handleCheckboxChange"
+      v-model:checked="withTask"
       :label="$t('activities::activity.create_follow_up_task')"
+      @change="handleCheckboxChange"
     />
 
-    <div class="ml-2 flex" v-if="form.with_task">
+    <div v-if="withTask" class="ml-2 flex">
       <div v-show="!isCustomDateSelected">
         <IDropdown>
           <template #toggle="{ toggle }">
             <a
               href="#"
-              @click="toggle"
               class="link inline-flex items-center text-sm"
+              @click.prevent="toggle"
             >
               {{ dropdownLabel }}
               <Icon icon="ChevronDown" class="ml-1 h-4 w-4" />
@@ -22,41 +22,45 @@
           <IDropdownItem
             v-for="date in dates"
             :key="date.value"
-            @click="onDropdownSelected(date.value)"
             :text="date.label"
+            @click="onDropdownSelected(date.value)"
           />
         </IDropdown>
       </div>
       <DatePicker
         v-if="isCustomDateSelected"
-        v-model="form.task_date"
+        v-model="activityDate"
         :required="true"
       >
-        <template v-slot="{ inputValue, inputEvents }">
+        <template #default="{ inputValue, inputEvents }">
           <input
             :value="inputValue"
-            v-on="inputEvents"
             class="cursor-pointer bg-transparent text-sm font-medium text-neutral-700 focus:outline-none dark:text-neutral-100"
+            v-on="inputEvents"
           />
         </template>
       </DatePicker>
     </div>
   </div>
 </template>
-<script setup>
-import { ref, unref, computed, nextTick } from 'vue'
-import find from 'lodash/find'
-import { useI18n } from 'vue-i18n'
-import { useDates } from '~/Core/resources/js/composables/useDates'
 
-const props = defineProps({
-  form: { type: Object, required: true },
-})
+<script setup>
+import { computed, nextTick, ref, unref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useVModel } from '@vueuse/core'
+import find from 'lodash/find'
+
+import { useDates } from '~/Core/composables/useDates'
+
+const emit = defineEmits(['update:modelValue'])
+const props = defineProps(['modelValue'])
 
 const { t } = useI18n()
 const { appMoment, dateFromAppTimezone } = useDates()
 
 const selectedDropdownDate = ref('')
+const withTask = ref(false)
+const activityDate = useVModel(props, 'modelValue', emit)
 
 /**
  * Today's date object
@@ -165,6 +169,8 @@ const dropdownLabel = computed(() => {
   if (selected) {
     return selected.label
   }
+
+  return ''
 })
 
 /**
@@ -181,8 +187,9 @@ const defaultValue = computed(() => find(dates.value, ['default', true]).value)
  */
 function onDropdownSelected(value) {
   selectedDropdownDate.value = value
+
   if (value !== 'custom') {
-    props.form.task_date = value
+    activityDate.value = value
   }
 }
 
@@ -216,13 +223,19 @@ function dateDropdownLabel(number, period = 'days', format = 'dddd') {
  * @return {Void}
  */
 function handleCheckboxChange(value) {
-  if (value && !props.form.task_date) {
+  if (value && !activityDate.value) {
     nextTick(() => {
-      props.form.task_date = defaultValue.value
+      activityDate.value = defaultValue.value
       selectedDropdownDate.value = defaultValue.value
     })
   } else if (!value) {
-    props.form.task_date = null
+    activityDate.value = null
   }
 }
+
+function reset() {
+  withTask.value = false
+}
+
+defineExpose({ reset })
 </script>

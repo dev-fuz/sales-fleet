@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,10 +13,9 @@
 namespace Modules\MailClient\Resource;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\Request;
 use Modules\Core\Contracts\Resources\Tableable;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Models\Model;
-use Modules\Core\Resource\Http\ResourceRequest;
 use Modules\Core\Resource\Resource;
 use Modules\Core\Table\Table;
 use Modules\MailClient\Client\FolderType;
@@ -45,19 +44,21 @@ class EmailMessage extends Resource implements Tableable
     }
 
     /**
-     * Get the eager loadable relations from the given fields
+     * Add "with" relations to the given query from the given fields.
      */
-    public static function getEagerLoadable($fields): array
+    public function with(Builder $query, $fields): Builder
     {
-        return [collect(['folders', 'account']), collect([])];
+        return $query->with(['folders', 'account']);
     }
 
     /**
      * Prepare global search query.
      */
-    public function globalSearchQuery(Builder $query = null): Builder
+    public function globalSearchQuery(ResourceRequest $request): Builder
     {
-        return parent::globalSearchQuery($query)->with(['folders', 'account']);
+        return parent::globalSearchQuery($request)
+            ->select(['id', 'subject', 'email_account_id', 'created_at'])
+            ->with(['folders', 'account']);
     }
 
     /**
@@ -87,9 +88,9 @@ class EmailMessage extends Resource implements Tableable
     /**
      * Create query when the resource is associated for index.
      */
-    public function associatedIndexQuery(Model $primary, bool $applyOrder = true): Builder
+    public function associatedIndexQuery(Model $primary, ResourceRequest $request, bool $applyOrder = true): Builder
     {
-        $query = parent::associatedIndexQuery($primary, $applyOrder);
+        $query = parent::associatedIndexQuery($primary, $request, $applyOrder);
 
         return $query->withCommon()
             ->whereHas('folders.account', function ($query) {
@@ -102,7 +103,7 @@ class EmailMessage extends Resource implements Tableable
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $query
      */
-    public function table($query, Request $request): Table
+    public function table($query, ResourceRequest $request): Table
     {
         $criteria = new EmailAccountMessageCriteria(
             $request->integer('account_id'),

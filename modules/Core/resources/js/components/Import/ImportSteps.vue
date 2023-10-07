@@ -150,6 +150,7 @@
     </nav>
   </div>
 </template>
+
 <script setup>
 defineProps({ steps: { type: Object, required: true } })
 </script>

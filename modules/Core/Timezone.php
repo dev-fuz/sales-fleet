@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -74,7 +74,7 @@ class Timezone implements Arrayable, JsonSerializable
     /**
      * Get the current timezone for the appliaction
      */
-    public function current(?Localizeable $user = null): string
+    public function current(Localizeable $user = null): string
     {
         $user ??= auth()->user();
 

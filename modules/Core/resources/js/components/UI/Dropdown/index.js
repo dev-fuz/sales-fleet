@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -9,9 +9,9 @@
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
 import IDropdownComponent from './IDropdown.vue'
-import IDropdownItemComponent from './IDropdownItem.vue'
 import IDropdownButtonComponent from './IDropdownButton.vue'
 import IDropdownButtonGroupComponent from './IDropdownButtonGroup.vue'
+import IDropdownItemComponent from './IDropdownItem.vue'
 import IMinimalDropdownComponent from './IMinimalDropdown.vue'
 
 const IDropdownPlugin = {

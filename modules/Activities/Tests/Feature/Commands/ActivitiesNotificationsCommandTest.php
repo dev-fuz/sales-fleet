@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -24,17 +24,15 @@ class ActivitiesNotificationsCommandTest extends TestCase
         Notification::fake();
 
         $activity = Activity::factory()->create([
-            'due_date' => date('Y-m-d', strtotime('+30 minutes')),
-            'due_time' => date('H:i:s', strtotime('+30 minutes')),
+            'due_date' => date('Y-m-d', strtotime('+29 minutes')),
+            'due_time' => date('H:i:s', strtotime('+29 minutes')),
             'reminder_minutes_before' => 30,
         ]);
 
-        $this->artisan('activities:due-notifications')
-            ->assertSuccessful();
+        $this->artisan('activities:due-notifications')->assertSuccessful();
 
         Notification::assertSentTo($activity->user, ActivityReminder::class);
         Notification::assertSentToTimes($activity->user, ActivityReminder::class, 1);
-
         $this->assertNotNull($activity->fresh()->reminded_at);
     }
 }

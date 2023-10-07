@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -22,6 +22,8 @@ trait FinishesInstallation
 {
     /**
      * Finalize the installation
+     *
+     * @throws FailedToFinalizeInstallationException
      */
     protected function finalizeInstallation($currency, $country): void
     {
@@ -45,9 +47,7 @@ trait FinishesInstallation
             $errors .= 'Failed to create the installed file. ('.Innoclapps::installedFileLocation().").\n";
         }
 
-        Environment::capture([
-            '_installed_date' => date('Y-m-d H:i:s'),
-        ]);
+        Environment::capture();
 
         Artisan::call('concord:optimize');
 

@@ -4,20 +4,21 @@
   >
     <span v-t="'core::table.length_menu.show'"></span>
 
-    <FormDropdownSelect
+    <DropdownSelectInput
       v-model="collection.perPage"
-      @change="$emit('change', $event)"
       :items="collection.perPageOptions"
       :disabled="disabled"
+      @change="$emit('change', $event)"
     />
 
     <span v-t="'core::table.length_menu.entries'"></span>
   </div>
 </template>
+
 <script setup>
 defineEmits(['change'])
 defineProps({
-  disabled: { default: false, type: Boolean },
+  disabled: Boolean,
   collection: { required: true, type: Object },
 })
 </script>

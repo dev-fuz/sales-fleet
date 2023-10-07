@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -37,12 +37,13 @@ class SendScheduledDocuments extends Command
      */
     public function handle(DocumentSendService $sendService): void
     {
-        Document::dueForSending()->get()->each(function ($document) use ($sendService) {
-            try {
-                $sendService->send($document);
-            } finally {
-                $document->fill(['send_at' => null])->save();
-            }
-        });
+        Document::dueForSending()->get()
+            ->each(function (Document $document) use ($sendService) {
+                try {
+                    $sendService->send($document);
+                } finally {
+                    $document->fill(['send_at' => null])->save();
+                }
+            });
     }
 }

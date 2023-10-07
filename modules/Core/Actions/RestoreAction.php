@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,9 @@
 namespace Modules\Core\Actions;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
+use Modules\Core\Http\Requests\ActionRequest;
 
 class RestoreAction extends Action
 {
@@ -38,12 +40,9 @@ class RestoreAction extends Action
     }
 
     /**
-     * Query the models for execution
-     *
-     * @param  array  $ids
-     * @return \Illuminate\Database\Eloquent\Collection
+     * Query the models for execution.
      */
-    protected function findModelsForExecution($ids, Builder $query)
+    protected function findModelsForExecution(array $ids, Builder $query): EloquentCollection
     {
         return $query->withTrashed()->findMany($ids);
     }

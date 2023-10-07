@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,6 +12,7 @@
 
 namespace Modules\Calls\Cards;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Modules\Calls\Models\Call;
 use Modules\Calls\Models\CallOutcome;
@@ -22,19 +23,19 @@ use Modules\Users\Criteria\QueriesByUserCriteria;
 class OverviewByCallOutcome extends Presentation
 {
     /**
-     * The default renge/period selected
+     * The default renge/period selected.
      *
      * @var int
      */
     public string|int|null $defaultRange = 30;
 
     /**
-     * @var \Illuminate\Database\Eloquent\Collection
+     * Outcomes cache.
      */
-    protected $outcomes;
+    protected ?Collection $outcomes = null;
 
     /**
-     * Calculated overview by call outcome
+     * Calculated overview by call outcome.
      *
      * @return mixed
      */
@@ -42,8 +43,8 @@ class OverviewByCallOutcome extends Presentation
     {
         $query = (new Call)->newQuery();
 
-        if ($request->user()->isSuperAdmin() && $request->filled('user_id')) {
-            $query->criteria(new QueriesByUserCriteria($request->integer('user_id')));
+        if ($userId = $this->getUserId($request)) {
+            $query->criteria(new QueriesByUserCriteria($userId));
         } else {
             $query->criteria(RelatedCriteria::class);
         }
@@ -52,7 +53,7 @@ class OverviewByCallOutcome extends Presentation
             ->count($request, $query, 'call_outcome_id')
             ->label(function ($value) {
                 return $this->outcomes()->find($value)->name;
-            })->colors($this->outcomes()->mapWithKeys(function ($outcome) {
+            })->colors($this->outcomes()->mapWithKeys(function (CallOutcome $outcome) {
                 return [$outcome->name => $outcome->swatch_color];
             })->all());
     }
@@ -73,11 +74,9 @@ class OverviewByCallOutcome extends Presentation
     }
 
     /**
-     * Get all available outcomes
-     *
-     * @return \Illuminate\Database\Eloquent\Collection
+     * Get all available outcomes.
      */
-    public function outcomes()
+    public function outcomes(): Collection
     {
         if (! $this->outcomes) {
             $this->outcomes = CallOutcome::select(
@@ -89,10 +88,18 @@ class OverviewByCallOutcome extends Presentation
     }
 
     /**
-     * The card name
+     * The card name.
      */
     public function name(): string
     {
         return __('calls::call.cards.outcome_overview');
+    }
+
+    /**
+     * Check whether the current user can perform user filter.
+     */
+    public function authorizedToFilterByUser(): bool
+    {
+        return request()->user()->isSuperAdmin();
     }
 }

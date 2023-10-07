@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,8 +12,10 @@
 
 namespace Modules\Core\Criteria;
 
+use BackedEnum;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request as HttpRequest;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Str;
@@ -21,6 +23,8 @@ use Modules\Core\Contracts\Criteria\QueryCriteria;
 
 class RequestCriteria implements QueryCriteria
 {
+    public const ORDER_KEY = 'order';
+
     /**
      * Append additional criterias within the request criteria.
      */
@@ -39,14 +43,14 @@ class RequestCriteria implements QueryCriteria
      */
     public function apply(Builder $query): Builder
     {
-        $fieldsSearchable = $query->getModel()->getSearchableFields();
+        $fieldsSearchable = $query->getModel()->getSearchableColumns();
 
         $searchQuery = $this->request->get('q', null);
         $searchFields = $this->request->get('search_fields', null);
         $searchMatch = $this->request->get('search_match', null);
 
         $select = $this->request->get('select', null);
-        $order = $this->request->get('order', []);
+        $order = $this->request->get(static::ORDER_KEY, []);
         $with = $this->request->get('with', null);
         $take = $this->request->get('take', null);
 
@@ -58,16 +62,16 @@ class RequestCriteria implements QueryCriteria
                                 explode(';', $searchFields);
 
             $searchData = $this->parseSearchData($searchQuery);
-
             $searchQuery = $this->parseSearchValue($searchQuery);
+
+            $isSearchQueryNumeric = is_numeric($searchQuery);
 
             $fields = $this->parseSearchFields($fieldsSearchable, $searchFields);
 
-            if ($this->shouldSearchOnlyById($searchQuery)) {
-                $fields = [$query->getModel()->getKeyName()];
-            }
+            // Always make the primary key name searchable
+            $fields[] = $query->getModel()->getKeyName();
 
-            $modelForceAndWhere = strtolower($searchMatch) === 'and';
+            $modelForceAndWhere = $searchMatch && strtolower($searchMatch) === 'and';
 
             $query = $query->where(function ($query) use (
                 $fields,
@@ -75,7 +79,9 @@ class RequestCriteria implements QueryCriteria
                 $searchData,
                 $isFirstField,
                 $modelForceAndWhere,
+                $isSearchQueryNumeric,
             ) {
+
                 /** @var Builder $query */
                 foreach ($fields as $field => $condition) {
                     if (is_numeric($field)) {
@@ -83,16 +89,22 @@ class RequestCriteria implements QueryCriteria
                         $condition = '=';
                     }
 
+                    // For performance reasons we will exclude ID fields and foreigh fields
+                    // from search when the search query is not numeric
+                    if (! $isSearchQueryNumeric && $this->isFieldInteger($field, $query->getModel())) {
+                        continue;
+                    }
+
                     $value = null;
 
                     $condition = trim(strtolower($condition));
 
                     if (isset($searchData[$field])) {
-                        $value = $condition == 'like' ? "%{$searchData[$field]}%" : $searchData[$field];
-                    } else {
-                        if (! is_null($searchQuery)) {
-                            $value = $condition == 'like' ? "%{$searchQuery}%" : $searchQuery;
-                        }
+                        $value = $this->ifEnumCastingEnsureProperValue($query->getModel(), $field, $searchData[$field]);
+
+                        $value = $condition == 'like' ? "{$value}%" : $value;
+                    } elseif (! is_null($searchQuery)) {
+                        $value = $condition == 'like' ? "{$searchQuery}%" : $searchQuery;
                     }
 
                     $relation = null;
@@ -136,17 +148,39 @@ class RequestCriteria implements QueryCriteria
         return $query;
     }
 
+    protected function ifEnumCastingEnsureProperValue($model, $field, $value)
+    {
+        if ($value && $model->hasCast($field)) {
+            $cast = $model->getCasts()[$field];
+
+            if (is_subclass_of($cast, BackedEnum::class)) {
+                foreach ($cast::cases() as $case) {
+                    if (strtolower($case->name) === strtolower($value)) {
+                        return $case->value;
+                    }
+                }
+            }
+        }
+
+        return $value;
+    }
+
     /**
-     * Apply and where search
-     *
-     * @param  string  $value
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @param  string  $field
-     * @param  string|null  $relation
-     * @param  string  $condition
-     * @return void
+     * Check whether the given field is integer.
      */
-    protected function applySearchAndWhere($value, $query, $field, $relation, $condition)
+    protected function isFieldInteger(string $field, Model $model): bool
+    {
+        if ($field === $model->getKeyName() && $model->incrementing) {
+            return true;
+        }
+
+        return str_contains($model->getCasts()[$field] ?? '', 'int');
+    }
+
+    /**
+     * Apply and where search.
+     */
+    protected function applySearchAndWhere(mixed $value, Builder $query, string $field, ?string $relation, string $condition): void
     {
         if (! is_null($relation)) {
             $query->whereHas($relation, function ($query) use ($field, $condition, $value) {
@@ -163,25 +197,18 @@ class RequestCriteria implements QueryCriteria
         if ($condition === 'in') {
             $query->whereIn($query->qualifyColumn($field), $value);
         } else {
-           $query->where($query->qualifyColumn($field), $condition, $value);
-       }
+            $query->where($query->qualifyColumn($field), $condition, $value);
+        }
     }
 
     /**
-     * Apply or where search
-     *
-     * @param  string  $value
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @param  string  $field
-     * @param  string|null  $relation
-     * @param  string  $condition
-     * @return void
+     * Apply or where search.
      */
-    protected function applySearchOrWhere($value, $query, $field, $relation, $condition)
+    protected function applySearchOrWhere(mixed $value, Builder $query, string $field, ?string $relation, string $condition): void
     {
         if (! is_null($relation)) {
             $query->orWhereHas($relation, function ($query) use ($field, $condition, $value) {
-                 if ($condition === 'in') {
+                if ($condition === 'in') {
                     $query->whereIn($field, $value);
                 } else {
                     $query->where($field, $condition, $value);
@@ -194,12 +221,12 @@ class RequestCriteria implements QueryCriteria
         if ($condition === 'in') {
             $query->orWhereIn($query->qualifyColumn($field), $value);
         } else {
-           $query->orWhere($query->qualifyColumn($field), $condition, $value);
-       }
+            $query->orWhere($query->qualifyColumn($field), $condition, $value);
+        }
     }
 
     /**
-     * Append additional criteria within the request query.
+     * Append additional criteria within the request query criteria.
      */
     public function appends(QueryCriteria|callable $criteria): static
     {
@@ -223,7 +250,7 @@ class RequestCriteria implements QueryCriteria
     }
 
     /**
-     * Apply order for the current request
+     * Apply order for the current request.
      *
      * @param  mixed  $order
      */
@@ -285,12 +312,13 @@ class RequestCriteria implements QueryCriteria
      */
     protected function isAggregateField(string $field): bool
     {
-        return str_ends_with($field, '_count') ||
-            Str::contains($field, ['_sum_', '_min_', '_max_', '_avg_', '_exists_']);
+        $aggregates = ['_sum_', '_min_', '_max_', '_avg_', '_exists_'];
+
+        return str_ends_with($field, '_count') || Str::contains($field, $aggregates);
     }
 
     /**
-     * Order the query by relationship
+     * Order the query by relationship.
      *
      * @param  array  $orderData
      * @param  string  $dir
@@ -332,7 +360,7 @@ class RequestCriteria implements QueryCriteria
     }
 
     /**
-     * Apply select fields to model
+     * Apply select fields to model.
      *
      * @param  mixed  $select
      */
@@ -350,7 +378,7 @@ class RequestCriteria implements QueryCriteria
     }
 
     /**
-     * Apply with relationships to model
+     * Apply with relationships to model.
      *
      * @param  mixed  $with
      */
@@ -383,7 +411,7 @@ class RequestCriteria implements QueryCriteria
                     [$field, $value] = explode(':', $row);
                     $searchData[$field] = $value;
                 } catch (Exception) {
-                    //Surround offset error
+                    // Surround offset error
                 }
             }
         }
@@ -392,10 +420,9 @@ class RequestCriteria implements QueryCriteria
     }
 
     /**
-     * @param  string  $query
-     * @return null
+     * Parse the search value.
      */
-    protected function parseSearchValue($query)
+    protected function parseSearchValue(string $query): ?string
     {
         if (stripos($query, ';') || stripos($query, ':')) {
             $values = explode(';', $query);
@@ -403,25 +430,21 @@ class RequestCriteria implements QueryCriteria
             foreach ($values as $value) {
                 $s = explode(':', $value);
 
-                if (count($s) == 1) {
+                if (count($s) === 1) {
                     return $s[0];
                 }
             }
 
-            return;
+            return null;
         }
 
         return $query;
     }
 
     /**
-     * Parse the searchable fields
-     *
-     * @param  array  $fields
-     * @param  array|null  $searchFields
-     * @return array
+     * Parse the searchable fields.
      */
-    protected function parseSearchFields($allowed = [], $searchFields = null)
+    protected function parseSearchFields(array $allowed = [], array $searchFields = null): array
     {
         if (is_null($searchFields) || count($searchFields) === 0) {
             return $allowed;
@@ -470,38 +493,5 @@ class RequestCriteria implements QueryCriteria
         );
 
         return $whitelisted;
-    }
-
-    /**
-     * Check whether the search should be performed only by id
-     * This works even when the ID is not allowed as searchable field.
-     *
-     * @param  mixed  $value
-     * @return bool
-     */
-    protected function shouldSearchOnlyById($value)
-    {
-        if (is_array($value)) {
-            return false;
-        }
-
-        // Is not integer and not all string characters are digits
-        if (! is_int($value) && ! ctype_digit($value)) {
-            return false;
-        }
-
-        // String and starts with 0, probably not ID
-        // and search for example phone numberc etc...
-        if (is_string($value) && substr($value, 0, 1) === '0') {
-            return false;
-        }
-
-        // If value less then 1, probably not ID value
-        // As well if the value length is bigger then 20, as BigIncrement column length is 20
-        if ((int) $value < 1 || strlen((string) $value) > 20) {
-            return false;
-        }
-
-        return $this->request->isZapier();
     }
 }

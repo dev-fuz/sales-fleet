@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -19,8 +19,10 @@ use Modules\Core\Facades\Fields;
 use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Facades\Menu;
 use Modules\Core\Facades\ReCaptcha;
-use Modules\Core\Facades\VoIP;
-use Modules\Core\Highlights\Highlights;
+use Modules\Core\Http\Resources\TagResource;
+use Modules\Core\Menu\Highlights\Highlights;
+use Modules\Core\Models\Tag;
+use Modules\Core\Resource\Resource;
 use Modules\Core\Settings\SettingsMenu;
 
 class AppComposer
@@ -32,6 +34,9 @@ class AppComposer
     {
         Innoclapps::boot();
 
+        /** @var \Modules\Users\Models\User */
+        $user = Auth::user();
+
         $config = [];
 
         $config['apiURL'] = url(\Modules\Core\Application::API_PREFIX);
@@ -41,6 +46,7 @@ class AppComposer
         $config['fallback_locale'] = config('app.fallback_locale');
         $config['timezone'] = config('app.timezone');
         $config['is_secure'] = request()->secure();
+        $config['defaults'] = config('core.defaults');
 
         if (Innoclapps::requiresMaintenance()) {
             $this->addDataToView($view, $config);
@@ -67,10 +73,12 @@ class AppComposer
         $config['date_formats'] = config('core.date_formats');
         $config['time_formats'] = config('core.time_formats');
 
-        $config['currency'] = array_merge(
-            array_values(currency(Innoclapps::currency())->toArray())[0],
-            ['iso_code' => Innoclapps::currency()]
-        );
+        $config['currency'] = with(Innoclapps::currency(), function ($currency) {
+            return array_merge(
+                $currency->toArray()[$isoCode = $currency->getCurrency()],
+                ['iso_code' => $isoCode]
+            );
+        });
 
         $config['reCaptcha'] = [
             'configured' => ReCaptcha::configured(),
@@ -81,9 +89,10 @@ class AppComposer
         // Required in FormField Group for externals forms e.q. web form
         $config['fields'] = [
             'views' => [
-                'update' => Fields::UPDATE_VIEW,
+                'index' => Fields::INDEX_VIEW,
                 'create' => Fields::CREATE_VIEW,
                 'detail' => Fields::DETAIL_VIEW,
+                'update' => Fields::UPDATE_VIEW,
             ],
         ];
 
@@ -94,34 +103,32 @@ class AppComposer
         ]);
 
         // Authenticated user config
-        if (Auth::check()) {
-            if (Auth::user()->isSuperAdmin()) {
+        if ($user) {
+            if ($user->isSuperAdmin()) {
                 $config['purchase_key'] = config('app.purchase_key');
             }
 
-            $config['resources'] = Innoclapps::registeredResources()->mapWithKeys(function ($resource) {
-                return [$resource->name() => $resource->jsonSerialize()];
-            });
+            $config['resources'] = Innoclapps::registeredResources()
+                ->mapWithKeys(
+                    fn (Resource $resource) => [$resource->name() => $resource]
+                );
 
             $config['settings'] = [
                 'menu' => SettingsMenu::all(),
             ];
 
+            $config['tags'] = TagResource::collection(Tag::get());
+
             $config['fields'] = array_merge($config['fields'], [
                 'custom_fields' => Fields::customFieldable(),
                 'custom_field_prefix' => config('fields.custom_fields.prefix'),
-                'groups' => collect(Innoclapps::registeredResources())->filter(
-                    fn ($resource) => Fields::has($resource->name())
-                )->mapWithKeys(
-                    fn ($resource) => [$resource->name() => $resource->name()]
-                )->all(),
             ]);
 
             $config['menu'] = Menu::get();
 
             $config['highlights'] = Highlights::get();
 
-            $config['notifications_information'] = Innoclapps::notificationsInformation();
+            $config['notifications_settings'] = Innoclapps::notificationsPreferences();
 
             $config['soft_deletes'] = [
                 'prune_after' => config('core.soft_deletes.prune_after'),
@@ -137,14 +144,6 @@ class AppComposer
 
             $config['google'] = [
                 'client_id' => config('core.google.client_id'),
-            ];
-
-            $config['voip'] = [
-                'client' => config('core.voip.client'),
-                'endpoints' => [
-                    'call' => VoIP::callUrl(),
-                    'events' => VoIP::eventsUrl(),
-                ],
             ];
 
             $config['favourite_colors'] = Innoclapps::favouriteColors();

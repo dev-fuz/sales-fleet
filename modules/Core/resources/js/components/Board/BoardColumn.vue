@@ -1,12 +1,12 @@
 <template>
   <div
-    class="inline-flex h-full w-80 flex-col overflow-y-hidden rounded bg-neutral-200 align-top shadow-sm dark:bg-neutral-900"
+    class="inline-flex h-full w-80 flex-col overflow-y-hidden rounded-lg border border-neutral-300/40 bg-neutral-200/40 align-top shadow dark:border-neutral-700 dark:bg-neutral-900"
   >
-    <div class="px-3 py-2">
+    <div class="px-3 py-2.5">
       <div class="flex items-center">
         <slot name="columnHeader">
           <h5
-            class="mr-auto truncate font-medium text-neutral-800 dark:text-neutral-100"
+            class="mr-auto truncate text-sm font-medium text-neutral-800 dark:text-neutral-100"
             v-text="name"
           />
           <div>
@@ -17,25 +17,25 @@
       <slot name="afterColumnHeader"></slot>
     </div>
     <div
-      class="h-auto overflow-y-auto overflow-x-hidden"
       :id="'boardColumn' + columnId"
+      class="h-auto overflow-y-auto overflow-x-hidden"
     >
       <draggable
         :data-column="columnId"
-        :modelValue="modelValue"
-        @update:modelValue="$emit('update:modelValue', $event)"
+        :model-value="modelValue"
         :move="onMoveCallback"
         :item-key="item => item.id"
-        :emptyInsertThreshold="100"
+        :empty-insert-threshold="100"
+        v-bind="columnCardsDraggableOptions"
+        :group="{ name: boardId }"
+        @update:model-value="$emit('update:modelValue', $event)"
         @start="onDragStart"
         @end="onDragEnd"
         @change="onChangeEventHandler"
-        v-bind="columnCardsDraggableOptions"
-        :group="{ name: boardId }"
       >
         <template #item="{ element }">
           <div
-            class="m-2 overflow-hidden whitespace-normal rounded-md bg-white shadow-sm dark:bg-neutral-800"
+            class="m-2 overflow-hidden whitespace-normal rounded-md bg-white shadow dark:bg-neutral-800"
           >
             <slot name="card" :card="element">
               <div class="px-4 py-5 sm:p-6">
@@ -46,20 +46,20 @@
         </template>
       </draggable>
     </div>
-
     <div class="flex items-center p-3"></div>
-
     <InfinityLoader
-      @handle="infiniteHandler($event)"
       :scroll-element="'#boardColumn' + columnId"
+      @handle="infiniteHandler($event)"
     />
   </div>
 </template>
+
 <script setup>
 import { computed } from 'vue'
-import InfinityLoader from '~/Core/resources/js/components/InfinityLoader.vue'
 import draggable from 'vuedraggable'
-import { useDraggable } from '~/Core/resources/js/composables/useDraggable'
+
+import InfinityLoader from '~/Core/components/InfinityLoader.vue'
+import { useDraggable } from '~/Core/composables/useDraggable'
 
 const emit = defineEmits([
   'drag-start',
@@ -83,7 +83,7 @@ const { scrollableDraggableOptions } = useDraggable()
 
 const columnCardsDraggableOptions = computed(() => ({
   ...scrollableDraggableOptions,
-  ...{ filter: 'a, button', delay: 25, preventOnFilter: false },
+  ...{ delay: 5, preventOnFilter: false },
 }))
 
 function infiniteHandler(state) {

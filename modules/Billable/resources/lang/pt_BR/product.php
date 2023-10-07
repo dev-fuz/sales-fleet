@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -50,9 +50,7 @@ return [
     'sold_amount_exc_tax' => 'Valor Vendido (tax exl.)',
     'interest_in_product' => 'Interesse no Produto',
     'resource_has_no_products' => 'Nenhum produto criado, comece adicionando produtos',
-    'deal_info' => 'Vincule produtos ao negócio para criar uma lista dos produtos aos quais o negócio está relacionado, o valor do negócio é calculado automaticamente com base nos produtos adicionados.',
     'exists_in_trash_by_name' => 'Já existe um produto com o mesmo nome na lixeira. Deseja restaurar o produto descartado?',
-    'add_to_deal' => 'Adicionar produtos no negócio',
     'choose_or_enter' => 'Escolha ou insira um produto',
     'cards' => [
         'performance' => 'Desempenho do produto',

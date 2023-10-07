@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -17,16 +17,17 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
-use Modules\Contacts\Resource\Company\Frontend\ViewComponent as CompanyViewComponent;
-use Modules\Contacts\Resource\Contact\Frontend\ViewComponent as ContactViewComponent;
+use Modules\Contacts\Resource\Company\Pages\DetailComponent as CompanyDetailComponent;
+use Modules\Contacts\Resource\Contact\Pages\DetailComponent as ContactDetailComponent;
 use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Facades\Menu;
 use Modules\Core\Facades\Permissions;
+use Modules\Core\Fields\Email;
 use Modules\Core\Menu\MenuItem;
-use Modules\Core\OAuth\Events\OAuthAccountConnected;
-use Modules\Core\OAuth\Events\OAuthAccountDeleting;
+use Modules\Core\Support\OAuth\Events\OAuthAccountConnected;
+use Modules\Core\Support\OAuth\Events\OAuthAccountDeleting;
 use Modules\Core\SystemInfo;
-use Modules\Deals\Resource\Frontend\ViewComponent as DealViewComponent;
+use Modules\Deals\Resource\Pages\DetailComponent as DealDetailComponent;
 use Modules\MailClient\Client\ClientManager;
 use Modules\MailClient\Client\ConnectionType;
 use Modules\MailClient\Client\FolderType;
@@ -55,6 +56,9 @@ class MailClientServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(module_path($this->moduleName, 'Database/Migrations'));
 
         $this->registerPermissions();
+
+        Email::useDetailComponent('detail-email-sendable-field');
+        Email::useIndexComponent('index-email-sendable-field');
 
         $this->app['events']->listen(OAuthAccountConnected::class, CreateEmailAccountViaOAuth::class);
         $this->app['events']->listen(OAuthAccountDeleting::class, StopRelatedOAuthEmailAccounts::class);
@@ -134,21 +138,28 @@ class MailClientServiceProvider extends ServiceProvider
      */
     public function scheduleTasks(): void
     {
+        /** @var \Illuminate\Console\Scheduling\Schedule */
         $schedule = $this->app->make(Schedule::class);
 
-        if (function_exists('proc_open') && function_exists('proc_close')) {
+        $syncOutputPath = storage_path('logs/email-accounts-sync.log');
+        $syncCommandCronExpression = config('mailclient.sync.interval');
+        $syncCommandName = 'sync-email-accounts';
+
+        if (Innoclapps::canRunProcess()) {
             $schedule->command(EmailAccountsSyncCommand::class, ['--broadcast', '--isolated' => 5])
-                ->cron(config('mailclient.sync.interval'))
+                ->cron($syncCommandCronExpression)
+                ->name($syncCommandName)
                 ->withoutOverlapping(30)
-                ->sendOutputTo(storage_path('logs/email-accounts-sync.log'));
+                ->sendOutputTo($syncOutputPath);
         } else {
-            $schedule->call(function () {
-                Artisan::call(EmailAccountsSyncCommand::class, ['--broadcast', '--isolated' => 5]);
-            })
-                ->cron(config('mailclient.sync.interval'))
-                ->name('sync-email-accounts')
+            $schedule
+                ->call(function () {
+                    Artisan::call(EmailAccountsSyncCommand::class, ['--broadcast' => true, '--isolated' => 5]);
+                })
+                ->cron($syncCommandCronExpression)
+                ->name($syncCommandName)
                 ->withoutOverlapping(30)
-                ->sendOutputTo(storage_path('logs/email-accounts-sync.log'));
+                ->sendOutputTo($syncOutputPath);
         }
     }
 
@@ -230,9 +241,9 @@ class MailClientServiceProvider extends ServiceProvider
     {
         $tab = Tab::make('emails', 'emails-tab')->panel('emails-tab-panel')->order(20);
 
-        ContactViewComponent::registerTab($tab);
-        CompanyViewComponent::registerTab($tab);
-        DealViewComponent::registerTab($tab);
+        ContactDetailComponent::registerTab($tab);
+        CompanyDetailComponent::registerTab($tab);
+        DealDetailComponent::registerTab($tab);
     }
 
     /**

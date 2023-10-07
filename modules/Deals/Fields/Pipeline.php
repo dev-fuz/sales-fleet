@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -29,7 +29,14 @@ class Pipeline extends BelongsTo
         parent::__construct('pipeline', PipelineModel::class, $label ?: __('deals::fields.deals.pipeline.name'));
 
         $this->setJsonResource(PipelineResource::class)
-            ->rules(new VisibleModelRule(new PipelineModel))
+            ->rules(
+                (new VisibleModelRule(new PipelineModel))
+                    ->ignore(
+                        fn () => with($this->resolveRequest(), function ($request) {
+                            return $request->isUpdateRequest() ? $request->record()->pipeline : null;
+                        })
+                    )
+            )
             ->emitChangeEvent()
             ->withDefaultValue(function () {
                 return PipelineModel::withCommon()
@@ -37,20 +44,20 @@ class Pipeline extends BelongsTo
                     ->userOrdered()
                     ->first();
             })
-            ->acceptLabelAsValue();
+            ->acceptLabelAsValue()
+            ->withoutClearAction();
     }
 
     /**
      * Provides the BelongsTo instance options
-     *
-     * @return \Illuminate\Eloquent\Collection
      */
-    public function resolveOptions()
+    public function resolveOptions(): array
     {
         return PipelineModel::select(['id', 'name'])
             ->with('stages')
             ->visible()
             ->userOrdered()
-            ->get();
+            ->get()
+            ->all();
     }
 }

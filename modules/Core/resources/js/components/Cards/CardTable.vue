@@ -1,6 +1,6 @@
 <template>
   <Card no-body :card="card" @retrieved="prepareComponent($event.card)">
-    <ITable v-if="hasData" sticky max-height="450px" :id="tableId">
+    <ITable v-if="hasData" :id="tableId" sticky max-height="450px">
       <thead>
         <tr>
           <th
@@ -19,7 +19,7 @@
       </thead>
       <tbody>
         <tr
-          v-for="item in mutableCard.items"
+          v-for="item in mutableCard.value"
           :key="item[mutableCard.primaryKey]"
         >
           <td
@@ -77,28 +77,32 @@
     />
   </Card>
 </template>
+
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
-import { useDates } from '~/Core/resources/js/composables/useDates'
-import get from 'lodash/get'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEventListener } from '@vueuse/core'
-import { useResponsiveTable } from '~/Core/resources/js/components/Table/useResponsiveTable'
+import get from 'lodash/get'
 
-import { isISODate, isDate, randomString } from '@/utils'
+import { randomString } from '@/utils'
 
-const { isColumnVisible } = useResponsiveTable()
+import { useDates } from '~/Core/composables/useDates'
+import { useResponsiveTable } from '~/Core/composables/useResponsiveTable'
 
 const props = defineProps({
   card: Object,
   stackable: { type: Boolean, default: true },
 })
 
-const { localizedDate, localizedDateTime } = useDates()
-const { t } = useI18n()
 const tableId = randomString()
+
+const { isColumnVisible } = useResponsiveTable()
+const { maybeFormatDateValue } = useDates()
+const { t } = useI18n()
+
 const thRefs = ref([])
 const mutableCard = ref({})
+
 const stackedFields = computed(() =>
   mutableCard.value.fields.filter(field => field.isStacked)
 )
@@ -106,14 +110,7 @@ const stackedFields = computed(() =>
 const fields = computed(() => {
   return mutableCard.value.fields.map(field => {
     field.formatter = (value, key, item) => {
-      if (isDate(value)) {
-        return localizedDate(value)
-      } else if (isISODate(value)) {
-        return localizedDateTime(value)
-      } else {
-        // Dot notation formatting and getting values
-        return get(item, key)
-      }
+      return maybeFormatDateValue(value, get(item, key))
     }
 
     return field
@@ -124,7 +121,7 @@ const emptyText = computed(
   () => mutableCard.value.emptyText || t('core::app.not_enough_data')
 )
 
-const hasData = computed(() => mutableCard.value.items.length > 0)
+const hasData = computed(() => mutableCard.value.value.length > 0)
 
 function prepareComponent(card) {
   mutableCard.value = card

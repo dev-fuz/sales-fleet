@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,59 +12,58 @@
 
 namespace Modules\Core\Table;
 
+/** @mixin \Modules\Core\Table\Table */
 trait HandlesRelations
 {
     /**
      * Get all tables relation to be eager loaded with specific selected fields
      */
-    protected function withRelationships(): array
+    protected function getWithRelationships(): array
     {
+        $columns = $this->getUserColumns()
+            ->reject(fn ($column) => $column instanceof RelationshipCountColumn)
+            ->filter->shouldQuery();
+
         $selectWith = [];
-        $with = [];
 
-        $this->getUserColumns()->reject(function ($column) {
-            return ! $column->isRelation() ||
-            $column->isHidden() ||
-            ($column->isCountable() && $column->counts());
-        })->each(function ($column) use (&$with, &$selectWith) {
-            $selectRelationFields = $this->getRelationSelectFields($column);
+        $with = array_merge($columns->reduce(
+            fn (array $carry, Column $column) => $carry + $column->with, []
+        ), $this->with);
 
-            // Check if the relation is already queried
-            // E.q. example usage on deals table
-            // Column stage name and column stage win_probability from the same relation
-            // In this case, Laravel will only perform query on the last selected relation
-            // and the previous relation will be lost
-            // for this reason we need to merge both relation in one select with the
-            // selected fields from both relation
+        $columns->whereInstanceOf(RelationshipColumn::class)
+            ->each(function ($column) use (&$with, &$selectWith) {
+                $selectRelationFields = $this->getFieldsToSelectForRelationship($column);
 
-            $relationExists = false;
+                // Check if the relation is already queried
+                // E.q. example usage on deals table
+                // Column stage name and column stage win_probability from the same relation
+                // In this case, Laravel will only perform query on the last selected relation
+                // and the previous relation will be lost
+                // for this reason we need to merge both relation in one select with the
+                // selected fields from both relation
 
-            foreach ($with as $relationName => $callback) {
-                if ($column->relationName === $relationName) {
-                    $relationExists = true;
-
-                    break;
-                }
-            }
-
-            if (! $relationExists) {
-                $with[$column->relationName] = function ($query) use ($selectRelationFields) {
-                    $query->select($selectRelationFields);
-                };
-
-                $selectWith[$column->relationName] = $selectRelationFields;
-            } else {
-                // Merge the selected relation fields
-                $newSelect = array_unique(
-                    array_merge($selectWith[$column->relationName], $selectRelationFields)
+                $relationExists = collect($with)->contains(
+                    fn ($callback, $relationName) => $column->relationName === $relationName
                 );
 
-                // Update the existent relation with the new merged select
-                $with[$column->relationName] = function ($query) use ($newSelect) {
-                    $query->select($newSelect);
-                };
-            }
-        });
+                if (! $relationExists) {
+                    $with[$column->relationName] = function ($query) use ($selectRelationFields) {
+                        $query->select($selectRelationFields);
+                    };
+
+                    $selectWith[$column->relationName] = $selectRelationFields;
+                } else {
+                    // Merge the selected relation fields
+                    $newSelect = array_unique(
+                        array_merge($selectWith[$column->relationName], $selectRelationFields)
+                    );
+
+                    // Update the existent relation with the new merged select
+                    $with[$column->relationName] = function ($query) use ($newSelect) {
+                        $query->select($newSelect);
+                    };
+                }
+            });
 
         return $with;
     }
@@ -72,48 +71,53 @@ trait HandlesRelations
     /**
      * Get the relations that should be counted
      */
-    protected function countedRelationships(): array
+    protected function getCountedRelationships(): array
     {
-        return $this->getUserColumns()->reject(function ($column) {
-            if (! $column->isCountable() || ($column->isCountable() && ! $column->counts())) {
-                return true;
-            }
+        $columns = $this->getUserColumns();
 
-            /**
-             * Check if the table is sorting by countable has many column
-             * If at the moment of the request the column is hidden and the user set
-             * e.q. default sorting, an error will be triggered because the relationship
-             * count is not queried, in this case
-             *
-             * In such case, we must query the column when is hidden to perform sorting
-             */
-            return $column->isHidden() && ! $this->isSortingByColumn($column);
-        })
-            ->map(fn ($column) => "{$column->relationName} as {$column->attribute}")
+        return $columns->whereInstanceOf(RelationshipCountColumn::class)
+            ->reject(function ($column) {
+                /**
+                 * Check if the table is sorting by current countable column
+                 * If at the moment of the request the column is hidden and the user set
+                 * e.q. default sorting, an error will be triggered because the relationship
+                 * count is not queried.
+                 *
+                 * In such case, we must query the column when is hidden to perform sorting
+                 */
+                return $column->isHidden() && ! $this->isSortingByColumn($column);
+            })
+            ->map(fn ($column) => "{$column->relationshipName} as {$column->attribute}")
+            ->push(...$columns->reject->isHidden()->pluck('withCount')->flatten()->all())
+            ->push(...$this->withCount)
+            ->filter()
+            ->values()
             ->all();
     }
 
     /**
      * Get fields that should be selected with the eager loaded relation e.q. with(['company:id,name'])
+     *
+     * Adds the foreign key name to the select as is needed for Laravel to merge the data from the with query
      */
-    protected function getRelationSelectFields(RelationshipColumn $column): array
+    protected function getFieldsToSelectForRelationship(RelationshipColumn $column): array
     {
-        $select = [$this->getSelectableField($column, true)];
+        $select = [$this->getSelectableField($column)];
+        $relationship = $this->model->{$column->relationName}();
 
-        // Adds the foreign key name to the select as is needed for Laravel to merge the data from the with query
         if ($column instanceof BelongsToColumn || $column instanceof MorphToManyColumn) {
-            $select[] = $this->model->{$column->relationName}()->getRelated()->getQualifiedKeyName();
-        } elseif ($column instanceof HasManyColumn || $column instanceof HasOneColumn) {
-            $select[] = $this->model->{$column->relationName}()->getQualifiedForeignKeyName();
+            $select[] = $relationship->getRelated()->getQualifiedKeyName();
         } elseif ($column instanceof MorphManyColumn) {
-            $select[] = $this->model->{$column->relationName}()->getModel()->getQualifiedKeyName();
-            $select[] = $this->model->{$column->relationName}()->getQualifiedForeignKeyName();
+            $select[] = $relationship->getModel()->getQualifiedKeyName();
+            $select[] = $relationship->getQualifiedForeignKeyName();
+        } elseif ($column instanceof HasManyColumn || $column instanceof HasOneColumn) {
+            $select[] = $relationship->getQualifiedForeignKeyName();
         } elseif ($column instanceof BelongsToManyColumn) {
-            $select[] = $this->model->{$column->relationName}()->getModel()->getQualifiedKeyName();
+            $select[] = $relationship->getModel()->getQualifiedKeyName();
         }
 
         return collect($select)->merge(
-            $this->qualifyColumn($column->relationSelectColumns, $column->relationName)
+            $this->qualifyColumn($column->select, $column->relationName)
         )->unique()->values()->all();
     }
 }

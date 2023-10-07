@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -130,7 +130,7 @@ class MailableTemplatesManager
         }
 
         // Check if the template in local does not exists
-        return ! is_null($this->getHangingDatabaseTemplates());
+        return ! is_null($this->getStaleDatabaseTemplates());
     }
 
     /**
@@ -146,7 +146,7 @@ class MailableTemplatesManager
      *
      * In this case, the local file template is deleted but the one in database is still hanging there.
      */
-    protected function getHangingDatabaseTemplates(): ?Collection
+    protected function getStaleDatabaseTemplates(): ?Collection
     {
         $local = $this->get();
 
@@ -173,7 +173,7 @@ class MailableTemplatesManager
             return;
         }
 
-        if ($fileDeleted = $this->getHangingDatabaseTemplates()) {
+        if ($fileDeleted = $this->getStaleDatabaseTemplates()) {
             $fileDeleted->each->delete();
         }
 

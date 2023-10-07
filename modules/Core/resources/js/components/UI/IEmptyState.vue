@@ -24,28 +24,27 @@
     </p>
     <div class="mt-6">
       <IButton
-        @click="handleClickEvent($event, 'click', to)"
         :icon="buttonIcon"
         :text="buttonText"
+        @click="handleClickEvent($event, 'click', to)"
       />
       <IButton
         v-if="secondButtonText"
         class="ml-4"
         :variant="secondButtonVariant"
-        @click="handleClickEvent($event, 'click2', secondButtonTo)"
         :icon="secondButtonIcon"
         :text="secondButtonText"
+        @click="handleClickEvent($event, 'click2', secondButtonTo)"
       />
     </div>
   </div>
 </template>
+
 <script setup>
 import { useRouter } from 'vue-router'
 
 const emit = defineEmits(['click', 'click2'])
-const router = useRouter()
-
-const props = defineProps({
+defineProps({
   title: String,
   description: String,
   buttonText: String,
@@ -56,6 +55,8 @@ const props = defineProps({
   secondButtonVariant: { default: 'secondary', type: String },
   secondButtonTo: [Object, String],
 })
+
+const router = useRouter()
 
 function handleClickEvent(e, type, to) {
   if (to) {

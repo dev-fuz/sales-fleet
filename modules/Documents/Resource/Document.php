@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,31 +13,32 @@
 namespace Modules\Documents\Resource;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Modules\Billable\Contracts\BillableResource;
+use Modules\Billable\Fields\Amount;
 use Modules\Billable\Filters\BillableProductsFilter;
 use Modules\Contacts\Fields\Companies;
 use Modules\Contacts\Fields\Contacts;
 use Modules\Core\Actions\DeleteAction;
 use Modules\Core\Contracts\Resources\Cloneable;
-use Modules\Core\Contracts\Resources\Resourceful;
+use Modules\Core\Contracts\Resources\HasOperations;
 use Modules\Core\Contracts\Resources\Tableable;
 use Modules\Core\Fields\BelongsTo;
 use Modules\Core\Fields\DateTime;
-use Modules\Core\Fields\Numeric;
+use Modules\Core\Fields\FieldsCollection;
 use Modules\Core\Fields\Text;
 use Modules\Core\Fields\User;
 use Modules\Core\Filters\DateTime as DateTimeFilter;
 use Modules\Core\Filters\Numeric as NumericFilter;
 use Modules\Core\Filters\Text as TextFilter;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Menu\MenuItem;
 use Modules\Core\Models\Model;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Resource\Events\ResourceRecordCreated;
+use Modules\Core\Resource\Events\ResourceRecordUpdated;
 use Modules\Core\Resource\Resource;
-use Modules\Core\Rules\VisibleModelRule;
 use Modules\Core\Settings\SettingsMenuItem;
+use Modules\Core\Table\BelongsToColumn;
+use Modules\Core\Table\Column;
 use Modules\Core\Table\Table;
 use Modules\Deals\Fields\Deals;
 use Modules\Documents\Concerns\ValidatesDocument;
@@ -47,15 +48,13 @@ use Modules\Documents\Filters\DocumentBrandFilter;
 use Modules\Documents\Filters\DocumentStatusFilter;
 use Modules\Documents\Filters\DocumentTypeFilter;
 use Modules\Documents\Http\Resources\DocumentResource;
-use Modules\Documents\Http\Resources\DocumentTypeResource;
 use Modules\Documents\Models\DocumentType;
 use Modules\Documents\Services\DocumentCloneService;
 use Modules\Documents\Services\DocumentService;
 use Modules\Users\Filters\ResourceUserTeamFilter;
 use Modules\Users\Filters\UserFilter;
-use Modules\Users\Models\User as UserModel;
 
-class Document extends Resource implements Resourceful, Tableable, Cloneable, BillableResource
+class Document extends Resource implements BillableResource, Cloneable, HasOperations, Tableable
 {
     use ValidatesDocument;
 
@@ -75,14 +74,6 @@ class Document extends Resource implements Resourceful, Tableable, Cloneable, Bi
     public static string $model = 'Modules\Documents\Models\Document';
 
     /**
-     * Get the resource service for CRUD operations.
-     */
-    public function service(): DocumentService
-    {
-        return new DocumentService();
-    }
-
-    /**
      * Get the menu items for the resource
      */
     public function menu(): array
@@ -93,6 +84,30 @@ class Document extends Resource implements Resourceful, Tableable, Cloneable, Bi
                 ->inQuickCreate()
                 ->keyboardShortcutChar('F'),
         ];
+    }
+
+    /**
+     * Create new resource record in storage.
+     */
+    public function create(Model $model, ResourceRequest $request): Model
+    {
+        $document = (new DocumentService)->create($model, $request->all());
+
+        ResourceRecordCreated::dispatch($document, $this);
+
+        return $document;
+    }
+
+    /**
+     * Update resource record in storage.
+     */
+    public function update(Model $model, ResourceRequest $request): Model
+    {
+        $document = (new DocumentService)->update($model, $request->all());
+
+        ResourceRecordUpdated::dispatch($document, $this);
+
+        return $document;
     }
 
     /**
@@ -110,7 +125,7 @@ class Document extends Resource implements Resourceful, Tableable, Cloneable, Bi
     {
         return [
             (new \Modules\Documents\Cards\SentDocumentsByDay)->withUserSelection(function ($instance) {
-                return $instance->canViewOtherUsersCardData();
+                return $instance->authorizedToFilterByUser();
             })->color('success'),
             (new \Modules\Documents\Cards\DocumentsByType)->onlyOnDashboard()->help(__('core::app.cards.creation_date_info')),
             (new \Modules\Documents\Cards\DocumentsByStatus)->refreshOnActionExecuted()->help(__('core::app.cards.creation_date_info')),
@@ -122,13 +137,20 @@ class Document extends Resource implements Resourceful, Tableable, Cloneable, Bi
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $query
      */
-    public function table($query, Request $request): Table
+    public function table($query, ResourceRequest $request): Table
     {
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
-        return new DocumentTable($query, $request);
+        return (new Table($query, $request))->customizeable()
+            ->appends(['public_url', 'status'])
+            ->withActionsColumn()
+            ->select([
+                'uuid', // for public_url append
+                'user_id', // user_id is for the policy checks
+                'status', // for showing the dropdown send document item and disable inline edit checks
+            ])->orderBy('created_at', 'desc');
     }
 
     /**
@@ -137,6 +159,14 @@ class Document extends Resource implements Resourceful, Tableable, Cloneable, Bi
     public function jsonResource(): string
     {
         return DocumentResource::class;
+    }
+
+    /**
+     * Prepare global search query.
+     */
+    public function globalSearchQuery(ResourceRequest $request): Builder
+    {
+        return parent::globalSearchQuery($request)->select(['id', 'title', 'created_at']);
     }
 
     /**
@@ -156,131 +186,89 @@ class Document extends Resource implements Resourceful, Tableable, Cloneable, Bi
     }
 
     /**
-     * Provides the resource available CRUD fields
+     * Resolve the fields for placeholders.
      */
-    public function fields(Request $request): array
+    public function fieldsForPlaceholders(): FieldsCollection
     {
-        return [
+        return $this->fieldsForIndex()->filterForPlaceholders();
+    }
+
+    /**
+     * Resolve the fields for index.
+     */
+    public function fieldsForIndex(): FieldsCollection
+    {
+        return new FieldsCollection([
             Text::make('title', __('documents::fields.documents.title'))
-                ->primary()
-                ->tapIndexColumn(fn ($column) => $column->width('340px')->minWidth('340px'))
-                ->creationRules(['required', 'string'])
-                ->updateRules(['filled', 'string'])
-                ->rules('max:191')
-                ->required(true),
+                ->required()
+                ->tapIndexColumn(fn (Column $column) => $column
+                    ->width('350px')
+                    ->minWidth('350px')
+                    ->primary()
+                    ->route(! $column->isForTrashedTable() ? ['name' => 'view-document', 'params' => ['id' => '{id}']] : '')
+                )
+                ->disableInlineEdit(fn ($model) => $model->status === DocumentStatus::ACCEPTED),
 
             BelongsTo::make('type', DocumentType::class, __('documents::document.type.type'))
-                ->rules(
-                    [
-                        'filled',
-                        new VisibleModelRule(new DocumentType),
-                    ]
-                )
-                ->required(true)
-                ->creationRules(
-                    Rule::requiredIf(
-                        function () use ($request) {
-                            $defaultId = DocumentType::getDefaultType();
-
-                            if (is_null($defaultId)) {
-                                return true;
-                            }
-
-                            try {
-                                $type = DocumentType::findOrFail($defaultId);
-
-                                return $request->user()->cant('view', $type);
-                            } catch (ModelNotFoundException) {
-                                return true;
-                            }
-                        }
-                    )
-                )
-                ->setJsonResource(DocumentTypeResource::class)
-                ->tapIndexColumn(function ($column) {
-                    $column->label(__('documents::document.type.type'))
-                        ->select(['swatch_color'])
-                        ->appends('icon')
-                        ->primary(false)
-                        ->width('130px')
-                        ->minWidth('130px')
-                        ->useComponent('table-data-option-column');
-                }),
+                ->required()
+                ->displayAsPills()
+                ->tapIndexColumn(fn (BelongsToColumn $column) => $column
+                    ->select(['swatch_color'])
+                    ->appends('icon')
+                    ->width('130px')
+                    ->minWidth('130px')
+                ),
 
             Text::make('status', __('documents::document.status.status'))
+                ->tapIndexColumn(fn (Column $column) => $column->width('130px')->minWidth('130px')->centered())
                 ->resolveUsing(fn ($model) => $model->status->value)
-                ->displayUsing(fn ($model, $value) => DocumentStatus::tryFrom($value)->displayName()) // For mail placeholder
-                ->tapIndexColumn(function ($column) {
-                    $column->centered()->displayAs(fn ($model) => $model->status->value);
-                }),
+                ->disableInlineEdit()
+                ->displayUsing(fn ($model, $value) => DocumentStatus::tryFrom($value)->displayName()), // For mail placeholder
 
             User::make(__('documents::fields.documents.user.name'))
-                ->primary()
-                ->acceptLabelAsValue(false)
-                ->rules('required')
-                ->notification(\Modules\Documents\Notifications\UserAssignedToDocument::class)
-                ->trackChangeDate('owner_assigned_date')
-                ->tapIndexColumn(
-                    fn ($column) => $column->primary(false)
-                        ->select('avatar')
-                        ->appends('avatar_url')
-                        ->useComponent('table-data-avatar-column')
-                )
-                ->showValueWhenUnauthorizedToView(),
+                ->required()
+                ->tapIndexColumn(fn (Column $column) => $column->queryWhenHidden()) // policy
+                ->disableInlineEdit(fn ($model) => $model->status === DocumentStatus::ACCEPTED),
 
-            Numeric::make('amount', __('documents::fields.documents.amount'))
-                ->currency(),
+            Amount::make('amount', __('documents::fields.documents.amount'))
+                ->currency()
+                ->onlyProducts()
+                ->disableInlineEdit(fn ($model) => $model->status === DocumentStatus::ACCEPTED),
 
-            Contacts::make()
-                ->exceptOnForms()
-                ->hidden(),
+            Contacts::make()->hidden(),
 
-            Companies::make()
-                ->exceptOnForms()
-                ->hidden(),
+            Companies::make()->hidden(),
 
-            Deals::make()
-                ->exceptOnForms()
-                ->hidden(),
+            Deals::make()->hidden(),
 
-            BelongsTo::make('creator', UserModel::class, __('core::app.created_by'))
-                ->excludeFromImport()
-                ->strictlyForIndex()
-                ->tapIndexColumn(
-                    fn ($column) => $column->minWidth('100px')
-                        ->select('avatar')
-                        ->appends('avatar_url')
-                        ->useComponent('table-data-avatar-column')
-                )
+            User::make(__('core::app.created_by'), 'creator', 'created_by')
+                ->disableInlineEdit()
                 ->hidden(),
 
             DateTime::make('last_date_sent', __('documents::fields.documents.last_date_sent'))
-                ->exceptOnForms()
+                ->disableInlineEdit()
                 ->hidden(),
 
             DateTime::make('original_date_sent', __('documents::fields.documents.original_date_sent'))
-                ->exceptOnForms()
+                ->disableInlineEdit()
                 ->hidden(),
 
             DateTime::make('accepted_at', __('documents::fields.documents.accepted_at'))
-                ->exceptOnForms()
+                ->disableInlineEdit()
                 ->hidden(),
 
             DateTime::make('owner_assigned_date', __('documents::fields.documents.owner_assigned_date'))
-                ->exceptOnForms()
+                ->disableInlineEdit()
                 ->hidden(),
 
             DateTime::make('updated_at', __('core::app.updated_at'))
-                ->excludeFromImportSample()
-                ->strictlyForIndex()
+                ->disableInlineEdit()
                 ->hidden(),
 
             DateTime::make('created_at', __('core::app.created_at'))
-                ->excludeFromImportSample()
-                ->strictlyForIndex()
+                ->disableInlineEdit()
                 ->hidden(),
-
-        ];
+        ]);
     }
 
     /**
@@ -289,7 +277,7 @@ class Document extends Resource implements Resourceful, Tableable, Cloneable, Bi
     public function filters(ResourceRequest $request): array
     {
         return [
-            TextFilter::make('title', __('documents::fields.documents.title'))->withoutEmptyOperators(),
+            TextFilter::make('title', __('documents::fields.documents.title'))->withoutNullOperators(),
             DocumentTypeFilter::make(),
             NumericFilter::make('amount', __('documents::fields.documents.amount')),
             DocumentBrandFilter::make(),
@@ -311,19 +299,16 @@ class Document extends Resource implements Resourceful, Tableable, Cloneable, Bi
     /**
      * Create query when the resource is associated for index.
      */
-    public function associatedIndexQuery(Model $primary, bool $applyOrder = true): Builder
+    public function associatedIndexQuery(Model $primary, ResourceRequest $request, bool $applyOrder = true): Builder
     {
-        $query = parent::associatedIndexQuery($primary, $applyOrder);
-        [$with, $withCount] = static::getEagerLoadable($this->fieldsForIndexQuery());
-
-        // For associations keys to be included in the JSON resource
-        return $query->with(
-            array_merge(
-                $this->availableAssociations()->map->associateableName()->all(),
-                ['pinnedTimelineSubjects'],
-                $with->all()
+        return $this
+            ->with(
+                parent::associatedIndexQuery($primary, $request, $applyOrder),
+                $this->fieldsForIndexQuery()
             )
-        )->withCount($withCount->all())
+            ->with(
+                $this->availableAssociations()->map->associateableName()->push('pinnedTimelineSubjects')->all()
+            )
             ->criteria($this->viewAuthorizedRecordsCriteria())
             ->withCommon();
     }
@@ -336,10 +321,10 @@ class Document extends Resource implements Resourceful, Tableable, Cloneable, Bi
         return [
             new \Modules\Users\Actions\AssignOwnerAction,
 
-            (new DeleteAction)->useName(__('core::app.delete')),
+            (new DeleteAction)->setName(__('core::app.delete')),
 
             (new DeleteAction)->isBulk()
-                ->useName(__('core::app.delete'))
+                ->setName(__('core::app.delete'))
                 ->authorizedToRunWhen(
                     fn ($request, $model) => $request->user()->can('bulk delete documents')
                 ),

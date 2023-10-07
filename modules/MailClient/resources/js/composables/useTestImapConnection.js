@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -10,7 +10,8 @@
  */
 import { ref } from 'vue'
 import { useStore } from 'vuex'
-import { useForm } from '~/Core/resources/js/composables/useForm'
+
+import { useForm } from '~/Core/composables/useForm'
 
 export function useTestImapConnection() {
   const { form: testConnectionForm } = useForm()

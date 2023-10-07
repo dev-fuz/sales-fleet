@@ -9,14 +9,14 @@
   >
     <template #header>
       <p
-        class="font-semibold text-neutral-800 dark:text-neutral-200"
         v-t="'webforms::form.sections.introduction.introduction'"
+        class="font-semibold text-neutral-800 dark:text-neutral-200"
       />
     </template>
     <template #actions>
       <IButtonIcon
-        icon="PencilAlt"
         v-show="!editing"
+        icon="PencilAlt"
         class="block md:hidden md:group-hover:block"
         icon-class="h-4 w-4"
         @click="setEditingMode"
@@ -27,10 +27,12 @@
         class="text-lg font-medium text-neutral-800 dark:text-neutral-100"
         v-text="section.title"
       />
+      <!-- eslint-disable -->
       <p
         class="text-sm text-neutral-600 dark:text-neutral-300"
         v-html="section.message"
       />
+       <!-- eslint-enable -->
     </div>
     <div v-if="editing">
       <IFormGroup
@@ -40,30 +42,26 @@
         <IFormInput id="title" v-model="title" />
       </IFormGroup>
       <IFormGroup :label="$t('webforms::form.sections.introduction.message')">
-        <Editor :with-image="false" v-model="message" />
+        <Editor v-model="message" :with-image="false" />
       </IFormGroup>
       <div class="space-x-2 text-right">
         <IButton
           size="sm"
-          @click="editing = false"
           variant="white"
           :text="$t('core::app.cancel')"
+          @click="editing = false"
         />
         <IButton
           size="sm"
-          @click="requestSectionSave"
           variant="secondary"
           :text="$t('core::app.save')"
+          @click="requestSectionSave"
         />
       </div>
     </div>
   </ICard>
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
 import { ref } from 'vue'
 
@@ -73,6 +71,10 @@ const props = defineProps({
   index: { type: Number },
   form: { type: Object, required: true },
   section: { required: true, type: Object },
+})
+
+defineOptions({
+  inheritAttrs: false,
 })
 
 const editing = ref(false)

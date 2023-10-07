@@ -1,17 +1,19 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import { ref, computed } from 'vue'
-import orderBy from 'lodash/orderBy'
+import { computed, ref } from 'vue'
 import { createGlobalState } from '@vueuse/core'
-import { useLoader } from '~/Core/resources/js/composables/useLoader'
+import map from 'lodash/map'
+import orderBy from 'lodash/orderBy'
+
+import { useLoader } from '~/Core/composables/useLoader'
 
 export const usePipelines = createGlobalState(() => {
   const { setLoading, isLoading: pipelinesAreBeingFetched } = useLoader()
@@ -25,6 +27,29 @@ export const usePipelines = createGlobalState(() => {
       ['asc', 'desc', 'asc']
     )
   )
+
+  const orderedPipelinesForDraggable = computed({
+    get() {
+      return orderedPipelines.value
+    },
+    set(value) {
+      const newPipelines = map(value, (pipeline, index) =>
+        Object.assign({}, pipeline, { user_display_order: index + 1 })
+      )
+
+      setPipelines(newPipelines)
+      savePipelinesOrder(newPipelines)
+    },
+  })
+
+  function savePipelinesOrder(newPipelines) {
+    Innoclapps.request().post('/pipelines/order', {
+      order: newPipelines.map(pipeline => ({
+        id: pipeline.id,
+        display_order: pipeline.user_display_order,
+      })),
+    })
+  }
 
   function idx(id) {
     return pipelines.value.findIndex(pipeline => pipeline.id == id)
@@ -58,6 +83,7 @@ export const usePipelines = createGlobalState(() => {
 
   async function fetchPipeline(id, options = {}) {
     const { data } = await Innoclapps.request().get(`/pipelines/${id}`, options)
+
     return data
   }
 
@@ -90,5 +116,6 @@ export const usePipelines = createGlobalState(() => {
     fetchPipelines,
     fetchPipeline,
     deletePipeline,
+    orderedPipelinesForDraggable,
   }
 })

@@ -10,21 +10,23 @@
     :key="key"
     v-bind="attributes"
   >
-    <slot name="option" v-bind="slotProps" :optionLabel="label"></slot>
+    <slot name="option" v-bind="slotProps" :option-label="label"></slot>
 
     <DeselectButton
-      v-if="multiple"
+      v-if="multiple && !disabled"
       :deselect="deselect"
-      :disabled="disabled === null ? false : disabled"
       :label="label"
       :option="option"
     />
   </component>
 </template>
+
 <script setup>
 import { computed } from 'vue'
+
+import TextBackground from '~/Core/components/TextBackground.vue'
+
 import DeselectButton from './ISelectSelectedOptionDeselectButton.vue'
-import TextBackground from '~/Core/resources/js/components/TextBackground.vue'
 
 const props = defineProps([
   'option',
@@ -35,7 +37,9 @@ const props = defineProps([
   'searching',
   'disabled',
   'deselect',
+  'simple',
 ])
+
 const attributes = computed(() => {
   let attributes = {
     class: 'dark:!text-white',
@@ -57,7 +61,7 @@ const attributes = computed(() => {
     }
   }
 
-  if (props.disabled || props.searching) {
+  if ((props.disabled && !props.simple) || props.searching) {
     attributes.class += ' opacity-60 dark:opacity-80'
   }
 

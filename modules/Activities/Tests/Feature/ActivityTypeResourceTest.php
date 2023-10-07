@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -22,9 +22,9 @@ class ActivityTypeResourceTest extends ResourceTestCase
     {
         $this->signIn();
 
-        $this->postJson($this->createEndpoint(), ['name' => 'Aviation', 'swatch_color' => '#fffff', 'icon' => 'ICON'])
+        $this->postJson($this->createEndpoint(), ['name' => 'Aviation', 'swatch_color' => '#ffffff', 'icon' => 'ICON'])
             ->assertStatus(201)
-            ->assertJson(['name' => 'Aviation', 'swatch_color' => '#fffff', 'icon' => 'ICON']);
+            ->assertJson(['name' => 'Aviation', 'swatch_color' => '#ffffff', 'icon' => 'ICON']);
     }
 
     public function test_unauthorized_user_cannot_create_resource_record()
@@ -37,7 +37,7 @@ class ActivityTypeResourceTest extends ResourceTestCase
     {
         $this->signIn();
 
-        $record = $this->factory()->create(['swatch_color' => '#fffff']);
+        $record = $this->factory()->create(['swatch_color' => '#ffffff']);
 
         $this->putJson($this->updateEndpoint($record), [
             'name' => 'Changed',

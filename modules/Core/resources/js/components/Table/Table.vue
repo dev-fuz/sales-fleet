@@ -9,10 +9,7 @@
         <div
           class="order-last w-full shrink-0 md:order-first md:mb-0 md:w-auto"
         >
-          <FormInputSearch
-            v-model="search"
-            @input="request(true)"
-          />
+          <SearchInput v-model="search" @input="request(true)" />
         </div>
 
         <!-- <TablePerPageOptions :collection="collection" class="ml-4" /> -->
@@ -24,6 +21,7 @@
         <div>
           <TableSettings
             v-if="componentReady"
+            ref="settingsRef"
             :config="config"
             :with-customize-button="withCustomizeButton"
             :url-path="computedUrlPath"
@@ -43,24 +41,24 @@
           <FiltersDropdown
             :view="filtersView"
             :identifier="filtersIdentifier"
-            @apply="applyFilters"
             class="flex-1"
             placement="bottom-start"
+            @apply="applyFilters"
           />
 
           <IButton
-            variant="white"
-            @click="toggleFiltersRules"
             v-show="hasRulesApplied && !rulesAreVisible"
+            variant="white"
             icon="PencilAlt"
+            @click="toggleFiltersRules"
           />
 
           <IButton
             v-show="!hasRulesApplied && !rulesAreVisible"
             variant="white"
-            @click="toggleFiltersRules"
             icon="Plus"
             :text="$t('core::filters.add_filter')"
+            @click="toggleFiltersRules"
           />
         </div>
 
@@ -80,7 +78,8 @@
       <ICard no-body :overlay="isLoading">
         <div
           v-if="isSelectable && hasSelectedRows"
-          class="fixed bottom-[3.3rem] left-auto right-1 z-50 w-full max-w-xs rounded-md border border-neutral-600 bg-neutral-800 p-5 shadow-lg shadow-primary-400/40 dark:shadow-primary-900/40 md:left-80 md:right-auto md:max-w-md"
+          class="fixed left-auto right-1 z-50 w-full max-w-xs rounded-md border border-neutral-600 bg-neutral-800 px-6 py-5 shadow-lg shadow-primary-400/40 dark:shadow-primary-900/40 md:left-80 md:right-auto md:max-w-md"
+          :class="collection.total <= 5 ? 'bottom-20' : 'bottom-[3.3rem]'"
         >
           <div class="flex flex-col md:flex-row md:items-center">
             <div class="mr-8 flex shrink-0 items-center">
@@ -99,9 +98,9 @@
                 "
               />
             </div>
-            <div class="mt-3 w-full md:mt-0 md:w-60">
-              <ActionSelect
-                ref="actionsRef"
+            <div class="md:w-68 mt-3 w-full md:mt-0">
+              <ActionSelector
+                type="select"
                 size="sm"
                 view="index"
                 :ids="selectedRowsIds"
@@ -110,12 +109,6 @@
                 :resource-name="resourceName"
               />
             </div>
-            <IButton
-              class="mt-1 w-full justify-center md:ml-2 md:mt-0 md:w-auto md:justify-start"
-              size="sm"
-              :text="$t('core::app.apply')"
-              @click="() => $refs.actionsRef.run()"
-            />
           </div>
         </div>
         <!-- When no maxHeight is provided, just set the maxHeight to big number e.q. 10000px
@@ -123,9 +116,9 @@
                     or remove the previous height -->
         <ITable
           v-show="componentReady"
+          :id="'table-' + tableId"
           :sticky="config.maxHeight !== null"
           :condensed="config.condensed"
-          :id="'table-' + tableId"
           class="rounded-lg"
           wrapper-class="-mt-px"
           :max-height="
@@ -133,31 +126,39 @@
           "
         >
           <thead>
-            <tr>
-              <HeaderCell
-                v-for="(column, cidx) in visibleColumns"
-                :key="'th-' + column.attribute"
-                :column="column"
-                :condensed="config.condensed"
-                :is-selectable="isSelectable && cidx === 0"
-                :all-rows-selected="
-                  isSelectable && cidx === 0 ? allRowsSelected : undefined
-                "
-                :resource-name="resourceName"
-                :is-ordered="collection.isOrderedBy(column.attribute)"
-                :is-sorted-ascending="
-                  collection.isSorted('asc', column.attribute)
-                "
-                @sort-requested="attr => collection.toggleSortable(attr)"
-                @toggle-select-all="toggleSelectAll"
-              />
-            </tr>
+            <draggable
+              v-model="visibleColumns"
+              :disabled="!config.customizeable"
+              :move="e => $refs.settingsRef.customizationRef.onColumnMove(e)"
+              tag="tr"
+              :item-key="item => 'th' + item.attribute"
+              v-bind="headingReorderDraggableOptions"
+            >
+              <template #item="{ element, index }">
+                <HeaderCell
+                  :column="element"
+                  :condensed="config.condensed"
+                  :is-selectable="isSelectable && index === 0"
+                  :all-rows-selected="
+                    isSelectable && index === 0 ? allRowsSelected : undefined
+                  "
+                  :resource-name="resourceName"
+                  :is-ordered="collection.isOrderedBy(element.attribute)"
+                  :is-sorted-ascending="
+                    collection.isSorted('asc', element.attribute)
+                  "
+                  @sort-requested="attr => collection.toggleSortable(attr)"
+                  @toggle-select-all="toggleSelectAll"
+                />
+              </template>
+            </draggable>
           </thead>
           <tbody>
             <tr
               v-for="(row, index) in collection.items"
               :key="index"
               :class="[
+                'group/tr',
                 rowClass ? rowClass(row) : undefined,
                 row.tSelected && '!bg-neutral-50 dark:!bg-neutral-800',
               ]"
@@ -171,32 +172,40 @@
                 :is-centered="column.centered || false"
                 :is-sortable="column.sortable || false"
                 :is-selectable="isSelectable && cidx === 0"
+                :resource-name="resourceName"
                 :column="column"
                 :row="row"
                 @selected="onRowSelected"
               >
-                <template v-slot="slotProps">
-                  <slot
-                    v-bind="{ ...slotProps, column, row }"
-                    :name="column.attribute"
+                <slot
+                  v-bind="{ column, row, resourceName, resourceId: row.id }"
+                  :name="column.attribute"
+                >
+                  <component
+                    :is="
+                      column.component || column.field?.indexComponent || 'span'
+                    "
+                    :field="
+                      column.field
+                        ? {
+                            ...column.field,
+                            ...{ value: row[column.attribute] },
+                          }
+                        : undefined
+                    "
+                    v-bind="{ column, row, resourceName, resourceId: row.id }"
+                    @reload="request"
                   >
-                    <component
-                      :is="
-                        dataComponents.hasOwnProperty(column.component)
-                          ? dataComponents[column.component]
-                          : column.component
-                      "
-                      v-bind="{ ...slotProps, column, row }"
-                      :resource-name="resourceName"
-                    />
-                  </slot>
-                </template>
+                    <!-- only ID field hits here -->
+                    {{ row[column.attribute] }}
+                  </component>
+                </slot>
               </DataCell>
             </tr>
             <tr v-if="!collection.hasItems">
               <td
-                v-if="!isLoading && initialDataLoaded"
-                class="p-5 !text-sm !font-normal"
+                v-show="!isLoading && initialDataLoaded"
+                class="is-empty"
                 :colspan="totalColumns"
                 v-text="emptyText"
               />
@@ -206,11 +215,8 @@
       </ICard>
 
       <TablePagination
-        class="mt-4 sm:mt-6"
         v-if="collection.hasPagination"
-        @go-to-next="collection.nextPage()"
-        @go-to-previous="collection.previousPage()"
-        @go-to-page="collection.page($event)"
+        class="mt-4 sm:mt-6"
         :is-current-page-check="page => collection.isCurrentPage(page)"
         :has-next-page="collection.hasNextPage"
         :has-previous-page="collection.hasPreviousPage"
@@ -221,45 +227,49 @@
         :total="collection.total"
         :loading="isLoading"
         size="sm"
+        @go-to-next="collection.nextPage()"
+        @go-to-previous="collection.previousPage()"
+        @go-to-page="collection.page($event)"
       />
     </div>
   </IOverlay>
 </template>
+
 <script setup>
 import {
-  ref,
-  reactive,
   computed,
-  watch,
   nextTick,
-  onMounted,
   onBeforeUnmount,
+  onMounted,
   onUnmounted,
+  reactive,
+  ref,
+  watch,
 } from 'vue'
-import ActionSelect from '~/Core/resources/js/components/Actions/ActionsSelect.vue'
-import TablePagination from './TablePagination.vue'
+import { useI18n } from 'vue-i18n'
+import draggable from 'vuedraggable'
+import { useStore } from 'vuex'
+import cloneDeep from 'lodash/cloneDeep'
+import isEqual from 'lodash/isEqual'
+import sortBy from 'lodash/sortBy'
+
+import ActionSelector from '~/Core/components/Actions/ActionSelector.vue'
+import Filters from '~/Core/components/Filters'
+import FiltersDropdown from '~/Core/components/Filters/FilterDropdown.vue'
+import RulesDisplay from '~/Core/components/QueryBuilder/RulesDisplay.vue'
+import { useDraggable } from '~/Core/composables/useDraggable'
+import { useFilterable } from '~/Core/composables/useFilterable'
+import { useGlobalEventListener } from '~/Core/composables/useGlobalEventListener'
+import { useLoader } from '~/Core/composables/useLoader'
+import { useQueryBuilder } from '~/Core/composables/useQueryBuilder'
+import { CancelToken } from '~/Core/services/HTTP'
+
 import Collection from './Collection'
-import FiltersDropdown from '~/Core/resources/js/components/Filters/FilterDropdown.vue'
-import Filters from '~/Core/resources/js/components/Filters'
-import { useFilterable } from '~/Core/resources/js/components/Filters/useFilterable'
-import { useQueryBuilder } from '~/Core/resources/js/components/QueryBuilder/useQueryBuilder'
-import TableSettings from './TableSettings.vue'
 // import TablePerPageOptions from './TablePerPageOptions.vue'
-import TableDataColumn from './TableData/TableDataColumn.vue'
-import TableDataBooleanColumn from './TableData/TableDataBooleanColumn.vue'
-import TableDataPresentableColumn from './TableData/TableDataPresentableColumn.vue'
-import TableDataOptionColumn from './TableData/TableDataOptionColumn.vue'
-import TableDataAvatarColumn from './TableData/TableDataAvatarColumn.vue'
-import TableDataEmailColumn from './TableData/TableDataEmailColumn.vue'
 import DataCell from './TableDataCell.vue'
 import HeaderCell from './TableHeaderCell.vue'
-import RulesDisplay from '~/Core/resources/js/components/QueryBuilder/RulesDisplay.vue'
-import { CancelToken } from '~/Core/resources/js/services/HTTP'
-import { useI18n } from 'vue-i18n'
-import { useStore } from 'vuex'
-import { useLoader } from '~/Core/resources/js/composables/useLoader'
-import { useGlobalEventListener } from '~/Core/resources/js/composables/useGlobalEventListener'
-import isEqual from 'lodash/isEqual'
+import TablePagination from './TablePagination.vue'
+import TableSettings from './TableSettings.vue'
 
 const emit = defineEmits(['loaded'])
 
@@ -278,7 +288,7 @@ const props = defineProps({
       return {}
     },
   },
-  withCustomizeButton: { type: Boolean, default: false },
+  withCustomizeButton: Boolean,
   emptyState: Object,
   rowClass: Function,
   urlPath: String,
@@ -289,17 +299,19 @@ const props = defineProps({
   filterId: Number,
 })
 
-const dataComponents = {
-  'table-data-column': TableDataColumn,
-  'table-data-boolean-column': TableDataBooleanColumn,
-  'table-data-presentable-column': TableDataPresentableColumn,
-  'table-data-option-column': TableDataOptionColumn,
-  'table-data-avatar-column': TableDataAvatarColumn,
-  'table-data-email-column': TableDataEmailColumn,
-}
-
 const { t } = useI18n()
 const store = useStore()
+
+const { scrollableDraggableOptions } = useDraggable()
+
+const headingReorderDraggableOptions = computed(() => {
+  return {
+    ...scrollableDraggableOptions,
+    ...{
+      delay: 50,
+    },
+  }
+})
 
 const { setLoading, isLoading } = useLoader()
 
@@ -308,6 +320,8 @@ const search = ref('')
 const componentReady = ref(false)
 const watchersInitialized = ref(false)
 const initialDataLoaded = ref(false)
+const settingsRef = ref(null)
+
 let requestCancelToken = null
 
 const emptyText = computed(() => {
@@ -332,11 +346,11 @@ const filtersIdentifier = computed(() => config.value.identifier)
 
 const filtersView = computed(() => props.tableId)
 
-const isEmpty = computed(() => collection.state.meta.all_time_total === 0)
+const isEmpty = computed(() => collection.state.meta.pre_total === 0)
 
 const showEmptyState = computed(() => {
   // Indicates whether there is performed any request to the server for data
-  if (typeof collection.state.meta.all_time_total == 'undefined') {
+  if (typeof collection.state.meta.pre_total == 'undefined') {
     return false
   }
 
@@ -349,14 +363,46 @@ const requestQueryStringParams = computed(() => ({
   ...props.dataRequestQueryString,
 }))
 
-const visibleColumns = computed(() => {
-  if (!config.value.columns) {
-    return []
-  }
+// Ensure they are ordered by order so they are immediately updated when dragging the headings
+const columns = computed(() => sortBy(config.value.columns || [], 'order'))
 
-  return config.value.columns.filter(
-    column => (!column.hidden || column.hidden == false) && column.attribute
-  )
+const visibleColumns = computed({
+  get() {
+    return columns.value.filter(
+      column => (!column.hidden || column.hidden == false) && column.attribute
+    )
+  },
+  set(value) {
+    let currentColumns = cloneDeep(config.value.columns)
+    // We will make sure to update the store before the "save" request
+    // so the changes are reflected on the ui immediately without
+    // the user to wait the "save" request to finish.
+    value.forEach((column, cidx) => {
+      let currentColumnIndex = currentColumns.findIndex(
+        c => c.attribute === column.attribute
+      )
+
+      if (currentColumnIndex !== -1) {
+        currentColumns[currentColumnIndex] = Object.assign(
+          {},
+          column,
+          config.value.columns[currentColumnIndex],
+          {
+            order: cidx + 1,
+          }
+        )
+      }
+    })
+
+    store.commit('table/UPDATE_SETTINGS', {
+      id: props.tableId,
+      settings: {
+        columns: currentColumns,
+      },
+    })
+
+    settingsRef.value.customizationRef.save(value)
+  },
 })
 
 const totalColumns = computed(() => visibleColumns.value.length)
@@ -422,8 +468,8 @@ function request(viaUserSearch = false) {
 
   // Reset the current page as the search won't be accurate as there will
   // be offset on the query and if any results are found, won't be queried
-  if (viaUserSearch && collection.currentPage !== 1) {
-    collection.currentPage = 1
+  if (viaUserSearch === true && collection.currentPage !== 1) {
+    setPage(1)
   }
 
   let queryStringParams = requestQueryStringParams.value
@@ -448,6 +494,7 @@ function request(viaUserSearch = false) {
     })
     .finally(() => {
       setLoading(false)
+
       if (!initialDataLoaded.value) {
         // Add a little timeout so if there is no record and empty state
         // exists the table is not shown together with the empty state then hidden
@@ -509,13 +556,17 @@ async function refetchActions() {
   return actions
 }
 
+function setPage(page) {
+  collection.currentPage = page
+}
+
 /**
  * Register the table reload listener
  *
  * @return {Void}
  */
 function registerReloaders() {
-  useGlobalEventListener(`${props.resourceName}-record-updated`, request)
+  useGlobalEventListener('floating-resource-updated', request)
   useGlobalEventListener('action-executed', actionExecutedRefresher)
   useGlobalEventListener('reload-resource-table', tableIdRefresher)
 }
@@ -550,6 +601,7 @@ function cancelPreviousRequest() {
  *
  * @return {Void}
  */
+// eslint-disable-next-line no-unused-vars
 function applyFilters(rules) {
   // Wait till Vuex is updated
   nextTick(request)
@@ -669,5 +721,16 @@ onUnmounted(() => {
 
 defineExpose({
   refetchActions,
+  setPage,
 })
 </script>
+
+<style>
+th.sortable-chosen.sortable-ghost {
+  @apply text-primary-600 !important;
+}
+
+th.sortable-chosen.sortable-drag {
+  @apply border border-dashed border-primary-600;
+}
+</style>

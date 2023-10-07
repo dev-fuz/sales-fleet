@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,18 +15,17 @@ namespace App\Http\Controllers;
 use App\Installer\EnvironmentManager;
 use App\Installer\PermissionsChecker;
 use App\Installer\RequirementsChecker;
-use Illuminate\Support\Facades\View;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\View as ViewFacade;
+use Illuminate\View\View;
 use Modules\Core\Environment;
 
 class RequirementsController extends Controller
 {
     /**
-     * Shows the requirements page
-     *
-     *
-     * @return \Illuminate\Contracts\View\View
+     * Shows the requirements page.
      */
-    public function show(RequirementsChecker $requirements, PermissionsChecker $permissions)
+    public function show(RequirementsChecker $requirements, PermissionsChecker $permissions): View
     {
         $php = $requirements->checkPHPversion();
         $requirements = $requirements->check();
@@ -34,7 +33,7 @@ class RequirementsController extends Controller
         $memoryLimitMB = EnvironmentManager::getMemoryLimitInMegabytes();
         $memoryLimitRaw = ini_get('memory_limit');
 
-        View::share(['withSteps' => false]);
+        ViewFacade::share(['withSteps' => false]);
 
         return view('requirements', [
             'php' => $php,
@@ -47,10 +46,8 @@ class RequirementsController extends Controller
 
     /**
      * Confirm the requirements
-     *
-     * @return \Illuminate\Http\RedirectResponse
      */
-    public function confirm()
+    public function confirm(): RedirectResponse
     {
         Environment::capture();
 

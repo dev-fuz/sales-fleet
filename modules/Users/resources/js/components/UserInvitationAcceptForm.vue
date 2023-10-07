@@ -9,13 +9,13 @@
       <ITabPanels>
         <ITabPanel>
           <IFormGroup :label="$t('users::user.name')" label-for="name" required>
-            <IFormInput v-model="form.name" id="name" ref="name" type="text" />
+            <IFormInput id="name" ref="name" v-model="form.name" type="text" />
             <IFormError v-text="form.getError('name')" />
           </IFormGroup>
           <IFormGroup :label="$t('users::user.email')" label-for="email">
             <IFormInput
-              v-model="form.email"
               id="email"
+              v-model="form.email"
               name="email"
               disabled
               type="email"
@@ -30,8 +30,8 @@
             required
           >
             <IFormInput
-              v-model="form.password"
               id="password"
+              v-model="form.password"
               name="password"
               type="password"
             />
@@ -43,8 +43,8 @@
             required
           >
             <IFormInput
-              v-model="form.password_confirmation"
               id="password_confirmation"
+              v-model="form.password_confirmation"
               name="password_confirmation"
               type="password"
             />
@@ -54,16 +54,16 @@
         <ITabPanel>
           <LocalizationFields
             :form="form"
-            @update:firstDayOfWeek="form.first_day_of_week = $event"
-            @update:timeFormat="form.time_format = $event"
-            @update:dateFormat="form.date_format = $event"
+            @update:first-day-of-week="form.first_day_of_week = $event"
+            @update:time-format="form.time_format = $event"
+            @update:date-format="form.date_format = $event"
             @update:locale="form.locale = $event"
             @update:timezone="form.timezone = $event"
           />
         </ITabPanel>
-
         <IButton
           type="submit"
+          class="mt-2"
           :disabled="requestInProgress"
           :loading="requestInProgress"
           :text="$t('users::user.accept_invitation')"
@@ -72,12 +72,14 @@
     </ITabGroup>
   </form>
 </template>
+
 <script setup>
 import { ref } from 'vue'
-import LocalizationFields from '~/Core/resources/js/views/Settings/LocalizationFields.vue'
 import { useI18n } from 'vue-i18n'
 import { useStore } from 'vuex'
-import { useForm } from '~/Core/resources/js/composables/useForm'
+
+import { useForm } from '~/Core/composables/useForm'
+import LocalizationFields from '~/Core/views/Settings/LocalizationFields.vue'
 
 const props = defineProps({
   invitation: { type: Object, required: true },

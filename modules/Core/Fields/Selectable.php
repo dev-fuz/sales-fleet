@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,15 +15,35 @@ namespace Modules\Core\Fields;
 trait Selectable
 {
     /**
+     * Indicates that the "X" select field is hidden.
+     */
+    public function withoutClearAction(): static
+    {
+        $this->withMeta(['attributes' => ['clearable' => false]]);
+
+        return $this;
+    }
+
+    /**
+     * Check whether the field is async.
+     */
+    public function isAsync(): bool
+    {
+        return isset($this->meta['asyncUrl']);
+    }
+
+    /**
      * Set async URL for searching
      */
     public function async(string $asyncUrl): static
     {
-        return $this->withMeta([
+        $this->withMeta([
             'asyncUrl' => $asyncUrl,
             // Automatically add placeholder "Type to search..." on async fields
             'attributes' => ['placeholder' => __('core::app.type_to_search')],
         ]);
+
+        return $this;
     }
 
     /**
@@ -31,9 +51,11 @@ trait Selectable
      */
     public function lazyLoad(string $url, array $params = []): static
     {
-        return $this->withMeta(['lazyLoad' => [
+        $this->withMeta(['lazyLoad' => [
             'url' => $url,
             'params' => $params,
         ]]);
+
+        return $this;
     }
 }

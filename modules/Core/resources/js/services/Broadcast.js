@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -10,6 +10,7 @@
  */
 import Echo from 'laravel-echo'
 import Pusher from 'pusher-js'
+
 window.Pusher = Pusher
 
 export default class Broadcast {
@@ -71,6 +72,7 @@ export default class Broadcast {
         key: this.config.connection.key,
         cluster: this.config.connection.options.cluster,
         encrypted: this.config.connection.options.encrypted,
+        // eslint-disable-next-line no-unused-vars
         authorizer: (channel, options) => {
           return {
             authorize: (socketId, callback) => {

@@ -16,27 +16,31 @@
         </label>
 
         <input
-          type="color"
           :id="swatch.hex"
+          type="color"
           :value="swatch.hex"
-          @input="handleSwatchColorInput"
           class="h-0"
+          @input="handleSwatchColorInput"
         />
       </div>
     </div>
   </div>
 </template>
+
 <script setup>
-import { getContrast } from '@/utils'
 import debounce from 'lodash/debounce'
 
+import { getContrast } from '@/utils'
+
 const emit = defineEmits(['update:hex'])
-const props = defineProps(['swatch', 'color'])
+
+defineProps(['swatch', 'color'])
 
 const handleSwatchColorInput = debounce(function (e) {
   emit('update:hex', e.target.value)
 }, 300)
 </script>
+
 <style scoped>
 input[type='color']::-moz-color-swatch {
   border: none;

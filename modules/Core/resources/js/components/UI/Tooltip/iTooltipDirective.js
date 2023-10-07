@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -28,6 +28,7 @@ const VALID_VARIANTS = ['dark', 'light']
 function findModifier(availableModifiers, modifiers) {
   return availableModifiers.reduce((acc, cur) => {
     if (modifiers[cur]) acc = cur
+
     return acc
   }, '')
 }
@@ -40,9 +41,15 @@ const updateAttributes = (el, binding) => {
   const placement = findModifier(VALID_PLACEMENTS, modifiers) || 'top'
   const variant = findModifier(VALID_VARIANTS, modifiers) || 'dark'
 
-  el.setAttribute('v-placement', placement)
   el.setAttribute('v-tooltip', value)
-  el.setAttribute('v-variant', variant)
+
+  if (!el.getAttribute('v-tooltip-placement')) {
+    el.setAttribute('v-tooltip-placement', placement)
+  }
+
+  if (!el.getAttribute('v-tooltip-variant')) {
+    el.setAttribute('v-tooltip-variant', variant)
+  }
 }
 
 export default {
@@ -50,7 +57,7 @@ export default {
   updated: (el, binding) => updateAttributes(el, binding),
   beforeUnmount(el) {
     el.removeAttribute('v-tooltip')
-    el.removeAttribute('v-placement')
-    el.removeAttribute('v-variant')
+    el.removeAttribute('v-tooltip-placement')
+    el.removeAttribute('v-tooltip-variant')
   },
 }

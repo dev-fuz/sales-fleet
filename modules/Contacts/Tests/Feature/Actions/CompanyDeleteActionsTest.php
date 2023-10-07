@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,7 +12,6 @@
 
 namespace Modules\Contacts\Tests\Feature\Actions;
 
-use Modules\Core\Database\Seeders\PermissionsSeeder;
 use Modules\Core\Tests\ResourceTestCase;
 
 class CompanyDeleteActionsTest extends ResourceTestCase
@@ -35,7 +34,6 @@ class CompanyDeleteActionsTest extends ResourceTestCase
 
     public function test_authorized_user_can_run_company_delete_action()
     {
-        $this->seed(PermissionsSeeder::class);
 
         $this->asRegularUser()->withPermissionsTo('delete any company')->signIn();
 
@@ -52,7 +50,6 @@ class CompanyDeleteActionsTest extends ResourceTestCase
 
     public function test_authorized_user_can_run_company_delete_action_only_on_own_companies()
     {
-        $this->seed(PermissionsSeeder::class);
 
         $signedInUser = $this->asRegularUser()->withPermissionsTo('delete own companies')->signIn();
         $this->createUser();
@@ -77,8 +74,6 @@ class CompanyDeleteActionsTest extends ResourceTestCase
 
     public function test_unauthorized_user_can_run_company_delete_action_on_own_company()
     {
-        $this->seed(PermissionsSeeder::class);
-
         $signedInUser = $this->asRegularUser()->withPermissionsTo('delete own companies')->signIn();
         $user = $this->createUser();
 
@@ -116,7 +111,6 @@ class CompanyDeleteActionsTest extends ResourceTestCase
 
     public function test_authorized_user_can_run_company_bulk_delete_action()
     {
-        $this->seed(PermissionsSeeder::class);
 
         $this->asRegularUser()->withPermissionsTo('bulk delete companies')->signIn();
 

@@ -16,7 +16,7 @@
           />
         </h2>
       </slot>
-      <div :class="wrapperClass" v-if="show">
+      <div v-if="show" :class="wrapperClass">
         <MediaItemsList
           :items="localMedia"
           :authorize-delete="authorizeDelete"
@@ -24,12 +24,11 @@
         />
         <p
           v-show="!hasMedia"
-          class="text-sm text-neutral-500 dark:text-neutral-300"
           v-t="'core::app.no_attachments'"
+          class="text-sm text-neutral-500 dark:text-neutral-300"
         />
         <div class="mt-3">
           <MediaUpload
-            @file-uploaded="uploadedEventHandler"
             :input-id="
               'media-' +
               resourceName +
@@ -38,17 +37,20 @@
               (isFloating ? '-floating' : '')
             "
             :action-url="`${$store.state.apiURL}/${resourceName}/${resourceId}/media`"
+            @file-uploaded="uploadedEventHandler"
           />
         </div>
       </div>
     </div>
   </div>
 </template>
+
 <script setup>
 import { computed } from 'vue'
-import MediaUpload from './MediaUpload.vue'
-import MediaItemsList from './MediaItemsList.vue'
 import orderBy from 'lodash/orderBy'
+
+import MediaItemsList from './MediaItemsList.vue'
+import MediaUpload from './MediaUpload.vue'
 
 const emit = defineEmits(['deleted', 'uploaded'])
 

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,7 +12,7 @@
 
 namespace Modules\Users\Notifications;
 
-use Modules\Core\Contracts\Metable;
+use Modules\Core\Contracts\HasNotificationsSettings;
 use Modules\Core\MailableTemplate\MailableTemplate;
 use Modules\Core\Notification;
 use Modules\Users\Mail\ResetPassword as ResetPasswordMailable;
@@ -29,7 +29,7 @@ class ResetPassword extends Notification
     /**
      * Get the notification's channels.
      */
-    public function via(Metable $notifiable): array
+    public function via(HasNotificationsSettings $notifiable): array
     {
         return ['mail'];
     }
@@ -39,10 +39,7 @@ class ResetPassword extends Notification
      */
     public function toMail(object $notifiable): ResetPasswordMailable&MailableTemplate
     {
-        return $this->viaMailableTemplate(
-            new ResetPasswordMailable($this->resetUrl($notifiable)),
-            $notifiable
-        );
+        return (new ResetPasswordMailable($this->resetUrl($notifiable)))->to($notifiable);
     }
 
     /**

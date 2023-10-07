@@ -3,8 +3,8 @@
     class="rounded-md border border-neutral-200 bg-neutral-50 px-4 py-5 shadow-sm dark:border-neutral-500 dark:bg-neutral-800"
   >
     <h5
-      class="mb-2 text-base font-medium text-neutral-800 dark:text-neutral-100"
       v-t="'core::app.password_generator.heading'"
+      class="mb-2 text-base font-medium text-neutral-800 dark:text-neutral-100"
     />
     <div
       class="relative mb-8 flex h-16 w-full items-center justify-center rounded-md border border-neutral-200 bg-white p-3 text-center dark:border-neutral-500 dark:bg-neutral-700"
@@ -13,11 +13,10 @@
         {{ password }}
       </div>
       <IButtonIcon icon="Refresh" @click="generatePassword" />
-
       <IButtonCopy
+        v-i-tooltip="$t('core::app.copy')"
         :text="password"
         :success-message="$t('core::app.password_generator.copied')"
-        v-i-tooltip="$t('core::app.copy')"
         class="ml-3"
       />
     </div>
@@ -25,12 +24,13 @@
       <div class="flex justify-between">
         <IFormLabel v-t="'core::app.password_generator.strength'" />
         <p
-          class="text-sm font-medium text-neutral-800 dark:text-neutral-100"
           v-t="'core::app.password_generator.' + strength.text"
+          class="text-sm font-medium text-neutral-800 dark:text-neutral-100"
         />
       </div>
 
       <input
+        v-model="strength.score"
         :class="{
           'bg-danger-400': strength.text === 'weak',
           'bg-warning-300': strength.text === 'average',
@@ -41,10 +41,8 @@
         class="input-score pointer-events-none h-2 w-full appearance-none overflow-hidden rounded-md focus:outline-none"
         min="0"
         max="100"
-        v-model="strength.score"
       />
     </div>
-
     <div class="mb-3">
       <div class="flex justify-between">
         <IFormLabel v-t="'core::app.password_generator.length'" />
@@ -54,11 +52,11 @@
         />
       </div>
       <input
+        v-model="settings.length"
         type="range"
         class="range-slider h-2 w-full appearance-none overflow-hidden rounded-md bg-primary-200 focus:outline-none"
         min="6"
-        v-bind:max="settings.maxLength"
-        v-model="settings.length"
+        :max="settings.maxLength"
       />
     </div>
     <div class="mb-3">
@@ -71,11 +69,11 @@
       </div>
 
       <input
+        v-model="settings.digits"
         type="range"
         class="range-slider h-2 w-full appearance-none overflow-hidden rounded-md bg-primary-200 focus:outline-none"
         min="0"
-        v-bind:max="settings.maxDigits"
-        v-model="settings.digits"
+        :max="settings.maxDigits"
       />
     </div>
     <div class="mb-3">
@@ -88,17 +86,19 @@
       </div>
 
       <input
+        v-model="settings.symbols"
         type="range"
         class="range-slider h-2 w-full appearance-none overflow-hidden rounded-md bg-primary-200 focus:outline-none"
         min="0"
-        v-bind:max="settings.maxSymbols"
-        v-model="settings.symbols"
+        :max="settings.maxSymbols"
       />
     </div>
   </section>
 </template>
+
 <script setup>
-import { ref, watch, computed, onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+
 const password = ref('')
 
 const settings = ref({
@@ -144,9 +144,11 @@ const strength = computed(() => {
     if (password.value.charAt(i).match(/[A-Z]/g)) {
       count.upperCase++
     }
+
     if (password.value.charAt(i).match(/[0-9]/g)) {
       count.numbers++
     }
+
     if (password.value.charAt(i).match(/(.*[!,@,#,$,%,^,&,*,?,_,~])/)) {
       count.symbols++
     }
@@ -185,18 +187,22 @@ const strength = computed(() => {
   if (score < 30) {
     strength.text = 'weak'
     strength.score = 10
+
     return strength
   } else if (score >= 30 && score < 75) {
     strength.text = 'average'
     strength.score = 40
+
     return strength
   } else if (score >= 75 && score < 150) {
     strength.text = 'strong'
     strength.score = 75
+
     return strength
   } else {
     strength.text = 'secure'
     strength.score = 100
+
     return strength
   }
 })
@@ -230,6 +236,7 @@ function generatePassword() {
     'y',
     'z',
   ]
+
   let symbolsSetArray = [
     '=',
     '+',
@@ -255,6 +262,7 @@ function generatePassword() {
     digitsPositionArray.push(i)
 
     let upperCase = Math.round(Math.random() * 1)
+
     if (upperCase === 0) {
       passwordArray[i] =
         lettersSetArray[
@@ -269,6 +277,7 @@ function generatePassword() {
   // Add digits to password
   for (let i = 0; i < settings.value.digits; i++) {
     let digit = Math.round(Math.random() * 9)
+
     let numberIndex =
       digitsPositionArray[
         Math.floor(Math.random() * digitsPositionArray.length)
@@ -280,6 +289,7 @@ function generatePassword() {
                     since without this step, numbers may override other numbers */
 
     let j = digitsPositionArray.indexOf(numberIndex)
+
     if (i != -1) {
       digitsPositionArray.splice(j, 1)
     }
@@ -289,6 +299,7 @@ function generatePassword() {
   for (let i = 0; i < settings.value.symbols; i++) {
     let symbol =
       symbolsSetArray[Math.floor(Math.random() * symbolsSetArray.length)]
+
     let symbolIndex =
       digitsPositionArray[
         Math.floor(Math.random() * digitsPositionArray.length)
@@ -300,6 +311,7 @@ function generatePassword() {
                     since without this step, numbers may override other numbers */
 
     let j = digitsPositionArray.indexOf(symbolIndex)
+
     if (i != -1) {
       digitsPositionArray.splice(j, 1)
     }
@@ -311,6 +323,7 @@ onMounted(() => {
   generatePassword()
 })
 </script>
+
 <style scoped>
 input[type='range'].input-score::-webkit-slider-thumb {
   width: 15px;

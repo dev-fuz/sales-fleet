@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -35,7 +35,6 @@ return [
         'with_header_value' => 'Com valor de cabeçalho (opcional)',
         'for_owner' => 'Para: Proprietário (Responsável)',
         'dates' => [
-            'due_at' => 'Vence em',
             'now' => 'Com data de vencimento: no momento',
             'in_1_day' => 'Com data de vencimento: em um dia',
             'in_2_days' => 'Com data de vencimento: em dois dias',

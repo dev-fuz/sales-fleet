@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,6 +12,7 @@
 
 namespace Modules\Calls\Tests\Unit;
 
+use Illuminate\Support\Facades\Lang;
 use Modules\Calls\Models\Call;
 use Modules\Calls\Models\CallOutcome;
 use Tests\TestCase;
@@ -23,5 +24,30 @@ class CallOutcomeModelTest extends TestCase
         $outcome = CallOutcome::factory()->has(Call::factory()->count(2))->create();
 
         $this->assertCount(2, $outcome->calls);
+    }
+
+    public function test_call_outcome_can_be_translated_with_custom_group()
+    {
+        $model = CallOutcome::factory()->create(['name' => 'Original']);
+
+        Lang::addLines(['custom.call_outcome.'.$model->id => 'Changed'], 'en');
+
+        $this->assertSame('Changed', $model->name);
+    }
+
+    public function test_call_outcome_can_be_translated_with_lang_key()
+    {
+        $model = CallOutcome::factory()->create(['name' => 'custom.call_outcome.some']);
+
+        Lang::addLines(['custom.call_outcome.some' => 'Changed'], 'en');
+
+        $this->assertSame('Changed', $model->name);
+    }
+
+    public function test_it_uses_database_name_when_no_custom_trans_available()
+    {
+        $model = CallOutcome::factory()->create(['name' => 'Database Name']);
+
+        $this->assertSame('Database Name', $model->name);
     }
 }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -37,16 +37,16 @@ class ResourceDealsFilter extends HasMany
                 Date::make('expected_close_date')
             ),
             Operand::make('open_count', __('deals::deal.count.open', ['resource' => $singularLabel]))->filter(
-                Number::make('open_count')->countableRelation('authorizedOpenDeals')
+                Number::make('open_count')->countableRelation('openDeals')
             ),
             Operand::make('won_count', __('deals::deal.count.won', ['resource' => $singularLabel]))->filter(
-                Number::make('won_count')->countableRelation('authorizedWonDeals')
+                Number::make('won_count')->countableRelation('wonDeals')
             ),
             Operand::make('lost_count', __('deals::deal.count.lost', ['resource' => $singularLabel]))->filter(
-                Number::make('lost_count')->countableRelation('authorizedLostDeals')
+                Number::make('lost_count')->countableRelation('lostDeals')
             ),
             Operand::make('closed_count', __('deals::deal.count.closed', ['resource' => $singularLabel]))->filter(
-                Number::make('closed_count')->countableRelation('authorizedClosedDeals')
+                Number::make('closed_count')->countableRelation('closedDeals')
             ),
         ]);
     }

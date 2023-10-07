@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,4 +16,13 @@ use Exception;
 
 class RowsExceededException extends Exception
 {
+    /**
+     * Create new RowsExceededException instance.
+     */
+    public function __construct(int $totalRows)
+    {
+        parent::__construct(
+            'The maximum rows ('.$totalRows.') allowed in import file may have exceeded. Consider splitting the import data in multiple files.'
+        );
+    }
 }

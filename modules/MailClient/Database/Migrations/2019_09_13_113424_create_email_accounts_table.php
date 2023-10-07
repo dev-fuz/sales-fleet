@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Modules\Core\Synchronization\SyncState;
+use Modules\Core\Support\Synchronization\SyncState;
 
 return new class extends Migration
 {
@@ -25,6 +25,7 @@ return new class extends Migration
         Schema::create('email_accounts', function (Blueprint $table) {
             $table->id();
             $table->string('email')->unique();
+            $table->string('alias_email')->nullable();
             $table->foreignId('user_id')->nullable()->constrained('users');
             $table->string('connection_type');
             $table->unsignedBigInteger('access_token_id')->nullable();

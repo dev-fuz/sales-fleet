@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,8 +14,8 @@ namespace Modules\Deals\Cards;
 
 use Illuminate\Http\Request;
 use Modules\Core\Charts\Progression;
+use Modules\Deals\Criteria\ViewAuthorizedDealsCriteria;
 use Modules\Deals\Models\Deal;
-use Modules\Users\Criteria\ManagesOwnerTeamCriteria;
 use Modules\Users\Criteria\QueriesByUserCriteria;
 
 class WonDealsByDay extends Progression
@@ -27,19 +27,10 @@ class WonDealsByDay extends Progression
      */
     public function calculate(Request $request)
     {
-        /** @var \Modules\Users\Models\User */
-        $user = $request->user();
+        $query = Deal::won()->criteria(ViewAuthorizedDealsCriteria::class);
 
-        $query = Deal::won()->when($user->cant('view all deals'), function ($query) use ($user) {
-            if ($user->can('view team deals')) {
-                $query->criteria(new ManagesOwnerTeamCriteria($user));
-            } else {
-                $query->criteria(new QueriesByUserCriteria($user));
-            }
-        });
-
-        if ($filterByUser = $this->getUser()) {
-            $query->criteria(new QueriesByUserCriteria($filterByUser));
+        if ($userId = $this->getUserId($request)) {
+            $query->criteria(new QueriesByUserCriteria($userId));
         }
 
         return $this->countByDays($request, $query, 'won_date');
@@ -67,18 +58,9 @@ class WonDealsByDay extends Progression
     }
 
     /**
-     * Get the user for the card query
+     * Check whether the current user can perform user filter.
      */
-    protected function getUser(): ?int
-    {
-        if ($this->canViewOtherUsersCardData()) {
-            return request()->filled('user_id') ? request()->integer('user_id') : null;
-        }
-
-        return null;
-    }
-
-    public function canViewOtherUsersCardData(): bool
+    public function authorizedToFilterByUser(): bool
     {
         return request()->user()->canAny(['view all deals', 'view team deals']);
     }

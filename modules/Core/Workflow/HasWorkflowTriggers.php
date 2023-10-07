@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,6 +12,7 @@
 
 namespace Modules\Core\Workflow;
 
+use Illuminate\Support\Collection;
 use Modules\Core\Contracts\Workflow\EventTrigger;
 use Modules\Core\Contracts\Workflow\FieldChangeTrigger;
 use Modules\Core\Facades\Innoclapps;
@@ -58,9 +59,8 @@ trait HasWorkflowTriggers
      *
      * @param  \Modules\Core\Models\Workflow  $workflow
      * @param  $this  $model
-     * @return bool
      */
-    protected static function hasWorkflowFieldChanged($workflow, $model, FieldChangeTrigger $trigger)
+    protected static function hasWorkflowFieldChanged($workflow, $model, FieldChangeTrigger $trigger): bool
     {
         $value = $model->{$trigger::field()};
         $original = $model->getOriginal($trigger::field());
@@ -79,10 +79,8 @@ trait HasWorkflowTriggers
 
     /**
      * Get the triggers which are triggered on specific event
-     *
-     * @return \Illuminate\Support\Collection
      */
-    protected static function getModelEventTriggers()
+    protected static function getModelEventTriggers(): Collection
     {
         return Workflows::triggersByModel(static::class)->whereInstanceOf(EventTrigger::class);
     }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -21,13 +21,14 @@ use Modules\Deals\Models\Deal;
 use Modules\Documents\Enums\DocumentViewType;
 use Modules\Documents\Models\DocumentSigner;
 use Modules\Documents\Models\DocumentType;
+use Modules\Users\Models\Team;
 use Modules\Users\Models\User;
 
 class DocumentResourceTest extends ResourceTestCase
 {
     protected $resourceName = 'documents';
 
-    public function test_user_can_create_resource_record()
+    public function test_user_can_create_document()
     {
         $this->signIn();
 
@@ -100,7 +101,7 @@ class DocumentResourceTest extends ResourceTestCase
 
     public function test_user_cant_update_document_with_restricted_visibility_brand()
     {
-        $this->asRegularUser()->signIn();
+        $this->asRegularUser()->withPermissionsTo('edit all documents')->signIn();
         $document = $this->factory()->create();
         $brand = $this->newBrandFactoryWithVisibilityGroup('users', User::factory())->create();
 
@@ -109,6 +110,70 @@ class DocumentResourceTest extends ResourceTestCase
             ['brand_id' => $brand->id]
         )
             ->assertJsonValidationErrors(['brand_id' => 'This brand id value is forbidden.']);
+    }
+
+    public function test_user_can_update_document_with_same_restricted_visibility_brand()
+    {
+        $this->asRegularUser()->withPermissionsTo(['edit all documents'])->signIn();
+        $brand = $this->newBrandFactoryWithVisibilityGroup('users', User::factory())->create();
+        $document = $this->factory()->create([
+            'brand_id' => $brand->id,
+        ]);
+
+        $this->putJson(
+            $this->updateEndpoint($document),
+            ['brand_id' => $brand->id, 'title' => 'Changed Title']
+        )
+            ->assertOk()
+            ->assertJson([
+                'brand_id' => $brand->id,
+                'title' => 'Changed Title',
+            ]);
+    }
+
+    public function test_user_cant_create_document_with_restricted_visibility_type()
+    {
+        $this->asRegularUser()->signIn();
+
+        $document = $this->newDocumentTypeFactoryWithVisilibityGroup('users', User::factory())->create();
+
+        $this->postJson(
+            $this->createEndpoint(),
+            ['document_type_id' => $document->id]
+        )
+            ->assertJsonValidationErrors(['document_type_id' => 'This document type id value is forbidden.']);
+    }
+
+    public function test_user_cant_update_document_with_restricted_visibility_type()
+    {
+        $this->asRegularUser()->withPermissionsTo('edit all documents')->signIn();
+        $document = $this->factory()->create();
+        $documentType = $this->newDocumentTypeFactoryWithVisilibityGroup('users', User::factory())->create();
+
+        $this->putJson(
+            $this->updateEndpoint($document),
+            ['document_type_id' => $documentType->id]
+        )
+            ->assertJsonValidationErrors(['document_type_id' => 'This document type id value is forbidden.']);
+    }
+
+    public function test_user_can_update_document_with_same_restricted_visibility_type()
+    {
+        $this->asRegularUser()->withPermissionsTo(['edit all documents'])->signIn();
+        $type = $this->newDocumentTypeFactoryWithVisilibityGroup('users', User::factory())->create();
+        $document = $this->factory()->create([
+            'document_type_id' => $type->id,
+        ]);
+
+        $this->putJson(
+            $this->updateEndpoint($document),
+            ['document_type_id' => $type->id, 'title' => 'Changed Title']
+        )
+            ->assertOk()
+            ->assertJson([
+                'document_type_id' => $type->id,
+                'title' => 'Changed Title',
+            ]);
     }
 
     public function test_it_updates_only_signer_send_email_attribute_when_document_is_accepted()
@@ -187,9 +252,142 @@ class DocumentResourceTest extends ResourceTestCase
         $this->assertSame(1, $document->signers()->count());
     }
 
+    public function test_edit_all_documents_permission()
+    {
+        $this->asRegularUser()->withPermissionsTo('edit all documents')->signIn();
+        $record = $this->factory()->create();
+
+        $this->putJson($this->updateEndpoint($record), $this->samplePayload())->assertOk();
+    }
+
+    public function test_edit_own_documents_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('edit own documents')->signIn();
+        $record1 = $this->factory()->for($user)->create();
+        $record2 = $this->factory()->create();
+
+        $this->putJson($this->updateEndpoint($record1), $this->samplePayload())->assertOk();
+        $this->putJson($this->updateEndpoint($record2), $this->samplePayload())->assertForbidden();
+    }
+
+    public function test_edit_team_documents_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('edit team documents')->signIn();
+        $teamUser = User::factory()->has(Team::factory()->for($user, 'manager'))->create();
+
+        $record = $this->factory()->for($teamUser)->create();
+
+        $this->putJson($this->updateEndpoint($record))->assertOk();
+    }
+
+    public function test_unauthorized_user_cannot_update_document()
+    {
+        $this->asRegularUser()->signIn();
+        $record = $this->factory()->create();
+
+        $this->putJson($this->updateEndpoint($record), $this->samplePayload())->assertForbidden();
+    }
+
+    public function test_view_all_documents_permission()
+    {
+        $this->asRegularUser()->withPermissionsTo('view all documents')->signIn();
+        $record = $this->factory()->create();
+
+        $this->getJson($this->showEndpoint($record))->assertOk();
+    }
+
+    public function test_view_team_documents_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('view team documents')->signIn();
+        $teamUser = User::factory()->has(Team::factory()->for($user, 'manager'))->create();
+
+        $record = $this->factory()->for($teamUser)->create();
+
+        $this->getJson($this->showEndpoint($record))->assertOk();
+    }
+
+    public function test_user_can_view_own_document()
+    {
+        $user = $this->asRegularUser()->signIn();
+        $record = $this->factory()->for($user)->create();
+
+        $this->getJson($this->showEndpoint($record))->assertOk();
+    }
+
+    public function test_unauthorized_user_cannot_view_document()
+    {
+        $this->asRegularUser()->signIn();
+        $record = $this->factory()->create();
+
+        $this->getJson($this->showEndpoint($record))->assertForbidden();
+    }
+
+    public function test_delete_any_document_permission()
+    {
+        $this->asRegularUser()->withPermissionsTo('delete any document')->signIn();
+
+        $record = $this->factory()->create();
+
+        $this->deleteJson($this->deleteEndpoint($record))->assertNoContent();
+    }
+
+    public function test_delete_own_documents_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('delete own documents')->signIn();
+
+        $record1 = $this->factory()->for($user)->create();
+        $record2 = $this->factory()->create();
+
+        $this->deleteJson($this->deleteEndpoint($record1))->assertNoContent();
+        $this->deleteJson($this->deleteEndpoint($record2))->assertForbidden();
+    }
+
+    public function test_delete_team_documents_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('delete team documents')->signIn();
+        $teamUser = User::factory()->has(Team::factory()->for($user, 'manager'))->create();
+
+        $record1 = $this->factory()->for($teamUser)->create();
+        $record2 = $this->factory()->create();
+
+        $this->deleteJson($this->deleteEndpoint($record1))->assertNoContent();
+        $this->deleteJson($this->deleteEndpoint($record2))->assertForbidden();
+    }
+
+    public function test_unauthorized_user_cannot_delete_document()
+    {
+        $this->asRegularUser()->signIn();
+        $record = $this->factory()->create();
+
+        $this->deleteJson($this->showEndpoint($record))->assertForbidden();
+    }
+
+    protected function samplePayload()
+    {
+        $brand = Brand::factory()->create();
+        $type = DocumentType::factory()->create();
+        $user = User::factory()->create();
+
+        return [
+            'title' => 'Proposal Document',
+            'brand_id' => $brand->id,
+            'document_type_id' => $type->id,
+            'view_type' => DocumentViewType::NAV_LEFT->value,
+            'user_id' => $user->id,
+        ];
+    }
+
     protected function newBrandFactoryWithVisibilityGroup($group, $attached)
     {
         return Brand::factory()->has(
+            ModelVisibilityGroup::factory()->{$group}()->hasAttached($attached),
+            'visibilityGroup'
+        );
+    }
+
+    protected function newDocumentTypeFactoryWithVisilibityGroup($group, $attached)
+    {
+        return DocumentType::factory()->has(
             ModelVisibilityGroup::factory()->{$group}()->hasAttached($attached),
             'visibilityGroup'
         );

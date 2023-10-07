@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -32,10 +32,7 @@ class DocumentAccepted extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): DocumentAcceptedMailable&MailableTemplate
     {
-        return $this->viaMailableTemplate(
-            new DocumentAcceptedMailable($this->document),
-            $notifiable
-        );
+        return (new DocumentAcceptedMailable($this->document))->to($notifiable);
     }
 
     /**

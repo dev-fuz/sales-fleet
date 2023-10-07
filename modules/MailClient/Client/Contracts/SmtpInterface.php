@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -212,7 +212,7 @@ interface SmtpInterface
      * is queued for sending and we don't have an option to fetch the message immediately
      * after sending, we need to wait for application synchronization
      */
-    public function reply($remoteId, ?FolderIdentifier $folder = null);
+    public function reply($remoteId, FolderIdentifier $folder = null);
 
     /**
      * Forward the given mail message
@@ -225,5 +225,5 @@ interface SmtpInterface
      * is queued for sending and we don't have an option to fetch the message immediately
      * after sending, we need to wait for application synchronization
      */
-    public function forward($remoteId, ?FolderIdentifier $folder = null);
+    public function forward($remoteId, FolderIdentifier $folder = null);
 }

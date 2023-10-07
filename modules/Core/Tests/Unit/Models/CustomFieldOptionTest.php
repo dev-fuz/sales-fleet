@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,6 +12,7 @@
 
 namespace Modules\Core\Tests\Unit\Models;
 
+use Illuminate\Support\Facades\Lang;
 use Modules\Core\Models\CustomField;
 use Modules\Core\Models\CustomFieldOption;
 use Tests\TestCase;
@@ -27,6 +28,34 @@ class CustomFieldOptionTest extends TestCase
         $field->options()->save($option);
 
         $this->assertInstanceof(CustomField::class, $option->field);
+    }
+
+    public function test_custom_field_option_can_be_translated_with_custom_group()
+    {
+        $field = tap($this->makeField())->save();
+        $field->options()->save($option = new CustomFieldOption(['name' => 'Original', 'display_order' => 1]));
+
+        Lang::addLines(['custom.custom_field.options.'.$option->id => 'Changed'], 'en');
+
+        $this->assertSame('Changed', $option->name);
+    }
+
+    public function test_lost_reason_can_be_translated_with_lang_key()
+    {
+        $field = tap($this->makeField())->save();
+        $field->options()->save($option = new CustomFieldOption(['name' => 'custom.custom_field.options.some', 'display_order' => 1]));
+
+        Lang::addLines(['custom.custom_field.options.some' => 'Changed'], 'en');
+
+        $this->assertSame('Changed', $option->name);
+    }
+
+    public function test_it_uses_database_name_when_no_custom_trans_available()
+    {
+        $field = tap($this->makeField())->save();
+        $field->options()->save($option = new CustomFieldOption(['name' => 'Database Name', 'display_order' => 1]));
+
+        $this->assertSame('Database Name', $option->name);
     }
 
     protected function makeField($attrs = [])

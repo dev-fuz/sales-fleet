@@ -1,19 +1,20 @@
 <template>
   <li
-    role="option"
     :id="`cs${uid}__option-${index}`"
+    role="option"
+    class="relative"
     :aria-selected="isHighlighted ? true : null"
   >
     <a
       href="#"
-      @click.prevent="$emit('selected')"
-      @mouseover.self.passive="
-        isSelectable ? $emit('typeAheadPointer', index) : null
-      "
       :class="[
         'group block px-4 py-2 text-sm focus:outline-none',
         computedClasses,
       ]"
+      @click.prevent="$emit('selected')"
+      @mouseover.self.passive="
+        isSelectable ? $emit('typeAheadPointer', index) : null
+      "
     >
       <component
         :is="swatchColor ? TextBackground : 'span'"
@@ -29,13 +30,16 @@
         </slot>
       </component>
     </a>
+    <slot name="option-inner" :index="index"></slot>
   </li>
 </template>
+
 <script setup>
 import { computed } from 'vue'
-import TextBackground from '~/Core/resources/js/components/TextBackground.vue'
 
-const emit = defineEmits(['typeAheadPointer', 'selected'])
+import TextBackground from '~/Core/components/TextBackground.vue'
+
+defineEmits(['typeAheadPointer', 'selected'])
 
 const props = defineProps([
   'label',
@@ -50,9 +54,9 @@ const props = defineProps([
 const isHighlighted = computed(() => props.isSelected || props.active)
 
 const computedClasses = computed(() => ({
-  'bg-primary-100 text-primary-700 hover:bg-primary-200 hover:text-primary-800':
+  'bg-neutral-100/80 text-neutral-700 hover:text-neutral-900 dark:bg-neutral-700 dark:text-neutral-100 dark:hover:text-white':
     isHighlighted.value,
-  'text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-600 dark:hover:text-neutral-100':
+  'text-neutral-700 dark:text-neutral-100 dark:hover:text-white':
     !isHighlighted.value,
   'pointer-events-none opacity-50': !props.isSelectable,
 }))

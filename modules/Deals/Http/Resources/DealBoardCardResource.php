@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -28,13 +28,15 @@ class DealBoardCardResource extends JsonResource
         return with([
             'id' => $this->id,
             'name' => $this->name, // for activity create modal
-            'amount' => $this->amount,
+            'amount' => $this->amount ?? 0,
             'display_name' => $this->display_name,
             'path' => $this->path,
             'status' => $this->status->name,
             'authorizations' => $this->getAuthorizations($this->resource),
             'expected_close_date' => $this->expected_close_date,
+            'next_activity_date' => $this->next_activity_date,
             'incomplete_activities_for_user_count' => (int) $this->incomplete_activities_for_user_count,
+            'products_count' => (int) $this->products_count,
             'user_id' => $this->user_id,
             'swatch_color' => $this->swatch_color,
             'stage_id' => $this->stage_id,

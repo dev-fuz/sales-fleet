@@ -23,7 +23,7 @@
         "
         tag="div"
       >
-        <template #condition v-if="depth > 1">
+        <template v-if="depth > 1" #condition>
           {{ $t('core::filters.conditions.' + previousMatchType) }}
         </template>
         <template #match_type>
@@ -45,9 +45,9 @@
       </i18n-t>
       <IButtonIcon
         v-if="depth > 1"
-        @click.prevent.stop="requestRemove"
         icon="X"
         class="mt-px"
+        @click.prevent.stop="requestRemove"
       />
     </div>
     <div>
@@ -59,35 +59,35 @@
       >
         <div class="w-56">
           <ICustomSelect
+            v-model="selectedRule"
             size="sm"
             :placeholder="labels.addRule"
             :clearable="false"
             :options="rules"
-            v-model="selectedRule"
             @option:selected="addRule"
           />
         </div>
         <a
           v-if="depth < maxDepth"
+          v-show="totalChildren > 0"
           class="link ml-3 shrink-0 text-sm"
           href="#"
-          v-show="totalChildren > 0"
           @click="addGroup"
           v-text="labels.addGroup"
         />
       </div>
 
       <component
-        v-for="(child, index) in children"
-        :key="child.query.rule + '-' + index"
         :is="components[child.type]"
+        v-for="(child, childIndex) in children"
+        :key="child.query.rule + '-' + childIndex"
         :query="child.query"
         :max-depth="maxDepth"
         :read-only="readOnly"
         :previous-match-type="query.condition"
         :rule="getRuleById(child.query.rule)"
         :rules="rules"
-        :index="index"
+        :index="childIndex"
         :depth="nextDepth"
         :labels="labels"
         @child-deletion-requested="removeChild"
@@ -95,18 +95,15 @@
     </div>
   </div>
 </template>
-<script>
-export default {
-  name: 'QueryBuilderGroup',
-}
-</script>
-<script setup>
-import { ref, computed } from 'vue'
-import QueryBuilderRule from './QueryBuilderRule.vue'
-import find from 'lodash/find'
-import { useStore } from 'vuex'
 
-const components = { rule: QueryBuilderRule, group: 'QueryBuilderGroup' }
+<script></script>
+
+<script setup>
+import { computed, ref } from 'vue'
+import { useStore } from 'vuex'
+import find from 'lodash/find'
+
+import QueryBuilderRule from './QueryBuilderRule.vue'
 
 const emit = defineEmits(['child-deletion-requested'])
 
@@ -120,6 +117,12 @@ const props = defineProps([
   'readOnly',
   'previousMatchType',
 ])
+
+defineOptions({
+  name: 'QueryBuilderGroup',
+})
+
+const components = { rule: QueryBuilderRule, group: 'QueryBuilderGroup' }
 
 const store = useStore()
 

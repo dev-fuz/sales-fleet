@@ -1,16 +1,17 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import Errors from './Errors'
 import cloneDeep from 'lodash/cloneDeep'
 import merge from 'lodash/merge'
+
+import Errors from './Errors'
 import { isFile, objectToFormData } from './utils'
 
 class Form {
@@ -60,9 +61,10 @@ class Form {
   withOptions(options) {
     this.__options = {
       resetOnSuccess: false,
+      ...options,
     }
 
-    if (options.hasOwnProperty('resetOnSuccess')) {
+    if (Object.hasOwn(options, 'resetOnSuccess')) {
       this.__options.resetOnSuccess = options.resetOnSuccess
     }
 
@@ -282,6 +284,7 @@ class Form {
     this.startProcessing()
 
     let urlData = this.createUriData(url)
+
     const data =
       method === 'get'
         ? {
@@ -310,6 +313,7 @@ class Form {
         })
         .catch(error => {
           this.busy = false
+
           if (error.response) {
             this.errors.set(this.extractErrors(error.response))
           }
@@ -349,6 +353,7 @@ class Form {
    */
   createUriData(url) {
     let urlArray = url.split('?')
+
     let params = urlArray[1]
       ? Object.fromEntries(new URLSearchParams(urlArray[1]))
       : {}
@@ -367,6 +372,7 @@ class Form {
   onKeydown(event) {
     if (this.errors.has(event)) {
       this.errors.clear(event)
+
       return
     }
 
@@ -394,7 +400,7 @@ class Form {
 
     if (typeof object === 'object') {
       for (const key in object) {
-        if (object.hasOwnProperty(key)) {
+        if (Object.hasOwn(object, key)) {
           if (this.hasFilesDeep(object[key])) {
             return true
           }
@@ -404,7 +410,7 @@ class Form {
 
     if (Array.isArray(object)) {
       for (const key in object) {
-        if (object.hasOwnProperty(key)) {
+        if (Object.hasOwn(object, key)) {
           return this.hasFilesDeep(object[key])
         }
       }

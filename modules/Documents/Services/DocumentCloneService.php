@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -40,6 +40,7 @@ class DocumentCloneService
             'title' => clone_prefix($document->title),
             'user_id' => $userId,
             'created_by' => $userId,
+            'owner_assigned_date' => now(),
         ])->save();
 
         $newDocument->signers()->createMany(

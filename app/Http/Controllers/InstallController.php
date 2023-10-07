@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -23,6 +23,8 @@ use App\Installer\RequirementsChecker;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Validator;
@@ -339,12 +341,12 @@ class InstallController extends Controller
 
         $hash = md5(json_encode($params));
 
-        \Config::set('database.connections.install'.$hash, $params);
+        Config::set('database.connections.install'.$hash, $params);
 
         /**
          * @var \Illuminate\Database\Connection
          */
-        $connection = \DB::connection('install'.$hash);
+        $connection = DB::connection('install'.$hash);
 
         // Triggers PDO init, in case of errors, will fail and throw exception
         $connection->getPdo();

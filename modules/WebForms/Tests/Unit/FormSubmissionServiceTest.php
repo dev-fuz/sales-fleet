@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -23,6 +23,7 @@ use Modules\Contacts\Models\Phone;
 use Modules\Contacts\Models\Source;
 use Modules\Core\Database\Seeders\CountriesSeeder;
 use Modules\Core\Database\Seeders\SettingsSeeder;
+use Modules\Core\Fields\Field;
 use Modules\Core\Fields\User;
 use Modules\Deals\Models\Deal;
 use Modules\WebForms\Http\Requests\WebFormRequest;
@@ -36,6 +37,7 @@ class FormSubmissionServiceTest extends TestCase
     protected function tearDown(): void
     {
         User::setAssigneer(null);
+        Field::setRequest(null);
 
         parent::tearDown();
     }
@@ -43,7 +45,7 @@ class FormSubmissionServiceTest extends TestCase
     public function test_web_form_can_be_submitted()
     {
         $this->createWebFormSource();
-        $this->seed(SettingsSeeder::class);
+        $this->seed([SettingsSeeder::class, CountriesSeeder::class]);
 
         Storage::fake();
 
@@ -65,7 +67,7 @@ class FormSubmissionServiceTest extends TestCase
             ->addFileSection('companies', ['requestAttribute' => 'companies_file'])
             ->create();
 
-        $request = $this->prepareRequestForSubmission($form, [
+        $request = $this->newSubmissionRequest($form, [
             'contact_first_name' => 'John',
             'contact_last_name' => 'Doe',
             'contact_email' => 'john@example.com',
@@ -105,7 +107,7 @@ class FormSubmissionServiceTest extends TestCase
             'user_id' => $form->user_id,
             'source_id' => Source::findByFlag('web-form')->id,
         ]);
-
+        $this->assertCount(1, $deal->contacts);
         $contact = Contact::first();
         $this->assertEquals('contacts_photo', $contact->media->first()->filename);
 
@@ -116,15 +118,15 @@ class FormSubmissionServiceTest extends TestCase
             'phoneable_type' => Contact::class,
         ]);
 
-        $company = Company::first();
-        $this->assertEquals('companies_photo', $company->media->first()->filename);
-
         $this->assertDatabaseHas('companies', [
             'name' => 'KONKORD DIGITAL',
             'email' => 'konkord@example.com',
             'domain' => 'concordcrm.com',
             'source_id' => Source::findByFlag('web-form')->id,
         ]);
+        $this->assertCount(1, $deal->companies);
+        $company = Company::first();
+        $this->assertEquals('companies_photo', $company->media->first()->filename);
     }
 
     public function test_it_send_notifications_when_form_is_submitted()
@@ -135,7 +137,7 @@ class FormSubmissionServiceTest extends TestCase
             ->addFieldSection('email', 'contacts', ['requestAttribute' => 'email'])
             ->create(['notifications' => ['john@example.com', 'doe@example.com']]);
 
-        $request = $this->prepareRequestForSubmission($form, [
+        $request = $this->newSubmissionRequest($form, [
             'email' => 'email@example.com',
         ]);
 
@@ -162,7 +164,7 @@ class FormSubmissionServiceTest extends TestCase
             ->addFieldSection('email', 'contacts', ['requestAttribute' => 'email'])
             ->create(['notifications' => []]);
 
-        $request = $this->prepareRequestForSubmission($form, [
+        $request = $this->newSubmissionRequest($form, [
             'email' => 'email@example.com',
         ]);
 
@@ -181,7 +183,7 @@ class FormSubmissionServiceTest extends TestCase
             ->addFieldSection('email', 'contacts', ['requestAttribute' => 'email'])
             ->create();
 
-        $request = $this->prepareRequestForSubmission($form, [
+        $request = $this->newSubmissionRequest($form, [
             'email' => 'email@example.com',
         ]);
 
@@ -198,7 +200,7 @@ class FormSubmissionServiceTest extends TestCase
             ->addFieldSection('phones', 'contacts', ['requestAttribute' => 'contact_phone'])
             ->create();
 
-        $request = $this->prepareRequestForSubmission($form, [
+        $request = $this->newSubmissionRequest($form, [
             'contact_phone' => [['number' => '+1547-7745-55', 'type' => 'work']],
         ]);
 
@@ -217,7 +219,7 @@ class FormSubmissionServiceTest extends TestCase
             ->addFieldSection('first_name', 'contacts', ['requestAttribute' => 'contact_first_name'])
             ->create();
 
-        $request = $this->prepareRequestForSubmission($form, [
+        $request = $this->newSubmissionRequest($form, [
             'contact_first_name' => 'John',
         ]);
 
@@ -237,7 +239,7 @@ class FormSubmissionServiceTest extends TestCase
             ->addFieldSection('domain', 'companies', ['requestAttribute' => 'company_domain'])
             ->create();
 
-        $request = $this->prepareRequestForSubmission($form, [
+        $request = $this->newSubmissionRequest($form, [
             'contact_first_name' => 'John',
             'company_domain' => 'concordcrm.com',
         ]);
@@ -258,7 +260,7 @@ class FormSubmissionServiceTest extends TestCase
             ->addFieldSection('name', 'deals', ['requestAttribute' => 'deal_name'])
             ->create(['title_prefix' => 'PREFIX-']);
 
-        $request = $this->prepareRequestForSubmission($form, [
+        $request = $this->newSubmissionRequest($form, [
             'contact_email' => 'john@example.com',
             'deal_name' => 'Deal Name',
         ]);
@@ -267,6 +269,25 @@ class FormSubmissionServiceTest extends TestCase
 
         $this->assertDatabaseHas('deals', [
             'name' => 'PREFIX-Deal Name',
+        ]);
+    }
+
+    public function test_deal_prefix_is_added_when_name_field_does_not_exists()
+    {
+        $this->createWebFormSource();
+
+        $form = WebForm::factory()
+            ->addFieldSection('email', 'contacts', ['requestAttribute' => 'contact_email'])
+            ->create(['title_prefix' => 'PREFIX-']);
+
+        $request = $this->newSubmissionRequest($form, [
+            'contact_email' => 'john@example.com',
+        ]);
+
+        (new FormSubmissionService())->process($request);
+
+        $this->assertDatabaseHas('deals', [
+            'name' => 'PREFIX-john@example.com Deal',
         ]);
     }
 
@@ -281,7 +302,7 @@ class FormSubmissionServiceTest extends TestCase
             ->addFieldSection('first_name', 'contacts', ['requestAttribute' => 'first_name'])
             ->create();
 
-        $request = $this->prepareRequestForSubmission($form, [
+        $request = $this->newSubmissionRequest($form, [
             'email' => 'john@example.com',
             'first_name' => 'Updated First Name',
         ]);
@@ -305,7 +326,7 @@ class FormSubmissionServiceTest extends TestCase
             ->addFieldSection('phones', 'contacts', ['requestAttribute' => 'phones'])
             ->create();
 
-        $request = $this->prepareRequestForSubmission($form, [
+        $request = $this->newSubmissionRequest($form, [
             'first_name' => 'Jake',
             'phones' => [['number' => $number, 'type' => 'work']],
         ]);
@@ -326,7 +347,7 @@ class FormSubmissionServiceTest extends TestCase
             ->addFieldSection('email', 'contacts', ['requestAttribute' => 'email'])
             ->create();
 
-        $request = $this->prepareRequestForSubmission($form, [
+        $request = $this->newSubmissionRequest($form, [
             'email' => 'changed@example.com',
         ]);
 
@@ -347,7 +368,7 @@ class FormSubmissionServiceTest extends TestCase
             ->addFieldSection('domain', 'companies', ['requestAttribute' => 'company_domain'])
             ->create();
 
-        $request = $this->prepareRequestForSubmission($form, [
+        $request = $this->newSubmissionRequest($form, [
             'first_name' => 'John',
             'company_email' => 'konkord@example.com',
             'company_domain' => 'new.com',
@@ -370,7 +391,7 @@ class FormSubmissionServiceTest extends TestCase
             ->addFieldSection('email', 'companies', ['requestAttribute' => 'company_email'])
             ->create();
 
-        $request = $this->prepareRequestForSubmission($form, [
+        $request = $this->newSubmissionRequest($form, [
             'first_name' => 'John',
             'company_email' => 'konkord@example.com',
         ]);
@@ -385,17 +406,25 @@ class FormSubmissionServiceTest extends TestCase
         Source::factory()->create(['name' => 'Web Form', 'flag' => 'web-form']);
     }
 
-    protected function prepareRequestForSubmission($form, $attributes = [])
+    protected function newSubmissionRequest($form, $attributes = [])
     {
-        $request = new WebFormRequest;
+        /** @var \Modules\WebForms\Http\Requests\WebFormRequest */
+        $request = app(WebFormRequest::class);
 
-        return $request->setRouteResolver(function () use ($form, $request) {
-            $route = new Route('POST', '/forms/f/{uuid}', []);
-            $route->bind($request);
-            $route->setParameter('uuid', $form->uuid);
+        Field::setRequest($request);
 
-            return $route;
-        })->merge($attributes)
-            ->setOriginalInput();
+        $request
+            ->setRouteResolver(function () use ($form, $request) {
+                $route = new Route('POST', '/forms/f/{uuid}', []);
+                $route->bind($request);
+                $route->setParameter('uuid', $form->uuid);
+
+                return $route;
+            })
+            ->merge($attributes);
+
+        $request->performValidation();
+
+        return $request->rememberFormInput();
     }
 }

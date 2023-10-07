@@ -1,7 +1,7 @@
 <template>
   <select
-    ref="selectRef"
     :id="id"
+    ref="selectRef"
     :name="name"
     :autofocus="autofocus"
     :placeholder="placeholder"
@@ -29,8 +29,10 @@
     <slot></slot>
   </select>
 </template>
+
 <script setup>
 import { ref } from 'vue'
+
 import htmlInputProps from './htmlInputProps'
 
 const emit = defineEmits([
@@ -41,7 +43,7 @@ const emit = defineEmits([
   'change',
 ])
 
-const props = defineProps({
+defineProps({
   modelValue: {},
   placeholder: String,
   multiple: Boolean,

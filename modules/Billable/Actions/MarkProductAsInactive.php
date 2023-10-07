@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,10 +15,15 @@ namespace Modules\Billable\Actions;
 use Illuminate\Support\Collection;
 use Modules\Core\Actions\Action;
 use Modules\Core\Actions\ActionFields;
-use Modules\Core\Actions\ActionRequest;
+use Modules\Core\Http\Requests\ActionRequest;
 
 class MarkProductAsInactive extends Action
 {
+    /**
+     * Indicates that the action does not have confirmation dialog.
+     */
+    public bool $withoutConfirmation = true;
+
     /**
      * Handle method.
      *

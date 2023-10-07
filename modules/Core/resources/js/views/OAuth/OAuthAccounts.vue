@@ -29,8 +29,8 @@
         <div v-else v-show="!isLoading" class="text-center">
           <Icon icon="EmojiSad" class="mx-auto h-12 w-12 text-neutral-400" />
           <h3
-            class="mt-2 text-sm font-medium text-neutral-800 dark:text-white"
             v-t="'core::oauth.no_accounts'"
+            class="mt-2 text-sm font-medium text-neutral-800 dark:text-white"
           />
         </div>
       </ICard>
@@ -38,14 +38,17 @@
     <router-view></router-view>
   </ILayout>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
-import findIndex from 'lodash/findIndex'
-import OAuthAccount from './OAuthAccount.vue'
-import { useStore } from 'vuex'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
-import { useLoader } from '~/Core/resources/js/composables/useLoader'
+import { useStore } from 'vuex'
+import findIndex from 'lodash/findIndex'
+
+import { useLoader } from '~/Core/composables/useLoader'
+
+import OAuthAccount from './OAuthAccount.vue'
 
 const { t } = useI18n()
 const store = useStore()

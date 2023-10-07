@@ -6,7 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Queue\SerializesModels;
 use Modules\Core\MailableTemplate\DefaultMailable;
 use Modules\Core\MailableTemplate\MailableTemplate;
-use Modules\Core\Placeholders\Collection;
+use Modules\Core\Support\Placeholders\Placeholders;
 
 class SampleMailTemplate extends MailableTemplate
 {
@@ -15,9 +15,9 @@ class SampleMailTemplate extends MailableTemplate
     /**
      * The mailable variables/placeholders
      */
-    public function placeholders(): Collection
+    public function placeholders(): Placeholders
     {
-        return new Collection([]);
+        return new Placeholders([]);
     }
 
     /**

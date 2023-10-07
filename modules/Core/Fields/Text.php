@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,16 +13,11 @@
 namespace Modules\Core\Fields;
 
 use Modules\Core\Contracts\Fields\Customfieldable;
-use Modules\Core\Contracts\Fields\CustomfieldUniqueable;
+use Modules\Core\Contracts\Fields\UniqueableCustomfield;
 
-class Text extends Field implements Customfieldable, CustomfieldUniqueable
+class Text extends Field implements Customfieldable, UniqueableCustomfield
 {
     use ChecksForDuplicates;
-
-    /**
-     * This field support input group
-     */
-    public bool $supportsInputGroup = true;
 
     /**
      * Input type
@@ -30,9 +25,9 @@ class Text extends Field implements Customfieldable, CustomfieldUniqueable
     public string $inputType = 'text';
 
     /**
-     * Field component
+     * Field component.
      */
-    public ?string $component = 'text-field';
+    public static $component = 'text-field';
 
     /**
      * Specify type attribute for the text field

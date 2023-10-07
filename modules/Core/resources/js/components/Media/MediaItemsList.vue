@@ -49,7 +49,7 @@
         <a
           v-if="media.aggregate_type !== 'image'"
           :href="media.view_url"
-          class="text-sm font-medium text-neutral-800 focus:outline-none hover:text-neutral-500 dark:text-white dark:hover:text-neutral-300"
+          class="text-sm font-medium text-neutral-800 hover:text-neutral-500 focus:outline-none dark:text-white dark:hover:text-neutral-300"
           target="_blank"
           rel="noopener noreferrer"
           tabindex="0"
@@ -58,13 +58,13 @@
         <a
           v-else
           :href="media.view_url"
-          @click.prevent="
-            activeLightboxImageIndex = findIndexForLightbox(media.preview_url)
-          "
-          class="text-sm font-medium text-neutral-800 focus:outline-none hover:text-neutral-500 dark:text-white dark:hover:text-neutral-300"
+          class="text-sm font-medium text-neutral-800 hover:text-neutral-500 focus:outline-none dark:text-white dark:hover:text-neutral-300"
           target="_blank"
           rel="noopener noreferrer"
           tabindex="0"
+          @click.prevent="
+            activeLightboxImageIndex = findIndexForLightbox(media.preview_url)
+          "
           v-text="media.file_name"
         />
         <span
@@ -76,11 +76,12 @@
           v-text="localizedDateTime(media.created_at)"
         />
       </div>
+
       <div class="block shrink-0 md:hidden md:group-hover:block">
         <div class="flex items-center space-x-2">
           <a
             :href="media.download_url"
-            class="text-neutral-500 focus:outline-none hover:text-neutral-700 dark:text-white dark:hover:text-neutral-300"
+            class="text-neutral-500 hover:text-neutral-700 focus:outline-none dark:text-white dark:hover:text-neutral-300"
           >
             <Icon icon="Download" class="h-5 w-5" />
           </a>
@@ -92,17 +93,25 @@
     </li>
   </ul>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
+
 import { formatBytes } from '@/utils'
-import { useDates } from '~/Core/resources/js/composables/useDates'
+
+import { useDates } from '~/Core/composables/useDates'
+
 import Lightbox from '../Lightbox/Lightbox.vue'
 
 const emit = defineEmits(['delete-requested'])
 
 const props = defineProps({
   items: Array,
-  authorizeDelete: { type: Boolean, default: false },
+  authorizeDelete: Boolean,
+})
+
+defineOptions({
+  inheritAttrs: false,
 })
 
 const activeLightboxImageIndex = ref(null)

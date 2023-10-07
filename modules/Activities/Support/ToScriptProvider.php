@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -28,8 +28,8 @@ class ToScriptProvider
         }
 
         return [
-            'defaults' => config('activities.defaults'),
             'activities' => [
+                'defaults' => config('activities.defaults'),
                 'default_activity_type_id' => ActivityType::getDefaultType(),
 
                 'types' => ActivityTypeResource::collection(

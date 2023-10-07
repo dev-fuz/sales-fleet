@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,12 +12,15 @@
 
 namespace Modules\Billable\Tests\Feature;
 
-use Modules\Core\Database\Seeders\PermissionsSeeder;
 use Modules\Core\Tests\ResourceTestCase;
+use Modules\Users\Models\Team;
+use Modules\Users\Models\User;
 
 class ProductResourceTest extends ResourceTestCase
 {
     protected $resourceName = 'products';
+
+    protected $samplePayload = ['name' => 'Macbook Air', 'unit_price' => 1500];
 
     public function test_user_can_create_resource_record()
     {
@@ -73,41 +76,6 @@ class ProductResourceTest extends ResourceTestCase
             ]);
     }
 
-    public function test_unauthorized_user_cannot_update_resource_record()
-    {
-        $this->asRegularUser()->signIn();
-        $record = $this->factory()->create();
-
-        $this->putJson($this->updateEndpoint($record), [
-            'name' => 'Macbook Air',
-            'unit_price' => 1500,
-        ])->assertForbidden();
-    }
-
-    public function test_authorized_user_can_update_own_resource_record()
-    {
-        $this->seed(PermissionsSeeder::class);
-        $user = $this->asRegularUser()->withPermissionsTo('edit own products')->signIn();
-        $record = $this->factory()->for($user, 'creator')->create();
-
-        $this->putJson($this->updateEndpoint($record), [
-            'name' => 'Macbook Air',
-            'unit_price' => 1500,
-        ])->assertOk();
-    }
-
-    public function test_authorized_user_can_update_resource_record()
-    {
-        $this->seed(PermissionsSeeder::class);
-        $this->asRegularUser()->withPermissionsTo('edit all products')->signIn();
-        $record = $this->factory()->create();
-
-        $this->putJson($this->updateEndpoint($record), [
-            'name' => 'Macbook Air',
-            'unit_price' => 1500,
-        ])->assertOk();
-    }
-
     public function test_user_can_retrieve_resource_records()
     {
         $this->signIn();
@@ -141,7 +109,6 @@ class ProductResourceTest extends ResourceTestCase
 
     public function test_an_unauthorized_user_can_global_search_only_own_records()
     {
-        $this->seed(PermissionsSeeder::class);
         $user = $this->asRegularUser()->withPermissionsTo('view own products')->signIn();
         $user1 = $this->createUser();
 
@@ -153,26 +120,6 @@ class ProductResourceTest extends ResourceTestCase
             ->assertJsonPath('0.data.0.id', $record->id)
             ->assertJsonPath('0.data.0.path', $record->path)
             ->assertJsonPath('0.data.0.display_name', $record->display_name);
-    }
-
-    public function test_user_can_force_delete_resource_record()
-    {
-        $this->signIn();
-
-        $record = tap($this->factory()->create())->delete();
-
-        $this->deleteJson($this->forceDeleteEndpoint($record))->assertNoContent();
-        $this->assertDatabaseCount($this->tableName(), 0);
-    }
-
-    public function test_user_can_soft_delete_resource_record()
-    {
-        $this->signIn();
-
-        $record = $this->factory()->create();
-
-        $this->deleteJson($this->deleteEndpoint($record))->assertNoContent();
-        $this->assertDatabaseCount($this->tableName(), 1);
     }
 
     public function test_user_can_export_products()
@@ -223,7 +170,7 @@ class ProductResourceTest extends ResourceTestCase
         $this->performImportWithCustomFieldsTest();
     }
 
-    public function test_it_properly_finds_duplicate_products_during_import_via_name()
+    public function test_it_finds_duplicate_products_during_import_via_name()
     {
         $this->createUser();
         $this->factory()->create(['name' => 'Duplicate Name']);
@@ -231,12 +178,31 @@ class ProductResourceTest extends ResourceTestCase
         $this->performImportWithDuplicateTest(['name' => 'Duplicate Name']);
     }
 
-    public function test_it_properly_finds_duplicate_products_during_import_via_sku()
+    public function test_it_finds_duplicate_products_during_import_via_sku()
     {
         $this->createUser();
         $this->factory()->create(['sku' => '001']);
 
         $this->performImportWithDuplicateTest(['sku' => '001']);
+    }
+
+    public function test_it_restores_trashed_duplicate_product_during_import()
+    {
+        $this->createUser();
+
+        $product = $this->factory()->create(['sku' => '001']);
+
+        $product->delete();
+
+        $import = $this->performImportUpload($this->createFakeImportFile(
+            [$this->createImportHeader(), $this->createImportRow(['sku' => '001'])]
+        ));
+
+        $this->postJson($this->importEndpoint($import), [
+            'mappings' => $import->data['mappings'],
+        ])->assertOk();
+
+        $this->assertFalse($product->fresh()->trashed());
     }
 
     public function test_user_can_load_the_products_table()
@@ -272,13 +238,134 @@ class ProductResourceTest extends ResourceTestCase
         $this->assertCount(2, $settings->getCustomizedOrder());
     }
 
-    public function test_products_table_has_trashed_actions()
+    public function test_user_can_force_delete_resource_record()
     {
         $this->signIn();
 
-        $table = $this->resource()->resolveTrashedTable($this->createRequestForTable());
+        $record = tap($this->factory()->create())->delete();
 
-        $this->assertCount(2, $table->actionsForTrashedTable());
+        $this->deleteJson($this->forceDeleteEndpoint($record))->assertNoContent();
+        $this->assertDatabaseCount($this->tableName(), 0);
+    }
+
+    public function test_user_can_soft_delete_resource_record()
+    {
+        $this->signIn();
+
+        $record = $this->factory()->create();
+
+        $this->deleteJson($this->deleteEndpoint($record))->assertNoContent();
+        $this->assertDatabaseCount($this->tableName(), 1);
+    }
+
+    public function test_edit_all_products_permission()
+    {
+        $this->asRegularUser()->withPermissionsTo('edit all products')->signIn();
+        $record = $this->factory()->create();
+
+        $this->putJson($this->updateEndpoint($record), $this->samplePayload)->assertOk();
+    }
+
+    public function test_edit_own_products_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('edit own products')->signIn();
+        $record1 = $this->factory()->for($user, 'creator')->create();
+        $record2 = $this->factory()->create();
+
+        $this->putJson($this->updateEndpoint($record1), $this->samplePayload)->assertOk();
+        $this->putJson($this->updateEndpoint($record2), $this->samplePayload)->assertForbidden();
+    }
+
+    public function test_edit_team_products_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('edit team products')->signIn();
+        $teamUser = User::factory()->has(Team::factory()->for($user, 'manager'))->create();
+
+        $record = $this->factory()->for($teamUser, 'creator')->create();
+
+        $this->putJson($this->updateEndpoint($record))->assertOk();
+    }
+
+    public function test_unauthorized_user_cannot_update_product()
+    {
+        $this->asRegularUser()->signIn();
+        $record = $this->factory()->create();
+
+        $this->putJson($this->updateEndpoint($record), $this->samplePayload)->assertForbidden();
+    }
+
+    public function test_view_all_products_permission()
+    {
+        $this->asRegularUser()->withPermissionsTo('view all products')->signIn();
+        $record = $this->factory()->create();
+
+        $this->getJson($this->showEndpoint($record))->assertOk();
+    }
+
+    public function test_view_team_products_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('view team products')->signIn();
+        $teamUser = User::factory()->has(Team::factory()->for($user, 'manager'))->create();
+
+        $record = $this->factory()->for($teamUser, 'creator')->create();
+
+        $this->getJson($this->showEndpoint($record))->assertOk();
+    }
+
+    public function test_user_can_view_own_product()
+    {
+        $user = $this->asRegularUser()->signIn();
+        $record = $this->factory()->for($user, 'creator')->create();
+
+        $this->getJson($this->showEndpoint($record))->assertOk();
+    }
+
+    public function test_unauthorized_user_cannot_view_product()
+    {
+        $this->asRegularUser()->signIn();
+        $record = $this->factory()->create();
+
+        $this->getJson($this->showEndpoint($record))->assertForbidden();
+    }
+
+    public function test_delete_any_product_permission()
+    {
+        $this->asRegularUser()->withPermissionsTo('delete any product')->signIn();
+
+        $record = $this->factory()->create();
+
+        $this->deleteJson($this->deleteEndpoint($record))->assertNoContent();
+    }
+
+    public function test_delete_own_products_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('delete own products')->signIn();
+
+        $record1 = $this->factory()->for($user, 'creator')->create();
+        $record2 = $this->factory()->create();
+
+        $this->deleteJson($this->deleteEndpoint($record1))->assertNoContent();
+        $this->deleteJson($this->deleteEndpoint($record2))->assertForbidden();
+    }
+
+    public function test_delete_team_products_permission()
+    {
+        $user = $this->asRegularUser()->withPermissionsTo('delete team products')->signIn();
+        $teamUser = User::factory()->has(Team::factory()->for($user, 'manager'))->create();
+
+        $record1 = $this->factory()->for($teamUser, 'creator')->create();
+        $record2 = $this->factory()->create();
+
+        $this->deleteJson($this->deleteEndpoint($record1))->assertNoContent();
+        $this->deleteJson($this->deleteEndpoint($record2))->assertForbidden();
+    }
+
+    public function test_unauthorized_user_cannot_delete_product()
+    {
+        $this->asRegularUser()->signIn();
+        $record = $this->factory()->create();
+
+        $this->deleteJson($this->showEndpoint($record))->assertForbidden();
     }
 
     protected function assertResourceJsonStructure($response)

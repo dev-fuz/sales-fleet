@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -44,7 +44,7 @@ class DocumentsByType extends Presentation
         return $this->byDays('created_at')->count($request, $query, 'document_type_id')
             ->label(function ($value) {
                 return $this->types()->find($value)->name ?? 'N\A';
-            })->colors($this->types()->mapWithKeys(function ($type) {
+            })->colors($this->types()->mapWithKeys(function (DocumentType $type) {
                 return [$type->name => $type->swatch_color];
             })->all());
     }

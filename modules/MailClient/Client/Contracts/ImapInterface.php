@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -51,13 +51,11 @@ interface ImapInterface
      *
      * @throws \Modules\MailClient\Client\Exceptions\MessageNotFoundException
      */
-    public function getMessage($id, ?FolderIdentifier $folder = null);
+    public function getMessage($id, FolderIdentifier $folder = null);
 
     /**
      * Move a given message to a given folder
      *
-     * @param  \Modules\MailClient\Client\Contracts\MessageInterface  $message
-     * @param  \Modules\MailClient\Client\Contracts\FolderInterface  $folder
      * @return bool
      */
     public function moveMessage(MessageInterface $message, FolderInterface $folder);
@@ -66,8 +64,6 @@ interface ImapInterface
      * Batch move messages to a given folder
      *
      * @param  array  $messages
-     * @param  \Modules\MailClient\Client\Contracts\FolderInterface  $from
-     * @param  \Modules\MailClient\Client\Contracts\FolderInterface  $to
      * @return bool|array
      *
      * If the method return array, it should return maps of old remote_id's with new one
@@ -95,7 +91,7 @@ interface ImapInterface
      * @throws \Modules\MailClient\Client\Exceptions\ConnectionErrorException
      * @throws \Modules\MailClient\Client\Exceptions\FolderNotFoundException
      */
-    public function batchMarkAsRead($messages, ?FolderIdentifier $folder = null);
+    public function batchMarkAsRead($messages, FolderIdentifier $folder = null);
 
     /**
      * Batch mark as unread messages
@@ -106,12 +102,11 @@ interface ImapInterface
      * @throws \Modules\MailClient\Client\Exceptions\ConnectionErrorException
      * @throws \Modules\MailClient\Client\Exceptions\FolderNotFoundException
      */
-    public function batchMarkAsUnread($messages, ?FolderIdentifier $folder = null);
+    public function batchMarkAsUnread($messages, FolderIdentifier $folder = null);
 
     /**
      * Set the IMAP sent folder
      *
-     * @param  \Modules\MailClient\Client\Contracts\FolderInterface  $folder
      * @return static
      */
     public function setSentFolder(FolderInterface $folder);
@@ -126,7 +121,6 @@ interface ImapInterface
     /**
      * Set the IMAP trash folder
      *
-     * @param  \Modules\MailClient\Client\Contracts\FolderInterface  $folder
      * @return static
      */
     public function setTrashFolder(FolderInterface $folder);

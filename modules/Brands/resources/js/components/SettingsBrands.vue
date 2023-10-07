@@ -1,6 +1,7 @@
 <template>
-  <BrandIndex></BrandIndex>
+  <BrandsIndex></BrandsIndex>
 </template>
+
 <script setup>
-import BrandIndex from '../views/BrandIndex.vue'
+import BrandsIndex from '../views/BrandsIndex.vue'
 </script>

@@ -1,17 +1,18 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import { ref, computed } from 'vue'
-import orderBy from 'lodash/orderBy'
+import { computed, ref } from 'vue'
 import { createGlobalState } from '@vueuse/core'
-import { useLoader } from '~/Core/resources/js/composables/useLoader'
+import orderBy from 'lodash/orderBy'
+
+import { useLoader } from '~/Core/composables/useLoader'
 
 export const useWebForms = createGlobalState(() => {
   const { setLoading, isLoading: formsAreBeingFetched } = useLoader()
@@ -41,8 +42,13 @@ export const useWebForms = createGlobalState(() => {
     webForms.value[idx(id)] = form
   }
 
+  function findWebForm(id) {
+    return webForms.value[idx(id)]
+  }
+
   async function fetchWebForm(id, options = {}) {
     const { data } = await Innoclapps.request().get(`/forms/${id}`, options)
+
     return data
   }
 
@@ -68,6 +74,7 @@ export const useWebForms = createGlobalState(() => {
     addWebForm,
     removeWebForm,
     setWebForm,
+    findWebForm,
 
     fetchWebForms,
     fetchWebForm,

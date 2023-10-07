@@ -123,10 +123,12 @@ return [
     'uuid' => 'The :attribute must be a valid UUID.',
 
     'recaptcha' => 'ReCaptcha verification failed.',
-    'numeric_field' => 'The :attribute is not a valid number, enter a valid number for example 1200, 1200.00 or 1200.255.',
+    'numeric_field' => 'The :attribute is not a valid number, provide a valid number for example 1200, 1200.00 or 1200.255.',
     'number' => 'The :attribute must be a number.',
     'calling_prefix' => 'The :attribute must start with valid country calling code, for example: +994',
     'required_file' => 'Please add a file.',
+    'color' => 'The :attribute does not meet the application required color format, provide color in HEX format (#333333).',
+    'invalid_options' => 'The provided option ":options" is invalid.|The provided options ":options" are invalid.',
 
     /*
     |--------------------------------------------------------------------------
@@ -152,8 +154,6 @@ return [
      * Validation for importing data
      */
     'import' => [
-        'dependent' => 'The :attribute does not belong to the :dependsOn, make sure that the :attribute is related to the :dependsOn.',
-
         'user' => [
             'invalid' => "You provided a user that don't exists. You must add the user id or the user full name.",
         ],

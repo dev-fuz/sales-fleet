@@ -7,13 +7,6 @@ use Illuminate\Support\Facades\Schema;
 class CreateViewsTable extends Migration
 {
     /**
-     * The database schema.
-     *
-     * @var \Illuminate\Support\Facades\Schema
-     */
-    protected $schema;
-
-    /**
      * The table name.
      *
      * @var string
@@ -25,10 +18,7 @@ class CreateViewsTable extends Migration
      */
     public function __construct()
     {
-        $this->schema = Schema::connection(
-            config('eloquent-viewable.models.view.connection')
-        );
-
+        $this->connection = config('eloquent-viewable.models.view.connection');
         $this->table = config('eloquent-viewable.models.view.table_name') ?: 'views';
     }
 
@@ -37,7 +27,7 @@ class CreateViewsTable extends Migration
      */
     public function up(): void
     {
-        $this->schema->create($this->table, function (Blueprint $table) {
+        Schema::create($this->table, function (Blueprint $table) {
             $table->id();
             $table->morphs('viewable');
             $table->text('visitor')->nullable();

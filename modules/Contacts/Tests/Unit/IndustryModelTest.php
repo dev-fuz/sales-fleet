@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,6 +12,7 @@
 
 namespace Modules\Contacts\Tests\Unit;
 
+use Illuminate\Support\Facades\Lang;
 use Modules\Contacts\Models\Company;
 use Modules\Contacts\Models\Industry;
 use Tests\TestCase;
@@ -37,5 +38,30 @@ class IndustryModelTest extends TestCase
         ));
 
         $industry->delete();
+    }
+
+    public function test_industry_can_be_translated_with_custom_group()
+    {
+        $model = Industry::factory()->create(['name' => 'Original']);
+
+        Lang::addLines(['custom.industry.'.$model->id => 'Changed'], 'en');
+
+        $this->assertSame('Changed', $model->name);
+    }
+
+    public function test_industry_can_be_translated_with_lang_key()
+    {
+        $model = Industry::factory()->create(['name' => 'custom.industry.some']);
+
+        Lang::addLines(['custom.industry.some' => 'Changed'], 'en');
+
+        $this->assertSame('Changed', $model->name);
+    }
+
+    public function test_it_uses_database_name_when_no_custom_trans_available()
+    {
+        $model = Industry::factory()->create(['name' => 'Database Name']);
+
+        $this->assertSame('Database Name', $model->name);
     }
 }

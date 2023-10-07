@@ -1,41 +1,43 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import i18n from '~/Core/resources/js/i18n'
-
-import DealPresentationCard from './components/DealPresentationCard.vue'
-import DealPreview from './components/PreviewDeal.vue'
-import LostReasonField from './components/LostReasonField.vue'
-import PipelineStageField from './components/PipelineStageField.vue'
-
-import SettingsDeals from './components/SettingsDeals.vue'
-import CreateDealPipeline from './views/CreateDealPipeline.vue'
-import EditDealPipeline from './views/EditDealPipeline.vue'
+import i18n from '~/Core/i18n'
 
 import CreateDealModal from './components/CreateDealModal.vue'
-
-import { usePipelines } from './composables/usePipelines'
+import DealFloatingModal from './components/DealFloatingModal.vue'
+import DealPresentationCard from './components/DealPresentationCard.vue'
+import SettingsDeals from './components/SettingsDeals.vue'
 import { useLostReasons } from './composables/useLostReasons'
+import { usePipelines } from './composables/usePipelines'
+import FormLostReasonField from './fields/Form/LostReasonField.vue'
+import FormPipelineStageField from './fields/Form/PipelineStageField.vue'
+import IndexLostReasonField from './fields/Index/LostReasonField.vue'
+import IndexPipelineStageField from './fields/Index/PipelineStageField.vue'
+import DealsPipelinesCreate from './views/DealsPipelinesCreate.vue'
+import DealsPipelinesEdit from './views/DealsPipelinesEdit.vue'
+import routes from './routes'
 
 const { setPipelines } = usePipelines()
 const { setLostReasons } = useLostReasons()
 
-import routes from './routes'
-
 if (window.Innoclapps) {
   Innoclapps.booting((Vue, router) => {
     Vue.component('DealPresentationCard', DealPresentationCard)
-    Vue.component('DealPreview', DealPreview)
-    Vue.component('LostReasonField', LostReasonField)
-    Vue.component('PipelineStageField', PipelineStageField)
+    Vue.component('DealFloatingModal', DealFloatingModal)
     Vue.component('CreateDealModal', CreateDealModal)
+
+    // Fields
+    Vue.component('FormLostReasonField', FormLostReasonField)
+    Vue.component('FormPipelineStageField', FormPipelineStageField)
+    Vue.component('IndexPipelineStageField', IndexPipelineStageField)
+    Vue.component('IndexLostReasonField', IndexLostReasonField)
 
     setPipelines(Innoclapps.config('deals.pipelines') || [])
     setLostReasons(Innoclapps.config('deals.lost_reasons') || [])
@@ -54,7 +56,7 @@ if (window.Innoclapps) {
         {
           path: 'pipelines/create',
           name: 'create-pipeline',
-          component: CreateDealPipeline,
+          component: DealsPipelinesCreate,
           meta: { title: i18n.t('deals::deal.pipeline.create') },
         },
       ],
@@ -62,7 +64,7 @@ if (window.Innoclapps) {
     router.addRoute('settings', {
       path: 'deals/pipelines/:id/edit',
       name: 'edit-pipeline',
-      component: EditDealPipeline,
+      component: DealsPipelinesEdit,
       meta: { title: i18n.t('deals::deal.pipeline.edit') },
     })
   })

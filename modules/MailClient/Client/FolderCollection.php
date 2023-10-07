@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -19,7 +19,6 @@ class FolderCollection extends Collection
     /**
      * Find a folder by a given identifier
      *
-     * @param  \Modules\MailClient\Client\FolderIdentifier  $identifier
      * @return null|\Modules\MailClient\Client\Contracts\FolderInterface
      */
     public function find(FolderIdentifier $identifier)
@@ -30,7 +29,6 @@ class FolderCollection extends Collection
     /**
      * Deep find a folder by a given identifier
      *
-     * @param  \Modules\MailClient\Client\FolderIdentifier  $identifier
      * @param  \Illuminate\Support\Collection|array  $folders
      * @return null|\Modules\MailClient\Client\Contracts\FolderInterface
      */

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,14 +13,14 @@
 namespace Modules\Notes\Resource;
 
 use Modules\Comments\Contracts\HasComments;
-use Modules\Core\Contracts\Resources\Resourceful;
+use Modules\Core\Contracts\Resources\HasOperations;
 use Modules\Core\Criteria\RelatedCriteria;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Fields\Editor;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Resource\Resource;
 use Modules\Notes\Http\Resources\NoteResource;
-use Modules\Notes\Services\NoteService;
 
-class Note extends Resource implements Resourceful, HasComments
+class Note extends Resource implements HasComments, HasOperations
 {
     /**
      * The model the resource is related to
@@ -28,19 +28,21 @@ class Note extends Resource implements Resourceful, HasComments
     public static string $model = 'Modules\Notes\Models\Note';
 
     /**
-     * Get the resource service for CRUD operations.
-     */
-    public function service(): NoteService
-    {
-        return new NoteService();
-    }
-
-    /**
      * Get the json resource that should be used for json response
      */
     public function jsonResource(): string
     {
         return NoteResource::class;
+    }
+
+    /**
+     * Provide the available resource fields
+     */
+    public function fields(ResourceRequest $request): array
+    {
+        return [
+            Editor::make('body')->rules(['required', 'string'])->onlyOnForms(),
+        ];
     }
 
     /**
@@ -85,9 +87,8 @@ class Note extends Resource implements Resourceful, HasComments
     public function rules(ResourceRequest $request): array
     {
         return [
-            'body' => 'required|string',
-            'via_resource' => 'required|in:contacts,companies,deals|string',
-            'via_resource_id' => 'required|numeric',
+            'via_resource' => ['required', 'in:contacts,companies,deals', 'string'],
+            'via_resource_id' => ['required', 'numeric'],
         ];
     }
 

@@ -2,8 +2,8 @@
   <IOverlay :show="!visible">
     <MailPlaceholders
       v-if="placeholders && componentReady"
-      :placeholders="placeholders"
       v-model:visible="placeholdersVisible"
+      :placeholders="placeholders"
       @inserted="$emit('placeholder-inserted')"
     />
     <TinyMCE
@@ -14,15 +14,17 @@
     />
   </IOverlay>
 </template>
+
 <script setup>
-import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
-import TinyMCE from '@tinymce/tinymce-vue'
-import MailPlaceholders from './MailEditorPlaceholders.vue'
-import debounce from 'lodash/debounce'
-import { randomString, getLocale, isDarkMode } from '@/utils'
-import localeMaps from '~/Core/resources/js/components/Editor/localeMaps'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-const locale = getLocale()
+import TinyMCE from '@tinymce/tinymce-vue'
+
+import { getLocale, isDarkMode, randomString } from '@/utils'
+
+import localeMaps from '~/Core/components/Editor/localeMaps'
+
+import MailPlaceholders from './MailEditorPlaceholders.vue'
 
 const emit = defineEmits(['update:modelValue', 'init', 'placeholder-inserted'])
 
@@ -31,9 +33,11 @@ const props = defineProps({
   placeholders: Object,
   placeholdersDisabled: Boolean,
   placeholder: { type: String, default: '' },
-  disabled: { type: Boolean, default: false },
-  withDrop: { default: false, type: Boolean },
+  disabled: Boolean,
+  withDrop: Boolean,
 })
+
+const locale = getLocale()
 
 const { t } = useI18n()
 
@@ -56,7 +60,7 @@ const defaultConfig = ref({
   contextmenu: false,
   branding: false,
   // images_upload_handler: handleImageUpload,
-  language: localeMaps.hasOwnProperty(locale) ? localeMaps[locale] : locale,
+  language: Object.hasOwn(localeMaps, locale) ? localeMaps[locale] : locale,
   automatic_uploads: true,
   images_reuse_filename: true,
   paste_data_images: props.withDrop,
@@ -65,6 +69,13 @@ const defaultConfig = ref({
   placeholder: props.placeholder,
   browser_spellcheck: true,
   content_style: `
+        // p:has(._placeholder) {
+        //   display: inline-flex;
+        //   align-items: center;
+        //   white-space: pre-wrap;
+        //   flex-flow: wrap;
+        // }
+
         ._placeholder {
           box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
           border: 0.0625rem solid #cad1d7;
@@ -115,7 +126,8 @@ const defaultConfig = ref({
     if (props.placeholders) {
       instance.ui.registry.addButton('fields', {
         text: t('core::fields.fields'),
-        onAction: _ => (placeholdersVisible.value = !placeholdersVisible.value),
+        onAction: () =>
+          (placeholdersVisible.value = !placeholdersVisible.value),
       })
     }
 
@@ -125,29 +137,29 @@ const defaultConfig = ref({
       emit('init')
     })
 
-    instance.on(
-      'input',
-      debounce(function (e) {
-        // When first time user tries to add data on the field
-        // check if the placeholders are disabled, if yes, clear the value
-        // and add the attribute disabled, as we are not able to add the disabled attribute before this action
-        // if the disabled attribute is not added, the user will be able still to type regardless if
-        // the cursor and pointer events are not allowed with CSS because of how tinymce works probably
-        if (
-          e.target.classList.contains('_placeholder') &&
-          placeholdersDisabled.value
-        ) {
-          e.target.disabled = true
-          e.target.value = ''
-        }
+    instance.on('input', e => {
+      // When first time user tries to add data on the field
+      // check if the placeholders are disabled, if yes, clear the value
+      // and add the attribute disabled, as we are not able to add the disabled attribute before this action
+      // if the disabled attribute is not added, the user will be able still to type regardless if
+      // the cursor and pointer events are not allowed with CSS because of how tinymce works probably
+      if (
+        e.target.classList.contains('_placeholder') &&
+        props.placeholdersDisabled
+      ) {
+        e.target.disabled = true
+        e.target.value = ''
+      }
 
-        e.currentTarget &&
-          e.currentTarget
-            .querySelectorAll('._placeholder')
-            .forEach(input => input.setAttribute('value', input.value))
-      }),
-      1000
-    )
+      e.currentTarget &&
+        e.currentTarget.querySelectorAll('._placeholder').forEach(p => {
+          if (p.tagName === 'TEXTAREA') {
+            p.textContent = p.value
+          } else {
+            p.setAttribute('value', p.value)
+          }
+        })
+    })
   },
   plugins: [
     'advlist',
@@ -195,23 +207,22 @@ const editorConfig = computed(() => {
   return config
 })
 
+// eslint-disable-next-line no-unused-vars
 function handleImageUpload(blobInfo, progress) {
   const file = blobInfo.blob()
 
-  // file type is only image.
-  if (!/^image\//.test(file.type)) {
-    failure(
-      t('validation.image', {
-        attribute: file.name,
-      }),
-      {
-        remove: true,
-      }
-    )
-    return
-  }
-
   return new Promise((resolve, reject) => {
+    if (!/^image\//.test(file.type)) {
+      reject({
+        message: t('validation.image', {
+          attribute: file.name,
+        }),
+        remove: true,
+      })
+
+      return
+    }
+
     const fd = new FormData()
     fd.append('file', file)
 

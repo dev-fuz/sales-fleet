@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,8 +15,8 @@ namespace Modules\Billable\Filters;
 use Modules\Core\Filters\HasMany;
 use Modules\Core\Filters\Number;
 use Modules\Core\Filters\Operand;
+use Modules\Core\Filters\QueryBuilder\Parser;
 use Modules\Core\Filters\Text;
-use Modules\Core\QueryBuilder\Parser;
 
 class BillableProductsFilter extends HasMany
 {

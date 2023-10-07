@@ -15,7 +15,7 @@
       positionFixed: true,
     }"
   >
-    <template v-slot="slotProps">
+    <template #default="slotProps">
       <slot
         v-bind="{
           ...slotProps,
@@ -35,6 +35,7 @@
               />
             </div>
             <input
+              :id="id + '-' + rangeKeys.start"
               type="text"
               readonly
               :class="[
@@ -49,10 +50,9 @@
               autocomplete="off"
               :value="localizedValueRangeStart"
               :placeholder="placeholder"
-              v-on="slotProps.inputEvents[rangeKeys.start]"
               :disabled="disabled"
               :name="name + '-' + rangeKeys.start"
-              :id="id + '-' + rangeKeys.start"
+              v-on="slotProps.inputEvents[rangeKeys.start]"
             />
           </div>
           <span class="m-2 shrink-0">
@@ -70,6 +70,7 @@
               />
             </div>
             <input
+              :id="id + '-' + rangeKeys.end"
               type="text"
               readonly
               :class="[
@@ -84,10 +85,9 @@
               autocomplete="off"
               :value="localizedValueRangeEnd"
               :placeholder="placeholder"
-              v-on="slotProps.inputEvents[rangeKeys.end]"
               :disabled="disabled"
               :name="name + '-' + rangeKeys.end"
-              :id="id + '-' + rangeKeys.end"
+              v-on="slotProps.inputEvents[rangeKeys.end]"
             />
             <Icon
               v-if="clearable"
@@ -102,13 +102,17 @@
     </template>
   </VDatePicker>
 </template>
+
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { DatePicker as VDatePicker } from 'v-calendar'
+
+import { isDarkMode, isValueEmpty } from '@/utils'
+
+import { useApp } from '~/Core/composables/useApp'
+import { useDates } from '~/Core/composables/useDates'
+
 import 'v-calendar/dist/style.css'
-import { isValueEmpty, isDarkMode } from '@/utils'
-import { useApp } from '~/Core/resources/js/composables/useApp'
-import { useDates } from '~/Core/resources/js/composables/useDates'
 
 const emit = defineEmits(['update:modelValue', 'input'])
 
@@ -120,7 +124,7 @@ const props = defineProps({
   placeholder: String,
   disabled: Boolean,
   required: Boolean,
-  clearable: { default: false, type: Boolean },
+  clearable: Boolean,
   rounded: { type: Boolean, default: true },
   rangeKeys: { type: Object, default: () => ({ start: 'start', end: 'end' }) },
   mode: {
@@ -153,9 +157,12 @@ const roundedClass = computed(() => {
   if (props.rounded && props.size === 'sm') {
     return 'rounded'
   }
+
   if (props.rounded && props.size !== 'sm' && props.size !== false) {
     return 'rounded-md'
   }
+
+  return ''
 })
 
 const isDateTime = computed(() => {
@@ -319,6 +326,7 @@ function emitEmptyValChangeEvent() {
   })
 }
 </script>
+
 <style>
 .vc-time-picker select {
   border: 0;

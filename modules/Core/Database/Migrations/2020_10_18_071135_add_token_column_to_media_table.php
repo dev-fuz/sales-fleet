@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -24,7 +24,7 @@ return new class extends Migration
         $driver = Schema::connection($this->getConnection())->getConnection()->getDriverName();
 
         Schema::table('media', function (Blueprint $table) use ($driver) {
-            if ('sqlite' === $driver) {
+            if ($driver === 'sqlite') {
                 $table->string('token', 36)->default('');
             } else {
                 $table->string('token', 36)->after('original_media_id');

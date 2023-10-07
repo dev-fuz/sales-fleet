@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,14 +12,56 @@
 
 namespace Modules\Core\Fields;
 
+use Modules\Core\Http\Requests\ResourceRequest;
+use Modules\Core\Models\Model;
 use Modules\Core\Table\Column;
 
 class VisibilityGroup extends Field
 {
     /**
-     * Field component
+     * @var bool|callable
      */
-    public ?string $component = 'visibility-group-field';
+    public $applicableForIndex = false;
+
+    /**
+     * @var bool|callable
+     */
+    public $applicableForDetail = false;
+
+    /**
+     * Indicates whether this field is excluded from setttings
+     */
+    public bool|string|array $excludeFromSettings = true;
+
+    /**
+     * Indicates whether to exclude the field from import
+     */
+    public bool $excludeFromImport = true;
+
+    /**
+     * Indicates whether the field should be included in sample data
+     */
+    public bool $excludeFromImportSample = true;
+
+    /**
+     * Indicates whether to exclude the field from export
+     */
+    public bool $excludeFromExport = true;
+
+    /**
+     * Indicates whether the field is excluded from Zapier response
+     */
+    public bool $excludeFromZapierResponse = true;
+
+    /**
+     * Field component.
+     */
+    public static $component = 'visibility-group-field';
+
+    /**
+     * Additional relationships to eager load when quering the resource.
+     */
+    public array $with = ['visibilityGroup.teams', 'visibilityGroup.users'];
 
     /**
      * Initialize new VisibilityGroup instance class
@@ -29,20 +71,13 @@ class VisibilityGroup extends Field
         parent::__construct(...func_get_args());
 
         $this->rules(['nullable', 'array'])
-            ->excludeFromZapierResponse()
-            ->strictlyForForms()
-            ->excludeFromDetail()
-            ->excludeFromImport()
-            ->excludeFromImportSample()
-            ->excludeFromSettings();
-    }
-
-    /**
-     * Provides the relationships that should be eager loaded when quering resource data
-     */
-    public function withRelationships(): array
-    {
-        return ['visibilityGroup.teams', 'visibilityGroup.users'];
+            ->fillUsing(function (Model $model, string $attribute, ResourceRequest $request, mixed $value, string $requestAttribute) {
+                return function () use ($model, $value) {
+                    if (! is_null($value)) {
+                        $model->saveVisibilityGroup($value);
+                    }
+                };
+            });
     }
 
     /**
@@ -53,18 +88,15 @@ class VisibilityGroup extends Field
      */
     public function resolveForJsonResource($model)
     {
-        if (! $model->relationLoaded('visibilityGroup')) {
-            return null;
+        if ($model->relationLoaded('visibilityGroup')) {
+            return [$this->attribute => $model->visibilityGroupData()];
         }
-
-        return [$this->attribute => $model->visibilityGroupData()];
     }
 
     /**
      * Get the mailable template placeholder
      *
-     * @param  \Modules\Core\Models\Model  $model
-     * @return null
+     * @param  \Modules\Core\Models\Model|null  $model
      */
     public function mailableTemplatePlaceholder($model)
     {
@@ -85,7 +117,6 @@ class VisibilityGroup extends Field
      * Resolve the displayable field value
      *
      * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return null
      */
     public function resolveForDisplay($model)
     {
@@ -96,22 +127,8 @@ class VisibilityGroup extends Field
      * Resolve the field value for export
      *
      * @param  \Modules\Core\Models\Model  $model
-     * @return null
      */
     public function resolveForExport($model)
-    {
-        return null;
-    }
-
-    /**
-     * Resolve the field value for import
-     *
-     * @param  string|null  $value
-     * @param  array  $row
-     * @param  array  $original
-     * @return null
-     */
-    public function resolveForImport($value, $row, $original)
     {
         return null;
     }

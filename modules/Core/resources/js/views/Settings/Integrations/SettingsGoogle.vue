@@ -7,9 +7,9 @@
       <template #header>
         <div class="flex items-center">
           <Icon
+            v-if="isConfigured && componentReady"
             icon="CheckCircleSolid"
             class="mr-1 h-5 w-5 text-success-600"
-            v-if="isConfigured && componentReady"
           />
           <ICardHeading>Google</ICardHeading>
         </div>
@@ -37,10 +37,10 @@
           />
         </div>
         <IButtonCopy
+          v-i-tooltip="$t('core::app.copy')"
           class="ml-3"
           :text="redirectUri"
           :success-message="$t('core::app.copied')"
-          v-i-tooltip="$t('core::app.copy')"
         />
       </div>
       <div class="sm:flex sm:space-x-4">
@@ -50,9 +50,9 @@
           class="w-full"
         >
           <IFormInput
+            id="google_client_id"
             v-model="form.google_client_id"
             autocomplete="off"
-            id="google_client_id"
             name="google_client_id"
           />
         </IFormGroup>
@@ -62,15 +62,14 @@
           class="w-full"
         >
           <IFormInput
+            id="google_client_secret"
+            v-model="form.google_client_secret"
             type="password"
             autocomplete="off"
-            v-model="form.google_client_secret"
-            id="google_client_secret"
             name="google_client_secret"
           />
         </IFormGroup>
       </div>
-
       <template #footer>
         <IButton
           type="submit"
@@ -82,9 +81,11 @@
     </ICard>
   </form>
 </template>
+
 <script setup>
 import { computed } from 'vue'
-import { useSettings } from './../useSettings'
+
+import { useSettings } from '../../../composables/useSettings'
 
 const {
   form,
@@ -102,6 +103,6 @@ const isConfigured = computed(
 )
 
 function submitGoogleIntegrationSettings() {
-  submit(form => window.location.reload())
+  submit(() => window.location.reload())
 }
 </script>

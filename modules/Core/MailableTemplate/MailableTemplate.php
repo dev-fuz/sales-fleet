@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -17,29 +17,23 @@ use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Modules\Core\Html2Text;
 use Modules\Core\Models\MailableTemplate as MailableTemplateModel;
-use Modules\Core\Placeholders\Collection as BasePlaceholders;
-use Modules\Core\Resource\Placeholders as ResourcePlaceholders;
+use Modules\Core\Support\Placeholders\Placeholders as BasePlaceholders;
+use Modules\Core\Resource\ResourcePlaceholders;
 
 abstract class MailableTemplate extends Mailable
 {
     /**
-     * Holds the template model
-     *
-     * @var \Modules\Core\Models\MailableTemplate
+     * Holds the template model.
      */
-    protected $templateModel;
+    protected ?MailableTemplateModel $templateModel = null;
 
     /**
-     * Provides the default mail template content
-     *
-     * e.q. is used when seeding the mail templates
-     *
-     * @return \Modules\Core\MailableTemplate\DefaultMailable
+     * Provides the default mail template content to be is used when seeding the templates.
      */
     abstract public static function default(): DefaultMailable;
 
     /**
-     * Get the mailable human readable name
+     * Get the mailable human readable name.
      */
     public static function name(): string
     {
@@ -85,7 +79,7 @@ abstract class MailableTemplate extends Mailable
     }
 
     /**
-     * Get the mailable template subject
+     * Get the mailable template subject.
      *
      * @return string|null
      */
@@ -95,31 +89,30 @@ abstract class MailableTemplate extends Mailable
     }
 
     /**
-     * Get the mailable template model
+     * Get the mailable template model.
      *
      * @return \Modules\Core\Models\MailableTemplate
      */
     public function getMailableTemplate()
     {
-        return $this->templateModel ?? $this->resolveMailableTemplateModel();
+        if (! $this->templateModel) {
+            $locale = $this->locale ?? config('app.fallback_locale');
+
+            $this->templateModel = MailableTemplateModel::forLocale($locale, static::class)->first();
+
+            if (! $this->templateModel) {
+                $this->templateModel = MailableTemplateModel::forLocale(
+                    config('app.fallback_locale'),
+                    static::class
+                )->first();
+            }
+        }
+
+        return $this->templateModel;
     }
 
     /**
-     * Resolve the mailable template model
-     *
-     * @return \Modules\Core\Models\MailableTemplate
-     */
-    protected function resolveMailableTemplateModel()
-    {
-        $locale = $this->locale ?? 'en';
-
-        return $this->templateModel = MailableTemplateModel::forLocale($locale)
-            ->forMailable(static::class)
-            ->first();
-    }
-
-    /**
-     * Creates alternative text message from the given HTML
+     * Creates alternative text message from the given HTML.
      *
      * @param  string  $html
      * @return string
@@ -130,9 +123,7 @@ abstract class MailableTemplate extends Mailable
     }
 
     /**
-     * Get the mail template content rendered
-     *
-     * @return \Modules\Core\MailableTemplate\Renderer
+     * Get the mail template content rendered.
      */
     protected function getMailableTemplateRenderer(): Renderer
     {
@@ -149,7 +140,7 @@ abstract class MailableTemplate extends Mailable
     }
 
     /**
-     * Get the mailable HTML layout
+     * Get the mailable HTML layout.
      *
      * @return string|null
      */
@@ -163,7 +154,7 @@ abstract class MailableTemplate extends Mailable
     }
 
     /**
-     * Get the mailable text layout
+     * Get the mailable text layout.
      *
      * @return string|null
      */
@@ -173,7 +164,7 @@ abstract class MailableTemplate extends Mailable
     }
 
     /**
-     * Provide the defined mailable template placeholders
+     * Provide the defined mailable template placeholders.
      */
     public function placeholders(): ResourcePlaceholders|BasePlaceholders|null
     {
@@ -181,7 +172,7 @@ abstract class MailableTemplate extends Mailable
     }
 
     /**
-     * The Mailable build method
+     * The Mailable build method.
      *
      * @see  buildSubject, buildView, send
      *
@@ -193,9 +184,9 @@ abstract class MailableTemplate extends Mailable
     }
 
     /**
-     * Seed the mailable in database as mail template
+     * Seed the mailable in database as mail template.
      *
-     * @param  string  $locale Locale to seed the mail template
+     * @param  string  $locale
      * @return \Modules\Core\Models\MailableTemplate
      */
     public static function seed($locale = 'en')
@@ -215,7 +206,10 @@ abstract class MailableTemplate extends Mailable
             ]);
 
         if (! $template->exists) {
-            $template->forceFill(['mailable' => $mailable, 'name' => static::name()])->save();
+            $template->forceFill([
+                'mailable' => $mailable,
+                'name' => static::name(),
+            ])->save();
         }
 
         return $template;

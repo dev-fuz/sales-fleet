@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,8 +13,8 @@
 namespace Modules\Core\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
-use Modules\Core\Highlights\Highlights;
 use Modules\Core\Http\Controllers\ApiController;
+use Modules\Core\Menu\Highlights\Highlights;
 
 class HighlightController extends ApiController
 {

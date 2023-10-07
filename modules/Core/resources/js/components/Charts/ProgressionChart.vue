@@ -5,9 +5,9 @@
     :overflow-hidden="false"
     :card="card"
     :request-query-string="requestQueryString"
-    @retrieved="result = $event.card.result"
+    @retrieved="result = $event.card.value"
   >
-    <template v-for="(_, name) in $slots" v-slot:[name]="slotData">
+    <template v-for="(_, name) in $slots" #[name]="slotData">
       <slot :name="name" v-bind="slotData" />
     </template>
     <div class="relative" :class="variant">
@@ -19,16 +19,19 @@
       />
       <p
         v-else
-        class="mt-12 text-center text-sm text-neutral-400 dark:text-neutral-300"
         v-t="'core::app.not_enough_data'"
+        class="mt-12 text-center text-sm text-neutral-400 dark:text-neutral-300"
       />
     </div>
   </Card>
 </template>
+
 <script setup>
-import BaseProgressionChart from './Base/ProgressionChart.vue'
 import { computed, shallowRef } from 'vue'
-import { useChart } from './useChart'
+
+import { useChart } from '../../composables/useChart'
+
+import BaseProgressionChart from './Base/ProgressionChart.vue'
 
 const props = defineProps({
   card: { required: true, type: Object },
@@ -40,7 +43,7 @@ const props = defineProps({
   },
 })
 
-const result = shallowRef(props.card.result)
+const result = shallowRef(props.card.value)
 const variant = computed(() => props.card.color || 'chart-primary')
 const { chartData, hasData: hasChartData } = useChart(result)
 </script>

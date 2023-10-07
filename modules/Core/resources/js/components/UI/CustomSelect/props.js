@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -10,14 +10,36 @@
  */
 export default {
   /**
+   * The list class.
+   */
+  listClass: [String, Array, Object],
+
+  /**
+   * The list wrapper floating div class.
+   */
+  listWrapperClass: [String, Array, Object],
+
+  /**
+   * Indicates whether the option can be re-ordered
+   */
+  reorderable: Boolean,
+
+  /**
+   * Indicates whether the select is simple.
+   */
+  simple: Boolean,
+
+  /**
+   * The toggle icon.
+   */
+  toggleIcon: { type: String, default: 'Selector' },
+
+  /**
    * Toggles the adding of a 'loading' class to the main
    * .v-select wrapper. Useful to control UI state when
    * results are being processed through AJAX.
    */
-  loading: {
-    type: Boolean,
-    default: false,
-  },
+  loading: Boolean,
 
   /**
    * Sets the id of the input element.
@@ -32,39 +54,29 @@ export default {
   /**
    * Value of the 'autocomplete' field of the input element.
    */
-  autocomplete: {
-    type: String,
-    default: 'off',
-  },
+  autocomplete: { type: String, default: 'off' },
 
   /**
    * Equivalent to the `placeholder` attribute on an `<input>`.
    */
-  placeholder: {
-    type: String,
-    default: '',
-  },
+  placeholder: { type: String, default: '' },
 
-  autoscroll: {
-    type: Boolean,
-    default: true,
-  },
+  autoscroll: { type: Boolean, default: true },
 
   /**
    * Indicates whether the select is bordered
    */
-  bordered: {
-    type: Boolean,
-    default: true,
-  },
+  bordered: { type: Boolean, default: true },
+
+  /**
+   * Indicates whether the select is with shadow
+   */
+  shadow: { type: Boolean, default: true },
 
   /**
    * Indicates whether the select is rounded
    */
-  rounded: {
-    type: Boolean,
-    default: true,
-  },
+  rounded: { type: Boolean, default: true },
 
   /**
    * Select size
@@ -101,60 +113,39 @@ export default {
   /**
    * Disable the entire component.
    */
-  disabled: {
-    type: Boolean,
-    default: false,
-  },
+  disabled: Boolean,
 
   /**
    * Can the user clear the selected property.
    */
-  clearable: {
-    type: Boolean,
-    default: true,
-  },
+  clearable: { type: Boolean, default: true },
 
   /**
    * Enable/disable filtering the options.
    */
-  searchable: {
-    type: Boolean,
-    default: true,
-  },
+  searchable: { type: Boolean, default: true },
 
   /**
    * Equivalent to the `multiple` attribute on a `<select>` input.
    */
-  multiple: {
-    type: Boolean,
-    default: false,
-  },
+  multiple: Boolean,
 
   /**
    * Enables/disables clearing the search text when an option is selected.
    */
-  clearSearchOnSelect: {
-    type: Boolean,
-    default: true,
-  },
+  clearSearchOnSelect: { type: Boolean, default: true },
 
   /**
    * Close a dropdown when an option is chosen. Set to false to keep the dropdown
    * open (useful when combined with multi-select, for example)
    */
-  closeOnSelect: {
-    type: Boolean,
-    default: true,
-  },
+  closeOnSelect: { type: Boolean, default: true },
 
   /**
    * Tells vue-select what key to use when generating option
    * labels when each `option` is an object.
    */
-  label: {
-    type: String,
-    default: 'label',
-  },
+  label: { type: String, default: 'label' },
 
   /**
    * Callback to generate the label text. If {option}
@@ -180,10 +171,7 @@ export default {
    * want passed to a v-model binding
    * or @input event.
    */
-  reduce: {
-    type: Function,
-    default: option => option,
-  },
+  reduce: { type: Function, default: option => option },
 
   /**
    * Decides whether an option is selectable or not. Not selectable options
@@ -195,37 +183,26 @@ export default {
    *
    * @return {Boolean}
    */
-  selectable: {
-    type: Function,
-    default: option => true,
-  },
+  // eslint-disable-next-line no-unused-vars
+  selectable: { type: Function, default: option => true },
 
   /**
    * Enable/disable creating options from searchEl.
    */
-  taggable: {
-    type: Boolean,
-    default: false,
-  },
+  taggable: Boolean,
 
   /**
    * When true, newly created tags will be added to
    * the options list.
    */
-  pushTags: {
-    type: Boolean,
-    default: false,
-  },
+  pushTags: Boolean,
 
   /**
    * When true, existing options will be filtered
    * by the search text. Should not be used in conjunction
    * with taggable.
    */
-  filterable: {
-    type: Boolean,
-    default: true,
-  },
+  filterable: { type: Boolean, default: true },
 
   /**
    * Callback to determine if the provided option should
@@ -259,7 +236,7 @@ export default {
 
   optionComparatorProvider: Function,
 
-  displayNewOptionsLast: { type: Boolean, default: false },
+  displayNewOptionsLast: Boolean,
 
   /**
    * When false, updating the options will not reset the selected value. Accepts
@@ -273,7 +250,7 @@ export default {
    * @param {Array} selectedValue
    */
   resetOnOptionsChange: {
+    type: [Function, Boolean],
     default: false,
-    validator: value => ['function', 'boolean'].includes(typeof value),
   },
 }

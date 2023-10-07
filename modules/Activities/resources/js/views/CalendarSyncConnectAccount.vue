@@ -1,14 +1,14 @@
 <template>
   <IModal
-    size="sm"
     id="calendarConnectNewAccount"
+    size="sm"
     hide-footer
     :title="$t('core::oauth.connect_new_account')"
   >
     <div class="py-4">
       <p
-        class="mb-5 text-center text-neutral-800 dark:text-neutral-200"
         v-t="'activities::calendar.choose_oauth_account'"
+        class="mb-5 text-center text-neutral-800 dark:text-neutral-200"
       />
       <div class="flex justify-center space-x-2">
         <div
@@ -30,16 +30,16 @@
             />
 
             <template #popper>
-              <div class="px-4 py-3 text-sm">
+              <div class="p-4 text-sm">
                 <p class="whitespace-pre-wrap">
                   {{ $t('activities::calendar.missing_google_integration') }}
                 </p>
                 <RouterLink
                   v-if="$gate.isSuperAdmin()"
+                  v-t="'core::settings.go_to_settings'"
                   href="/settings/integrations/google"
                   class="link mt-2 block text-right"
                   :to="{ name: 'settings-integrations-google' }"
-                  v-t="'core::settings.go_to_settings'"
                 />
               </div>
             </template>
@@ -55,10 +55,10 @@
           @click="connectOAuthAccount('microsoft')"
         >
           <IPopover
+            ref="microsoftPopoverRef"
             placement="top"
             class="max-w-xs sm:max-w-sm"
             :disabled="isMicrosoftGraphConfigured()"
-            ref="microsoftPopoverRef"
           >
             <OutlookIcon
               @click="
@@ -68,16 +68,16 @@
               "
             />
             <template #popper>
-              <div class="px-4 py-3 text-sm">
+              <div class="p-4 text-sm">
                 <p class="whitespace-pre-wrap">
                   {{ $t('activities::calendar.missing_outlook_integration') }}
                 </p>
                 <RouterLink
                   v-if="$gate.isSuperAdmin()"
+                  v-t="'core::settings.go_to_settings'"
                   href="/settings/integrations/google"
                   class="link mt-2 block text-right"
                   :to="{ name: 'settings-integrations-microsoft' }"
-                  v-t="'core::settings.go_to_settings'"
                 />
               </div>
             </template>
@@ -92,11 +92,13 @@
     </div>
   </IModal>
 </template>
+
 <script setup>
 import { ref } from 'vue'
-import OutlookIcon from '~/Core/resources/js/components/Icons/OutlookIcon.vue'
-import GoogleIcon from '~/Core/resources/js/components/Icons/GoogleIcon.vue'
-import { useApp } from '~/Core/resources/js/composables/useApp'
+
+import GoogleIcon from '~/Core/components/Icons/GoogleIcon.vue'
+import OutlookIcon from '~/Core/components/Icons/OutlookIcon.vue'
+import { useApp } from '~/Core/composables/useApp'
 
 const { isGoogleApiConfigured, isMicrosoftGraphConfigured } = useApp()
 
@@ -106,9 +108,11 @@ const microsoftPopoverRef = ref(null)
 function connectOAuthAccount(provider) {
   if (provider === 'google' && !isGoogleApiConfigured()) {
     googlePopoverRef.value.show()
+
     return
   } else if (provider === 'microsoft' && !isMicrosoftGraphConfigured()) {
     microsoftPopoverRef.value.show()
+
     return
   }
 

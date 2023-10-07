@@ -3,29 +3,29 @@
     <IModal
       id="newCustomField"
       size="sm"
-      @shown="handleCustomFieldCreateModalShown"
-      @hidden="handleCustomFieldModalHidden"
       :ok-title="$t('core::app.save')"
       :cancel-title="$t('core::app.cancel')"
       :title="$t('core::fields.custom.create')"
       form
+      static-backdrop
+      @shown="handleCustomFieldCreateModalShown"
+      @hidden="handleCustomFieldModalHidden"
       @keydown="form.onKeydown($event)"
       @submit="createCustomField"
-      static-backdrop
     >
       <CustomFieldFormFields :form="form" />
     </IModal>
     <IModal
-      size="sm"
       id="editCustomField"
+      size="sm"
       form
-      @keydown="form.onKeydown($event)"
-      @submit="updateCustomField"
-      @hidden="handleCustomFieldModalHidden"
       :ok-title="$t('core::app.save')"
       :cancel-title="$t('core::app.cancel')"
       :title="$t('core::fields.custom.update')"
       static-backdrop
+      @keydown="form.onKeydown($event)"
+      @submit="updateCustomField"
+      @hidden="handleCustomFieldModalHidden"
     >
       <CustomFieldFormFields :form="form" :edit="true" />
     </IModal>
@@ -35,50 +35,53 @@
         v-text="title"
       />
       <IButton
+        v-i-modal="'newCustomField'"
         variant="primary"
         icon="Plus"
         size="sm"
-        v-i-modal="'newCustomField'"
         class="ml-3"
         :text="$t('core::fields.add')"
       />
     </div>
     <div v-show="!editingRelatedFieldResource">
       <CustomizeFields
-        v-if="resourceName !== 'products'"
-        class="mb-3"
+        v-if="resource.hasDetailView"
         ref="detailRef"
+        class="mb-3"
         :group="resourceName"
         :view="detailView"
         :heading="$t('core::fields.settings.detail')"
         :sub-heading="$t('core::fields.settings.detail_info')"
         @delete-requested="deleteCustomField"
         @update-requested="handleUpdateRequestedEvent"
+        @saved="refreshFieldsData"
       />
       <CustomizeFields
-        class="mb-3"
         ref="createRef"
+        class="mb-3"
         :group="resourceName"
         :view="createView"
         :heading="$t('core::fields.settings.create')"
         :sub-heading="$t('core::fields.settings.create_info')"
+        :collapse-option="false"
         @delete-requested="deleteCustomField"
         @update-requested="handleUpdateRequestedEvent"
-        :collapse-option="false"
+        @saved="refreshFieldsData"
       />
       <CustomizeFields
-        class="mb-3"
         ref="updateRef"
+        class="mb-3"
         :group="resourceName"
+        :view="updateView"
         :heading="$t('core::fields.settings.update')"
         :sub-heading="$t('core::fields.settings.update_info')"
         @delete-requested="deleteCustomField"
         @update-requested="handleUpdateRequestedEvent"
-        :view="updateView"
+        @saved="refreshFieldsData"
       />
       <ICard class="mh-96" no-body>
         <template #header>
-          <ICardHeading class="text-base" v-t="'core::fields.settings.list'" />
+          <ICardHeading v-t="'core::fields.settings.list'" class="text-base" />
         </template>
 
         <i18n-t
@@ -106,22 +109,24 @@
     />
   </div>
 </template>
+
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
-import CustomizeFields from './SettingsCustomizeFields.vue'
-import CustomFieldFormFields from './CustomFieldFormFields.vue'
-import RelatedFieldResource from '~/Core/resources/js/components/SimpleResourceCRUD.vue'
-import cloneDeep from 'lodash/cloneDeep'
-import { useStore } from 'vuex'
-import { useApp } from '~/Core/resources/js/composables/useApp'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
-import { useForm } from '~/Core/resources/js/composables/useForm'
+import { useStore } from 'vuex'
+import cloneDeep from 'lodash/cloneDeep'
+
+import RelatedFieldResource from '~/Core/components/SimpleResourceCRUD.vue'
+import { useForm } from '~/Core/composables/useForm'
+import { usePageTitle } from '~/Core/composables/usePageTitle'
+
+import CustomFieldFormFields from './CustomFieldFormFields.vue'
+import CustomizeFields from './SettingsCustomizeFields.vue'
 
 const { t } = useI18n()
 const store = useStore()
 const route = useRoute()
-const { setPageTitle } = useApp()
 
 const createView = Innoclapps.config('fields.views.create')
 const updateView = Innoclapps.config('fields.views.update')
@@ -161,14 +166,9 @@ const title = computed(() => {
   })
 })
 
-watch(resourceName, () => {
-  // When navigating out of the setting route and the resource in the URL is removed
-  // this watcher is triggered and in this case, the resource and the titles are null, no need
-  // to set any title
-  if (title.value) {
-    setPageTitle(title)
-  }
+usePageTitle(title)
 
+watch(resourceName, () => {
   // In case the user is editing some field data
   // to show the fields again, we need to set the editingRelatedFieldResource to null
   editingRelatedFieldResource.value = null
@@ -177,6 +177,7 @@ watch(resourceName, () => {
 function handleUpdateRequestedEvent(field) {
   if (!field.customField) {
     editingRelatedFieldResource.value = field.optionsViaResource
+
     return
   }
 
@@ -196,7 +197,7 @@ function handleUpdateRequestedEvent(field) {
 }
 
 function updateCustomField() {
-  form.put(`/custom-fields/${form.id}`).then(field => {
+  form.put(`/custom-fields/${form.id}`).then(() => {
     Innoclapps.modal().hide('editCustomField')
 
     refreshFieldsData()
@@ -217,6 +218,10 @@ async function deleteCustomField(id) {
 
 function refreshFieldsData() {
   store.commit('table/RESET_SETTINGS')
+  store.dispatch('filters/clearActive', {
+    identifier: resourceName.value,
+    view: resourceName.value,
+  })
 
   const fieldsRefs = [createRef, updateRef, detailRef].filter(
     ref => ref.value !== null
@@ -228,7 +233,7 @@ function refreshFieldsData() {
 }
 
 function createCustomField() {
-  form.post('/custom-fields').then(field => {
+  form.post('/custom-fields').then(() => {
     Innoclapps.modal().hide('newCustomField')
 
     refreshFieldsData()

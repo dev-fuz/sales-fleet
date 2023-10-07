@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,6 +12,7 @@
 
 namespace Modules\Core\Resource\Import;
 
+use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Facades\Excel;
 use Modules\Core\Models\Import;
@@ -24,12 +25,9 @@ class SkipFileGenerator implements FromArray
     const SKIP_REASON_HEADING = '--Skip Reason--';
 
     /**
-     * Initialize new SkipFileGenerator instance
-     *
-     * @param  \Illuminate\Support\Collection  $failures
-     * @param  \Illuminate\Support\Collection  $mappings
+     * Initialize new SkipFileGenerator instance.
      */
-    public function __construct(protected Import $import, protected $failures, protected $mappings)
+    public function __construct(protected Import $import, protected array $failures, protected Collection $mappings)
     {
     }
 
@@ -49,9 +47,7 @@ class SkipFileGenerator implements FromArray
      */
     public function store(): string
     {
-        $path = $this->import->storagePath($this->filename());
-
-        Excel::store($this, $path, $this->import::disk());
+        Excel::store($this, $path = $this->diskPath(), $this->import::disk());
 
         return $path;
     }
@@ -78,13 +74,21 @@ class SkipFileGenerator implements FromArray
         $grouped = [];
 
         foreach ($this->failures as $failure) {
-            $grouped[$failure->row()] = array_merge(
-                $grouped[$failure->row()] ?? [],
-                $failure->errors()
-            );
+            $grouped[$failure['row']] = array_unique(array_merge(
+                $grouped[$failure['row']] ?? [],
+                $failure['errors']
+            ));
         }
 
         return $grouped;
+    }
+
+    /**
+     * Get the skip file path on the disk.
+     */
+    protected function diskPath(): string
+    {
+        return $this->import->storagePath($this->filename());
     }
 
     /**
@@ -105,12 +109,11 @@ class SkipFileGenerator implements FromArray
     {
         $errors = $this->errors();
 
-        return $this->failures->unique(fn (Failure $failure) => $failure->row())
-            ->map(function (Failure $failure) use ($errors) {
-                return [
-                    implode(PHP_EOL, $errors[$failure->row()]),
-                    ...array_values($failure->values()['_original']),
-                ];
-            })->all();
+        return collect($this->failures)
+            ->unique(fn (array $failure) => $failure['row'])
+            ->map(fn ($failure) => [
+                implode(PHP_EOL, $errors[$failure['row']]),
+                ...array_values($failure['values']),
+            ])->all();
     }
 }

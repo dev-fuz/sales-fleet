@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,7 +12,10 @@
 
 namespace Modules\Deals\Fields;
 
+use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Modules\Core\Fields\BelongsTo;
+use Modules\Core\Table\Column;
 use Modules\Deals\Http\Resources\StageResource;
 use Modules\Deals\Models\Pipeline;
 use Modules\Deals\Models\Stage;
@@ -20,11 +23,11 @@ use Modules\Deals\Models\Stage;
 class PipelineStage extends BelongsTo
 {
     /**
-     * Field component
+     * Field component.
      *
      * @var string
      */
-    public ?string $component = 'pipeline-stage-field';
+    public static $component = 'pipeline-stage-field';
 
     /**
      * Creat new PipelineStage instance field
@@ -38,35 +41,46 @@ class PipelineStage extends BelongsTo
         $this->setJsonResource(StageResource::class)
             ->creationRules('required')
             ->updateRules(['required_with:pipeline_id', 'filled'])
-            ->rules(function ($attribute, $value, $fail) {
+            ->rules(function (string $attribute, mixed $value, Closure $fail) {
                 // If no value, fails on the required rule
                 if ($value && is_null(Pipeline::visible()
                     ->whereHas('stages', fn ($query) => $query->where('id', $value))
-                    ->first())) {
+                    ->first()) &&
+                    // when the user is allowed to edit the deal but not allowed to view the pipeline
+                    // allow only the pipeline stage to be changed, but we don't allow the pipeline itself to be changed.
+                    ! $this->resolveRequest()->isUpdateRequest()
+                ) {
                     $fail('The :attribute value is forbidden.');
                 }
             })
             ->withDefaultValue(function () {
-                // First visible/ordered pipeline is selected for the Pipeline fiel as well
+                // First visible/ordered pipeline is selected for the Pipeline field as well
                 // in this case, we will use the same first pipeline to retrieve the first stage
-                return Pipeline::with(['stages' => fn ($query) => $query->orderByDisplayOrder()])
+                return Pipeline::with('stages')
                     ->visible()
                     ->userOrdered()
-                    ->first()->stages->first();
+                    ->first()
+                    ->stages
+                    ->first();
             })
             ->required()
-            ->acceptLabelAsValue();
+            ->acceptLabelAsValue(false)
+            ->tapIndexColumn(fn (Column $column) => $column->select(['pipeline_id', 'display_order'])
+                ->orderByUsing(function (Builder $query, string $direction, string $alias) {
+                    return $query->orderBy(
+                        $alias.'.display_order', $direction
+                    );
+                }))
+            ->withoutClearAction();
     }
 
     /**
      * Provides the PipelineStage instance options
      *
      * We using dependable field, we need to provide all the options
-     *
-     * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function resolveOptions()
+    public function resolveOptions(): array
     {
-        return Stage::orderBy('display_order')->get();
+        return Stage::get()->all();
     }
 }

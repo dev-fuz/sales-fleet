@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -22,7 +22,7 @@ class UniqueResourceRule extends UniqueRule
     /**
      * Create a new rule instance.
      */
-    public function __construct(string $modelName, string|int|null $ignore = 'resourceId', string|null $column = 'NULL')
+    public function __construct(string $modelName, string|int|null $ignore = 'resourceId', ?string $column = 'NULL')
     {
         parent::__construct($modelName, $ignore, $column);
     }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -42,8 +42,12 @@ class TransferMailClientUserData
      */
     public function predefinedMailTemplates($toUserId, $fromUserId): void
     {
+        // Purge user non shared mail templates.
+        PredefinedMailTemplate::where('user_id', $fromUserId)->where('is_shared', 0)->delete();
+
+        // Transfer shared mail templates to the selected user.
         PredefinedMailTemplate::where('user_id', $fromUserId)
-            ->where('is_shared', true)
+            ->shared()
             ->update(['user_id' => $toUserId]);
     }
 }

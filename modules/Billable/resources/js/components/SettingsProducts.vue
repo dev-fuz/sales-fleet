@@ -11,7 +11,7 @@
             label-for="tax_label"
             required
           >
-            <IFormInput v-model="form.tax_label" id="tax_label" />
+            <IFormInput id="tax_label" v-model="form.tax_label" />
           </IFormGroup>
         </div>
 
@@ -21,10 +21,10 @@
             label-for="tax_rate"
           >
             <IFormNumericInput
+              v-model="form.tax_rate"
               :placeholder="$t('billable::product.tax_percent')"
               :precision="3"
               :minus="true"
-              v-model="form.tax_rate"
             >
             </IFormNumericInput>
           </IFormGroup>
@@ -38,14 +38,15 @@
       >
         <IFormRadio
           v-for="taxType in taxTypes"
-          :key="taxType"
-          :label="$t('billable::billable.tax_types.' + taxType)"
           :id="taxType"
+          :key="taxType"
           v-model="form.tax_type"
+          :label="$t('billable::billable.tax_types.' + taxType)"
           :value="taxType"
           name="tax_type"
         />
       </IFormGroup>
+
       <IFormGroup
         :label="$t('billable::product.settings.default_discount_type')"
         label-for="tax_type"
@@ -53,14 +54,15 @@
       >
         <IFormRadio
           v-for="discountType in discountTypes"
-          :key="discountType.value"
-          :label="discountType.label"
           :id="discountType.value"
+          :key="discountType.value"
           v-model="form.discount_type"
+          :label="discountType.label"
           :value="discountType.value"
           name="discount_type"
         />
       </IFormGroup>
+
       <template #footer>
         <IButton
           type="submit"
@@ -71,8 +73,9 @@
     </ICard>
   </form>
 </template>
+
 <script setup>
-import { useSettings } from '~/Core/resources/js/views/Settings/useSettings'
+import { useSettings } from '~/Core/composables/useSettings'
 
 const { form, isReady: componentReady, submit } = useSettings()
 

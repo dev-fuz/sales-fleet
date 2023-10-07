@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,15 +16,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Modules\Core\Concerns\HasCreator;
 use Modules\Core\Facades\Innoclapps;
-use Modules\Core\Media\HasAttributesWithPendingMedia;
 use Modules\Core\Models\Model;
+use Modules\Core\Support\Media\HasAttributesWithPendingMedia;
 use Modules\Users\Mention\PendingMention;
 
 class Comment extends Model
 {
-    use HasFactory,
-        HasAttributesWithPendingMedia,
-        HasCreator;
+    use HasAttributesWithPendingMedia,
+        HasCreator,
+        HasFactory;
 
     /**
      * The attributes that are mass assignable.

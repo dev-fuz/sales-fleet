@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Modules\Core\Facades\Fields;
 use Modules\Core\Fields\Email;
 use Modules\Core\Fields\Text;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Deals\Models\Deal;
 use Modules\Deals\Models\Pipeline;
 use Modules\Users\Models\User;
@@ -273,7 +273,7 @@ class WebFormTest extends TestCase
     public function test_web_form_submit_data_attribute_returns_defaults_when_has_no_submit_data()
     {
         $pipeline = Pipeline::factory()->withStages()->primary()->create();
-        $firstStageId = $pipeline->stages->sortBy('display_order')->first()->getKey();
+        $firstStageId = $pipeline->stages->first()->getKey();
 
         $form = WebForm::factory(['submit_data' => []])->make();
 
@@ -286,10 +286,10 @@ class WebFormTest extends TestCase
     public function test_web_form_submit_data_attribute_returns_default_pipeline_when_the_pipeline_is_deleted()
     {
         $primary = Pipeline::factory()->withStages()->primary()->create();
-        $primaryFirstStage = $primary->stages->sortBy('display_order')->first()->getKey();
+        $primaryFirstStage = $primary->stages->first()->getKey();
 
         $pipeline = Pipeline::factory()->withStages()->create();
-        $firstStageId = $pipeline->stages->sortBy('display_order')->first()->getKey();
+        $firstStageId = $pipeline->stages->first()->getKey();
 
         $form = WebForm::factory(['submit_data' => [
             'pipeline_id' => $pipeline->id,
@@ -308,7 +308,7 @@ class WebFormTest extends TestCase
     public function test_web_form_submit_data_attribute_returns_first_stage_from_pipeline_when_the_stage_is_deleted()
     {
         $pipeline = Pipeline::factory()->withStages()->create();
-        $firstStage = $pipeline->stages->sortBy('display_order')->first();
+        $firstStage = $pipeline->stages->first();
 
         $form = WebForm::factory(['submit_data' => [
             'pipeline_id' => $pipeline->id,
@@ -319,7 +319,7 @@ class WebFormTest extends TestCase
 
         $this->assertEquals([
             'pipeline_id' => $pipeline->id,
-            'stage_id' => $pipeline->stages()->get()->sortBy('display_order')->first()->id,
+            'stage_id' => $pipeline->stages()->get()->first()->id,
         ], $form->submit_data);
     }
 

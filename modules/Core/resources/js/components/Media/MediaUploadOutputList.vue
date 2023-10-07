@@ -19,12 +19,12 @@
           ]"
         >
           <Icon
-            icon="X"
             v-if="file.xhr && file.xhr.status >= 400"
+            icon="X"
             class="h-5 w-5"
           />
-          <Icon icon="Check" v-else-if="file.xhr" class="h-5 w-5" />
-          <Icon icon="CloudArrowUp" v-else class="h-5 w-5" />
+          <Icon v-else-if="file.xhr" icon="Check" class="h-5 w-5" />
+          <Icon v-else icon="CloudArrowUp" class="h-5 w-5" />
         </span>
       </div>
 
@@ -33,9 +33,10 @@
           {{ file.name }}
         </p>
         <p class="text-sm text-neutral-500 dark:text-neutral-300">
-          {{ localizedDate(new Date()) }}
+          {{ localizedDateTime(new Date()) }}
         </p>
       </div>
+
       <div class="block shrink-0 md:hidden md:group-hover:block">
         <div class="flex items-center space-x-1">
           <!-- Allow remove only when there is no request in progress or there is error -->
@@ -47,8 +48,9 @@
     </li>
   </ul>
 </template>
+
 <script setup>
-import { useDates } from '~/Core/resources/js/composables/useDates'
+import { useDates } from '~/Core/composables/useDates'
 
 defineEmits(['remove-requested'])
 
@@ -56,5 +58,5 @@ defineProps({
   files: { type: Array, required: true },
 })
 
-const { localizedDate } = useDates()
+const { localizedDateTime } = useDates()
 </script>

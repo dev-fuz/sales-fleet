@@ -1,21 +1,21 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import { unref, computed } from 'vue'
-import get from 'lodash/get'
+import { computed } from 'vue'
 import { useStore } from 'vuex'
+import get from 'lodash/get'
 
 export function useApp() {
   const store = useStore()
 
-  const locales = computed(() => store.getters.locales)
+  const locales = computed(() => Innoclapps.config('locales'))
 
   const currentUser = computed(() => {
     return store.getters['users/current']
@@ -31,10 +31,6 @@ export function useApp() {
 
   function setting(name) {
     return get(store.state.settings, name)
-  }
-
-  function setPageTitle(title) {
-    store.commit('SET_PAGE_TITLE', unref(title))
   }
 
   function resetStoreState() {
@@ -69,7 +65,6 @@ export function useApp() {
 
     findUserById,
     setting,
-    setPageTitle,
     resetStoreState,
     isGoogleApiConfigured,
     isMicrosoftGraphConfigured,

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,9 +13,9 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\PreventPasswordReset;
 use App\Providers\RouteServiceProvider;
 use Illuminate\Foundation\Auth\ResetsPasswords;
-use Illuminate\Http\Request;
 
 class ResetPasswordController extends Controller
 {
@@ -29,11 +29,7 @@ class ResetPasswordController extends Controller
     | explore this trait and override any methods you wish to tweak.
     |
     */
-
-    use ResetsPasswords {
-        ResetsPasswords::showResetForm as mainShowResetForm;
-        ResetsPasswords::reset as mainReset;
-    }
+    use ResetsPasswords;
 
     /**
      * Where to redirect users after login.
@@ -43,32 +39,10 @@ class ResetPasswordController extends Controller
     protected $redirectTo = RouteServiceProvider::HOME;
 
     /**
-     * Display the password reset view for the given token.
-     *
-     * If no token is present, display the link request form.
-     *
-     * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
+     * Initialize new ResetPasswordController instance.
      */
-    public function showResetForm(Request $request)
+    public function __construct()
     {
-        if (forgot_password_is_disabled()) {
-            abort(404);
-        }
-
-        return $this->mainShowResetForm($request);
-    }
-
-    /**
-     * Reset the given user's password.
-     *
-     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
-     */
-    public function reset(Request $request)
-    {
-        if (forgot_password_is_disabled()) {
-            abort(404);
-        }
-
-        return $this->mainReset($request);
+        $this->middleware(PreventPasswordReset::class);
     }
 }

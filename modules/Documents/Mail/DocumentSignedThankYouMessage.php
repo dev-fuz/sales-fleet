@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -22,7 +22,7 @@ class DocumentSignedThankYouMessage extends DocumentMailable
     public function build()
     {
         return $this->view('documents::mail.thankyou')
-            ->with(['content' => $this->document->brand->config['document']['signed_mail_message']])
-            ->subject($this->document->brand->config['document']['signed_mail_subject']);
+            ->with(['content' => $this->document->localizedBrandConfig('document.signed_mail_message')])
+            ->subject($this->document->localizedBrandConfig('document.signed_mail_subject'));
     }
 }

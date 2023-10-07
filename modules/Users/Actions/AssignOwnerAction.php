@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,9 +15,9 @@ namespace Modules\Users\Actions;
 use Illuminate\Support\Collection;
 use Modules\Core\Actions\Action;
 use Modules\Core\Actions\ActionFields;
-use Modules\Core\Actions\ActionRequest;
 use Modules\Core\Fields\User;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Http\Requests\ActionRequest;
+use Modules\Core\Http\Requests\ResourceRequest;
 
 class AssignOwnerAction extends Action
 {
@@ -43,7 +43,7 @@ class AssignOwnerAction extends Action
         return [
             User::make(__('users::user.user'))
                 ->rules('required')
-                ->withMeta(['attributes' => ['clearable' => false]]),
+                ->withoutClearAction(),
         ];
     }
 

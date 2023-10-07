@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,7 +14,7 @@ namespace Modules\MailClient\Client\Gmail;
 
 use Google\Service\Exception as GoogleServiceException;
 use Modules\Core\Facades\Google as Client;
-use Modules\Core\OAuth\AccessTokenProvider;
+use Modules\Core\Support\OAuth\AccessTokenProvider;
 use Modules\MailClient\Client\AbstractImapClient;
 use Modules\MailClient\Client\Contracts\FolderInterface;
 use Modules\MailClient\Client\Contracts\MessageInterface;
@@ -87,7 +87,7 @@ class ImapClient extends AbstractImapClient
      * @param  \Modules\MailClient\Client\FolderIdentifier  $folder
      * @return \Modules\MailClient\Client\Gmail\Message
      */
-    public function getMessage($id, ?FolderIdentifier $folder = null)
+    public function getMessage($id, FolderIdentifier $folder = null)
     {
         try {
             return $this->exceptionHandler(fn () => new Message(Client::message()->get($id)));
@@ -168,7 +168,7 @@ class ImapClient extends AbstractImapClient
      * @param  \Modules\MailClient\Client\FolderIdentifier  $folder
      * @return bool
      */
-    public function batchMarkAsRead($messages, ?FolderIdentifier $folder = null)
+    public function batchMarkAsRead($messages, FolderIdentifier $folder = null)
     {
         return $this->exceptionHandler(fn () => Client::message()->batchModify($messages, ['UNREAD']));
     }
@@ -180,7 +180,7 @@ class ImapClient extends AbstractImapClient
      * @param  \Modules\MailClient\Client\FolderIdentifier  $folder
      * @return bool
      */
-    public function batchMarkAsUnread($messages, ?FolderIdentifier $folder = null)
+    public function batchMarkAsUnread($messages, FolderIdentifier $folder = null)
     {
         return $this->exceptionHandler(fn () => Client::message()->batchModify($messages, [], ['UNREAD']));
     }

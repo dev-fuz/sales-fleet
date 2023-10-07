@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,6 +13,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\PreventPasswordReset;
 use Illuminate\Foundation\Auth\SendsPasswordResetEmails;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
@@ -31,49 +32,24 @@ class ForgotPasswordController extends Controller
     | your application to your users. Feel free to explore this trait.
     |
     */
-    use SendsPasswordResetEmails {
-        SendsPasswordResetEmails::sendResetLinkEmail as mainSendResetLinkEmail;
-        SendsPasswordResetEmails::showLinkRequestForm as mainshowLinkRequestForm;
-    }
+    use SendsPasswordResetEmails;
 
     /**
-     * Display the form to request a password reset link.
-     *
-     * @return \Illuminate\View\View
+     * Initialize new ForgotPasswordController instance.
      */
-    public function showLinkRequestForm()
+    public function __construct()
     {
-        if (forgot_password_is_disabled()) {
-            abort(404);
-        }
-
-        return $this->mainshowLinkRequestForm();
-    }
-
-    /**
-     * Send a reset link to the given user.
-     *
-     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
-     */
-    public function sendResetLinkEmail(Request $request)
-    {
-        if (forgot_password_is_disabled()) {
-            abort(404);
-        }
-
-        return $this->mainSendResetLinkEmail($request);
+        $this->middleware(PreventPasswordReset::class);
     }
 
     /**
      * Validate the email for the given request.
-     *
-     *
-     * @return void
      */
-    protected function validateEmail(Request $request)
+    protected function validateEmail(Request $request): void
     {
-        $request->validate(array_merge([
+        $request->validate([
             'email' => 'required|email',
-        ], ReCaptcha::shouldShow() ? ['g-recaptcha-response' => ['required', new ValidRecaptchaRule]] : []));
+            ...ReCaptcha::shouldShow() ? ['g-recaptcha-response' => ['required', new ValidRecaptchaRule]] : [],
+        ]);
     }
 }

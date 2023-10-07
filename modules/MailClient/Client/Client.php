@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -107,13 +107,12 @@ class Client implements ImapInterface, SmtpInterface
      * Batch mark as read messages
      *
      * @param  array  $messages
-     * @param  null|\Modules\MailClient\Client\FolderIdentifier  $folder
      * @return bool
      *
      * @throws \Modules\MailClient\Client\Exceptions\ConnectionErrorException
      * @throws \Modules\MailClient\Client\Exceptions\FolderNotFoundException
      */
-    public function batchMarkAsRead($messages, ?FolderIdentifier $folder = null)
+    public function batchMarkAsRead($messages, FolderIdentifier $folder = null)
     {
         return $this->imap->batchMarkAsRead($messages, $folder);
     }
@@ -122,13 +121,12 @@ class Client implements ImapInterface, SmtpInterface
      * Batch mark as unread messages
      *
      * @param  array  $messages
-     * @param  null|\Modules\MailClient\Client\FolderIdentifier  $folder
      * @return bool
      *
      * @throws \Modules\MailClient\Client\Exceptions\ConnectionErrorException
      * @throws \Modules\MailClient\Client\Exceptions\FolderNotFoundException
      */
-    public function batchMarkAsUnread($messages, ?FolderIdentifier $folder = null)
+    public function batchMarkAsUnread($messages, FolderIdentifier $folder = null)
     {
         return $this->imap->batchMarkAsUnread($messages, $folder);
     }
@@ -138,12 +136,11 @@ class Client implements ImapInterface, SmtpInterface
      *
      *
      * @param  mixed  $id
-     * @param  null|\Modules\MailClient\Client\FolderIdentifier  $folder
      * @return \Modules\MailClient\Client\Contracts\MessageInterface
      *
      * @throws \Modules\MailClient\Client\Exceptions\MessageNotFoundException
      */
-    public function getMessage($id, ?FolderIdentifier $folder = null)
+    public function getMessage($id, FolderIdentifier $folder = null)
     {
         return $this->imap->getMessage($id, $folder);
     }
@@ -436,10 +433,9 @@ class Client implements ImapInterface, SmtpInterface
      * Reply to a given mail message
      *
      * @param  string  $remoteId
-     * @param  null|\Modules\MailClient\Client\FolderIdentifier  $folder
      * @return \Modules\MailClient\Client\Contracts\MessageInterface|null
      */
-    public function reply($remoteId, ?FolderIdentifier $folder = null)
+    public function reply($remoteId, FolderIdentifier $folder = null)
     {
         // Reply to mail message flag
         $this->buildDiskAttachments();
@@ -453,10 +449,9 @@ class Client implements ImapInterface, SmtpInterface
      * Forward the given mail message
      *
      * @param  string  $remoteId
-     * @param  null|\Modules\MailClient\Client\FolderIdentifier  $folder
      * @return \Modules\MailClient\Client\Contracts\MessageInterface|null
      */
-    public function forward($remoteId, ?FolderIdentifier $folder = null)
+    public function forward($remoteId, FolderIdentifier $folder = null)
     {
         // Forward mail message flag
         $this->buildDiskAttachments();

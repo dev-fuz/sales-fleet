@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -54,11 +54,8 @@ return [
     'interest_in_product' => 'Interest In Product',
     'resource_has_no_products' => 'No products created, start by adding products',
 
-    'deal_info' => 'Link products to the deal to create a list of the products the deal is related to, the deal amount is automatically calculated based on the added products.',
-
     'exists_in_trash_by_name' => 'Product with the same name already exists in the trash, would you like to restore the trashed product?',
 
-    'add_to_deal' => 'Add products to deal',
     'choose_or_enter' => 'Choose or enter a product',
 
     'cards' => [

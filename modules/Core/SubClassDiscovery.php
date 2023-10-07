@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -28,7 +28,7 @@ class SubClassDiscovery
 
     protected string $namespace;
 
-    public function __construct(protected string $subclass, null|string|array $directories = null)
+    public function __construct(protected string $subclass, string|array $directories = null)
     {
         $this->namespace = app()->getNamespace();
 

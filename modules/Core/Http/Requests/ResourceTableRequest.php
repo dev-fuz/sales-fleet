@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,6 @@
 namespace Modules\Core\Http\Requests;
 
 use Modules\Core\Contracts\Resources\Tableable;
-use Modules\Core\Resource\Http\ResourceRequest;
 use Modules\Core\Resource\Resource;
 use Modules\Core\Table\Table;
 

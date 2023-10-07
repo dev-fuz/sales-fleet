@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,13 +12,13 @@
 
 namespace Modules\Deals\Http\Resources;
 
-use App\Http\Resources\ProvidesCommonData;
 use Illuminate\Http\Request;
 use Modules\Activities\Http\Resources\ActivityResource;
+use Modules\Billable\Http\Resources\BillableResource;
 use Modules\Calls\Http\Resources\CallResource;
 use Modules\Core\Http\Resources\ChangelogResource;
 use Modules\Core\Http\Resources\MediaResource;
-use Modules\Core\Resource\Http\JsonResource;
+use Modules\Core\Resource\JsonResource;
 use Modules\Deals\Enums\DealStatus;
 use Modules\MailClient\Http\Resources\EmailAccountMessageResource;
 use Modules\Notes\Http\Resources\NoteResource;
@@ -26,12 +26,10 @@ use Modules\Notes\Http\Resources\NoteResource;
 /** @mixin \Modules\Deals\Models\Deal */
 class DealResource extends JsonResource
 {
-    use ProvidesCommonData;
-
     /**
      * Transform the resource collection into an array.
      *
-     * @param  \Modules\Core\Resource\Http\ResourceRequest  $request
+     * @param  \Modules\Core\Http\Requests\ResourceRequest  $request
      */
     public function toArray(Request $request): array
     {
@@ -40,6 +38,7 @@ class DealResource extends JsonResource
         return $this->withCommonData([
             'notes_count' => $this->whenCounted('notes', fn () => (int) $this->notes_count),
             'calls_count' => $this->whenCounted('calls', fn () => (int) $this->calls_count),
+            'products_count' => $this->whenCounted('calls', fn () => (int) $this->products_count),
 
             $this->mergeWhen($this->status === DealStatus::lost, [
                 'lost_reason' => $this->lost_reason,
@@ -61,6 +60,7 @@ class DealResource extends JsonResource
                 'time_in_stages' => $this->whenLoaded('stagesHistory', function () {
                     return $this->timeInStages();
                 }),
+                'billable' => new BillableResource($this->whenLoaded('billable')),
                 'changelog' => ChangelogResource::collection($this->whenLoaded('changelog')),
                 'notes' => NoteResource::collection($this->whenLoaded('notes')),
                 'calls' => CallResource::collection($this->whenLoaded('calls')),

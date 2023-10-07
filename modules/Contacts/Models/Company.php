@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -20,44 +20,47 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Activities\Concerns\HasActivities;
+use Modules\Calls\Concerns\HasCalls;
 use Modules\Contacts\Concerns\HasPhones;
 use Modules\Contacts\Concerns\HasSource;
 use Modules\Contacts\Database\Factories\CompanyFactory;
-use Modules\Core\Changelog\LogsModelChanges;
 use Modules\Core\Concerns\HasCountry;
 use Modules\Core\Concerns\HasCreator;
+use Modules\Core\Concerns\HasTags;
 use Modules\Core\Concerns\HasUuid;
+use Modules\Core\Concerns\LazyTouchesViaPivot;
 use Modules\Core\Concerns\Prunable;
-use Modules\Core\Contracts\Fields\HandlesChangedMorphManyAttributes;
 use Modules\Core\Contracts\Presentable;
-use Modules\Core\Media\HasMedia;
 use Modules\Core\Models\Model;
 use Modules\Core\Resource\Resourceable;
-use Modules\Core\Timeline\HasTimeline;
+use Modules\Core\Support\Media\HasMedia;
+use Modules\Core\Support\Timeline\HasTimeline;
 use Modules\Core\Workflow\HasWorkflowTriggers;
 use Modules\Deals\Concerns\HasDeals;
 use Modules\Documents\Concerns\HasDocuments;
 use Modules\MailClient\Concerns\HasEmails;
 
-class Company extends Model implements Presentable, HandlesChangedMorphManyAttributes
+class Company extends Model implements Presentable
 {
-    use HasCountry,
+    use HasActivities,
+        HasCalls,
+        HasCountry,
         HasCreator,
-        HasSource,
-        LogsModelChanges,
-        Resourceable,
-        HasUuid,
-        HasMedia,
-        HasWorkflowTriggers,
-        HasTimeline,
-        HasEmails,
         HasDeals,
         HasDocuments,
-        HasActivities,
+        HasEmails,
         HasFactory,
+        HasMedia,
         HasPhones,
-        SoftDeletes,
-        Prunable;
+        HasSource,
+        HasTags,
+        HasTimeline,
+        HasUuid,
+        HasWorkflowTriggers,
+        LazyTouchesViaPivot,
+        Prunable,
+        Resourceable,
+        SoftDeletes;
 
     /**
      * The attributes that aren't mass assignable.
@@ -127,40 +130,26 @@ class Company extends Model implements Presentable, HandlesChangedMorphManyAttri
         'parent_company_id' => 'int',
         'country_id' => 'int',
         'next_activity_id' => 'int',
+        'next_activity_date' => 'datetime',
     ];
 
     /**
-     * The fields for the model that are searchable.
+     * The columns for the model that are searchable.
      */
-    protected static array $searchableFields = [
+    protected static array $searchableColumns = [
         'name' => 'like',
         'email' => 'like',
         'domain',
+        'user_id',
+        'source_id',
+        'industry_id',
+        'created_by',
         'phones.number',
+        'country_id',
+        'postal_code',
+        'city',
+        'state',
     ];
-
-    /**
-     * Boot the model.
-     */
-    protected static function boot(): void
-    {
-        parent::boot();
-
-        static::restoring(function ($model) {
-            $model->logToAssociatedRelationsThatRelatedInstanceIsRestored(['contacts', 'deals']);
-        });
-
-        static::deleting(function ($model) {
-            if ($model->isForceDeleting()) {
-                $model->purge();
-            } else {
-                $model->logRelatedIsTrashed(['contacts', 'deals'], [
-                    'key' => 'core::timeline.associate_trashed',
-                    'attrs' => ['displayName' => $model->display_name],
-                ]);
-            }
-        });
-    }
 
     /**
      * Get the parent company
@@ -183,7 +172,9 @@ class Company extends Model implements Presentable, HandlesChangedMorphManyAttri
      */
     public function contacts(): MorphToMany
     {
-        return $this->morphToMany(\Modules\Contacts\Models\Contact::class, 'contactable')->withTimestamps()->orderBy('contactables.created_at');
+        return $this->morphToMany(\Modules\Contacts\Models\Contact::class, 'contactable')
+            ->withTimestamps()
+            ->orderBy('contactables.created_at');
     }
 
     /**
@@ -192,14 +183,6 @@ class Company extends Model implements Presentable, HandlesChangedMorphManyAttri
     public function notes(): MorphToMany
     {
         return $this->morphToMany(\Modules\Notes\Models\Note::class, 'noteable');
-    }
-
-    /**
-     * Get all of the calls for the company
-     */
-    public function calls(): MorphToMany
-    {
-        return $this->morphToMany(\Modules\Calls\Models\Call::class, 'callable');
     }
 
     /**
@@ -231,7 +214,9 @@ class Company extends Model implements Presentable, HandlesChangedMorphManyAttri
      */
     public function path(): Attribute
     {
-        return Attribute::get(fn () => "/companies/{$this->id}");
+        return Attribute::get(
+            fn () => "/companies/{$this->id}"
+        );
     }
 
     /**
@@ -242,12 +227,8 @@ class Company extends Model implements Presentable, HandlesChangedMorphManyAttri
         $query->withCount(['calls', 'notes'])->with([
             'parents',
             'media',
-            'changelog',
-            'changelog.pinnedTimelineSubjects',
             'contacts.phones', // for calling
-            'deals.stage', 'deals.pipeline', 'deals.pipeline.stages' => function ($query) {
-                return $query->orderBy('display_order');
-            },
+            'deals.stage', 'deals.pipeline', 'deals.pipeline.stages',
         ]);
     }
 
@@ -268,8 +249,16 @@ class Company extends Model implements Presentable, HandlesChangedMorphManyAttri
 
         $this->parents()->update(['parent_company_id' => null]);
 
-        $this->notes->each->delete();
-        $this->calls->each->delete();
+        $this->loadMissing('notes')->notes->each->delete();
+        $this->loadMissing('calls')->calls->each->delete();
+    }
+
+    /**
+     * Provide the related pivot relationships to touch.
+     */
+    protected function relatedPivotRelationsToTouch(): array
+    {
+        return ['contacts', 'deals'];
     }
 
     /**

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,7 +14,6 @@ namespace Modules\Core\Tests\Feature\Resource;
 
 use Modules\Contacts\Models\Contact;
 use Modules\Contacts\Resource\Contact\Contact as ContactResource;
-use Modules\Core\Database\Seeders\PermissionsSeeder;
 use Tests\TestCase;
 
 class GlobalSearchControllerTest extends TestCase
@@ -26,8 +25,6 @@ class GlobalSearchControllerTest extends TestCase
 
     public function test_own_criteria_is_applied_on_global_searching()
     {
-        $this->seed(PermissionsSeeder::class);
-
         $user = $this->asRegularUser()->withPermissionsTo('view own contacts')->signIn();
         $user1 = $this->createUser();
 

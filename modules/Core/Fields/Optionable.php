@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,51 +13,81 @@
 namespace Modules\Core\Fields;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Validator;
+use Modules\Core\HasOptions;
+use Modules\Core\Http\Requests\ResourceRequest;
+use Modules\Core\Resource\Resource;
 
 class Optionable extends Field
 {
-    use HasOptions,
-        ChangesKeys;
+    use ConfiguresOptions,
+        HasOptions {
+            HasOptions::resolveOptions as baseResolveOptions;
+        }
 
-    /**
-     * Cached options
-     */
     protected ?Collection $cachedOptions = null;
 
-    /**
-     * Indicates whether the field accept string as value
-     */
+    protected ?Collection $allCachedOptions = null;
+
     public bool $acceptLabelAsValue = false;
 
     /**
-     * Accept string value
-     *
-     * @return static
+     * Resolve the element options.
      */
-    public function acceptLabelAsValue()
+    public function resolveOptions(): array
     {
-        $this->acceptLabelAsValue = true;
+        if ($this->shoulUseZapierOptions()) {
+            return $this->formatOptions($this->zapierOptions());
+        }
 
-        $callback = function ($value, $request, $validator, $input) {
-            if ($this->isMultiOptionable()) {
-                $value = $this->parseValueAsLabelViaMultiOptionable($value);
-            } elseif (! is_numeric($value) && ! is_null($value)) {
-                $value = $this->parseValueAsLabelViaOptionable($value, $input);
-            }
-
-            return $value;
-        };
-
-        return $this->prepareForValidation($callback);
+        return $this->baseResolveOptions();
     }
 
     /**
-     * Get the sample value for the field
-     *
-     * @return string
+     * Accept string value.
      */
-    public function sampleValue()
+    public function acceptLabelAsValue(): static
+    {
+        $this->acceptLabelAsValue = true;
+
+        $this->prepareForValidation(function (mixed $value, ResourceRequest $request, Validator $validator) {
+            if (is_null($value)) {
+                return $value;
+            }
+
+            if ($this->isMultiOptionable()) {
+                [$valid, $invalid] = $this->parseValueAsLabelViaMultiOptionable($value, $request);
+
+                if (($totalInvalid = count($invalid)) > 0) {
+                    $this->addInvalidOptionValidationError($valid, trans_choice('validation.invalid_options', $totalInvalid, [
+                        'options' => collect($invalid)->implode(', '),
+                    ]));
+                }
+
+                return $valid;
+            } else {
+                // Accepts single options.
+                if ($option = $this->optionByLabel($value)) {
+                    // Provided option exists as a label.
+                    $value = $this->getKeyFromOption($option);
+                } elseif (! $this->optionByKey($value)) {
+                    // Provided option is key and does not exists, fail.
+                    $this->addInvalidOptionValidationError($validator);
+                }
+
+                return $value;
+            }
+        });
+
+        return $this;
+    }
+
+    /**
+     * Get the sample value for the field.
+     */
+    public function sampleValue(): mixed
     {
         if (is_callable($this->sampleValueCallback)) {
             return call_user_func_array($this->sampleValueCallback, [$this->attribute]);
@@ -69,32 +99,13 @@ class Optionable extends Field
     }
 
     /**
-     * Get option by given label
-     *
-     * @param  string  $label
-     * @return mixed
-     */
-    public function optionByLabel($label)
-    {
-        $label = is_string($label) ? Str::lower($label) : $label;
-
-        $callback = function ($option) use ($label) {
-            $optionLabel = is_array($option) ? $option[$this->labelKey] : $option->{$this->labelKey};
-
-            return (is_string($optionLabel) ? Str::lower($optionLabel) : $optionLabel) == $label;
-        };
-
-        return $this->getCachedOptionsCollection()->firstWhere($callback);
-    }
-
-    /**
-     * Get cached options collection
+     * Get cached options collection.
      *
      * When importing data, the label as value function will be called
      * multiple times, we don't want all the queries executed multiple times
      * from the fields which are providing options from the database.
      */
-    public function getCachedOptionsCollection(): Collection
+    public function getCachedOptions(): Collection
     {
         if (! $this->cachedOptions) {
             $this->cachedOptions = collect($this->resolveOptions());
@@ -104,54 +115,150 @@ class Optionable extends Field
     }
 
     /**
-     * Clear the cached options collection
+     * Get cached options collection.
+     *
+     * When importing data, the label as value function will be called
+     * multiple times, we don't want all the queries executed multiple times
+     * from the fields which are providing options from the database.
      */
-    public function clearCachedOptionsCollection(): static
+    public function getAllCachedOptions(): Collection
+    {
+        if (! $this->allCachedOptions) {
+            $this->allCachedOptions = collect($this->resolveAllOptions());
+        }
+
+        return $this->allCachedOptions;
+    }
+
+    /**
+     * Clear the cached options collections.
+     */
+    public function clearCachedOptions(): static
     {
         $this->cachedOptions = null;
+        $this->allCachedOptions = null;
 
         return $this;
     }
 
     /**
-     * Get the field value when label is provided
+     * Get option by given label.
      *
      * @param  string  $label
-     * @param  array  $input
      * @return mixed
      */
-    protected function parseValueAsLabelViaOptionable($label, $input)
+    public function optionByLabel($label, Collection $options = null)
     {
-        return $this->optionByLabel($label)[$this->valueKey] ?? null;
+        $label = is_string($label) ? Str::lower($label) : $label;
+
+        $callback = function ($option) use ($label) {
+            $optionLabel = $this->getKeyFromOption($option, $this->labelKey);
+
+            return (is_string($optionLabel) ? Str::lower($optionLabel) : $optionLabel) == $label;
+        };
+
+        return ($options ?? $this->getCachedOptions())->first($callback);
     }
 
     /**
-     * Get the field value when label is provided for multi optionable fields
+     * Find an option by the given key.
      */
-    protected function parseValueAsLabelViaMultiOptionable(array|string|null $value): array
+    public function optionByKey($value, Collection $options = null)
     {
-        if (is_null($value)) {
-            return [];
+        return ($options ?? $this->getCachedOptions())->first(function ($option) use ($value) {
+            $key = $this->getKeyFromOption($option);
+
+            return $key == $value;
+        });
+    }
+
+    /**
+     * Find option by key or label.
+     */
+    public function optionByKeyOrLabel(mixed $value, Collection $options = null): object|array|null
+    {
+        if ($option = $this->optionByKey($value, $options)) {
+            return $option;
         }
 
+        if ($option = $this->optionByLabel($value, $options)) {
+            return $option;
+        }
+
+        return null;
+    }
+
+    /**
+     * Find option by key or label from the non filtered options.
+     */
+    protected function optionByKeyOrLabelFromNonFilteredOptions(mixed $value): object|array|null
+    {
+        // It may happen the field to have filtered options for the specific user
+        // in this case, we will check whether the field provides the
+        // non filtered options and check if the provided value exists in the non filtered options
+        // in this case, we will allow the value to be saved in the database.
+        // e.q. user with ability to edit activity but this user is allowed to see his own team users only
+        // but the activity is assigned to a user from different team that the current user does not belongs to.
+        return $this->optionByKeyOrLabel($value, $this->getAllCachedOptions());
+    }
+
+    /**
+     * Get key from the given object.
+     */
+    public function getKeyFromOption(object|array $option, string $key = null): mixed
+    {
+        $key = $key ?? $this->valueKey;
+
+        return is_array($option) ? $option[$key] : $option->{$key};
+    }
+
+    /**
+     * Get the field value when label is provided for multi optionable fields.
+     */
+    public function parseValueAsLabelViaMultiOptionable(array|string|int $value): array
+    {
+        // valid, invalid
+        $ids = [[], []];
+
         if (is_string($value)) {
-            $value = Str::of($value)->explode(',')->map(fn ($content) => trim($content))->all();
+            $value = Str::of($value)->explode(',')->trim()->all();
         } elseif (is_int($value)) {
             $value = [$value];
         }
 
-        foreach ($value as $key => $label) {
-            if (! is_numeric($label)) {
-                if ($option = $this->optionByLabel($label)) {
-                    $value[$key] = $option[$this->valueKey] ?? null;
-                } else {
-                    // Invalid key provided
-                    unset($value[$key]);
-                }
+        foreach ($value as $id) {
+            if ($option = $this->optionByLabel($id)) {
+                $ids[0][] = $this->getKeyFromOption($option);
+            } elseif (! $this->optionByKey($id)) {
+                $ids[1][] = $id;
+            } else {
+                $ids[0][] = $id;
             }
         }
 
-        return array_filter(array_values($value));
+        $ids[0] = array_unique(array_filter($ids[0]));
+
+        return $ids;
+    }
+
+    /**
+     * Add invalid option error to the given validator.
+     */
+    protected function addInvalidOptionValidationError(Validator $validator, string $message = null): void
+    {
+        $validator->after(function (Validator $validator) use ($message) {
+            $validator->errors()->add(
+                $this->attribute, $message ?? __('validation.exists', ['attribute' => $this->label])
+            );
+        });
+    }
+
+    /**
+     * Check whether the Zapier options should be used.
+     */
+    protected function shoulUseZapierOptions(): bool
+    {
+        return Request::isZapier() && method_exists($this, 'zapierOptions');
     }
 
     /**
@@ -161,6 +268,10 @@ class Optionable extends Field
     {
         return array_merge(parent::jsonSerialize(), [
             'acceptLabelAsValue' => $this->acceptLabelAsValue,
+            'valueKey' => $this->valueKey,
+            'labelKey' => $this->labelKey,
+            'optionsViaResource' => $this->options instanceof Resource ? $this->options->name() : null,
+            'options' => $this->resolveOptions(),
         ]);
     }
 }

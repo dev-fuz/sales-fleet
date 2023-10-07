@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,23 +12,8 @@
 
 namespace Modules\Core\Fields;
 
-use Modules\Core\Contracts\Countable;
-use Modules\Core\Table\HasManyColumn;
-
-class HasMany extends Optionable implements Countable
+abstract class HasMany extends Field
 {
-    use Selectable, CountsRelationship;
-
-    /**
-     * Field JSON Resource
-     */
-    protected ?string $jsonResource = null;
-
-    /**
-     * Multi select custom component
-     */
-    public ?string $component = 'select-multiple-field';
-
     /**
      * Field relationship name
      */
@@ -45,68 +30,15 @@ class HasMany extends Optionable implements Countable
         parent::__construct($attribute, $label);
 
         $this->hasManyRelationship = $attribute;
-    }
 
-    /**
-     * Set the JSON resource class for the HasMany relation
-     */
-    public function setJsonResource(?string $resourceClass): static
-    {
-        $this->jsonResource = $resourceClass;
-
-        return $this;
-    }
-
-    /**
-     * Resolve the displayable field value
-     *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return string|null
-     */
-    public function resolveForDisplay($model)
-    {
-        if ($this->counts()) {
-            return $model->{$this->countKey()};
-        }
-
-        return parent::resolveForDisplay($model);
-    }
-
-    /**
-     * Resolve the field value for export
-     *
-     * When countable and value is zero, is shown as empty
-     * In this case, we cast the value as string
-     *
-     * @param  \Modules\Core\Models\Model  $model
-     * @return string|null
-     */
-    public function resolveForExport($model)
-    {
-        return (string) parent::resolveForExport($model);
-    }
-
-    /**
-     * Provide the column used for index
-     */
-    public function indexColumn(): HasManyColumn
-    {
-        return tap(new HasManyColumn(
-            $this->hasManyRelationship,
-            $this->labelKey,
-            $this->label
-        ), function ($column) {
-            if ($this->counts()) {
-                $column->count()->centered()->sortable();
-            }
+        $this->fillUsing(function () {
         });
     }
 
     /**
      * Get the mailable template placeholder
      *
-     * @param  \Modules\Core\Models\Model  $model
-     * @return null
+     * @param  \Modules\Core\Models\Model|null  $model
      */
     public function mailableTemplatePlaceholder($model)
     {
@@ -114,37 +46,20 @@ class HasMany extends Optionable implements Countable
     }
 
     /**
-     * Resolve the value for JSON Resource
-     *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return array|null
+     * Check whether the field is excluded from index query.
      */
-    public function resolveForJsonResource($model)
+    public function isExcludedFromIndexQuery(): bool
     {
-        if ($this->counts()) {
-            // We will check if the counted relation is null, this means that
-            // the relation is not loaded, we will just return null to prevent the
-            // attribute to be added in the JsonResource
-            return is_null($model->{$this->countKey()}) ? null : [$this->countKey() => (int) $model->{$this->countKey()}];
-        }
-
-        if ($this->shouldResolveForJson($model)) {
-            return with($this->jsonResource, function ($resource) use ($model) {
-                return [
-                    $this->attribute => $resource::collection($this->resolve($model)),
-                ];
-            });
-        }
+        return true;
     }
 
     /**
-     * Check whether the fields values should be resolved for JSON resource
-     *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return bool
+     * jsonSerialize
      */
-    protected function shouldResolveForJson($model)
+    public function jsonSerialize(): array
     {
-        return $model->relationLoaded($this->hasManyRelationship) && $this->jsonResource;
+        return array_merge(parent::jsonSerialize(), [
+            'hasManyRelationship' => $this->hasManyRelationship,
+        ]);
     }
 }

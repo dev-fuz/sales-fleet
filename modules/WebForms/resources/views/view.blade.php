@@ -1,4 +1,4 @@
-<x-core::layouts.skin>
+<x-core::layouts.skin :darkMode="false">
     @push('head')
         <meta name="robots" content="noindex">
     @endpush

@@ -4,6 +4,7 @@ namespace Tests;
 
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
+use Modules\Core\Database\Seeders\PermissionsSeeder;
 use Modules\Core\Models\Permission;
 use Modules\Core\Models\Role;
 use Modules\Users\Models\User;
@@ -98,16 +99,14 @@ trait CreatesUser
     /**
      * With permissions to
      *
-     * @param  array  $permissions
+     * @param  array|string  $permissions
      * @return self
      */
     protected function withPermissionsTo($permissions = [])
     {
-        if (! is_array($permissions)) {
-            $permissions = [$permissions];
-        }
+        $this->seed(PermissionsSeeder::class);
 
-        $this->withPermissionsTo = $permissions;
+        $this->withPermissionsTo = (array) $permissions;
 
         return $this;
     }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,7 @@
 namespace Modules\Activities\Calendar;
 
 use GuzzleHttp\Exception\ClientException;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
+use GuzzleHttp\Exception\RequestException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
@@ -28,7 +28,7 @@ use Modules\Core\Contracts\Synchronization\Synchronizable;
 use Modules\Core\Contracts\Synchronization\SynchronizesViaWebhook;
 use Modules\Core\Facades\MsGraph as Api;
 use Modules\Core\Models\Synchronization;
-use Modules\Core\Synchronization\Exceptions\InvalidSyncNotificationURLException;
+use Modules\Core\Support\Synchronization\Exceptions\InvalidSyncNotificationURLException;
 
 class OutlookCalendarSync extends CalendarSynchronization implements Synchronizable, SynchronizesViaWebhook
 {
@@ -205,16 +205,16 @@ class OutlookCalendarSync extends CalendarSynchronization implements Synchroniza
         $this->handleRequestExceptions(function () use ($activityId, $eventId) {
             $endpoint = $this->endpoint('/'.$eventId);
 
-            Api::immutable(fn () => Api::createDeleteRequest($endpoint)->execute());
-
-            // We will check if the ModelNotFoundException is throw
-            // It may happen if the deleteEvent is queued with closure via the
-            // service delete method the activity to be actuall deleted,
-            // in this case, we won't need to clear the synchronizations as they are already cleared
             try {
-                Activity::findOrFail($activityId)->deleteSynchronization($eventId, $this->calendar->getKey());
-            } catch (ModelNotFoundException) {
+                Api::immutable(fn () => Api::createDeleteRequest($endpoint)->execute());
+            } catch (RequestException $e) {
+                // https://stackoverflow.com/questions/55875130/calls-to-events-returning-error-this-operation-does-not-support-binding-to-a
+                if (! str_contains($e->getMessage(), 'This operation does not support binding to a non-calendar folder')) {
+                    throw $e;
+                }
             }
+
+            Activity::find($activityId)?->deleteSynchronization($eventId, $this->calendar->getKey());
         });
     }
 

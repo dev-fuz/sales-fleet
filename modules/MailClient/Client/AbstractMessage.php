@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -74,7 +74,7 @@ abstract class AbstractMessage extends AbstractMask implements MessageInterface
      * @param  \Closure|null  $replacer Provide a custom callback replace logic for the embedded images
      * @return string
      */
-    public function getPreviewBody(?Closure $replacer = null)
+    public function getPreviewBody(Closure $replacer = null)
     {
         $body = $this->getHTMLBody();
         $attachments = $this->getAttachments();

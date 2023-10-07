@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -51,9 +51,7 @@ class PendingMediaController extends ApiController
      */
     public function destroy(string $pendingMediaId): JsonResponse
     {
-        $media = PendingMedia::findOrFail($pendingMediaId);
-
-        $media->purge();
+        PendingMedia::findOrFail($pendingMediaId)->purge();
 
         return $this->response('', 204);
     }

@@ -1,13 +1,16 @@
 <template>
   <div ref="chartRef" class="ct-chart" />
 </template>
+
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import { LineChart, Interpolation } from 'chartist'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Interpolation, LineChart } from 'chartist'
 import ChartistTooltip from 'chartist-plugin-tooltips-updated'
+
+import { useAccounting } from '~/Core/composables/useAccounting'
+
 import 'chartist/dist/index.css'
 import 'chartist-plugin-tooltips-updated/dist/chartist-plugin-tooltip.css'
-import { useAccounting } from '~/Core/resources/js/composables/useAccounting'
 
 const props = defineProps(['chartData', 'amountValue'])
 

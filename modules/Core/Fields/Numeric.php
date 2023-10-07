@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,26 +13,31 @@
 namespace Modules\Core\Fields;
 
 use Akaunting\Money\Currency;
+use Exception;
 use Modules\Core\Contracts\Fields\Customfieldable;
 use Modules\Core\Facades\Innoclapps;
-use Modules\Core\Table\NumericColumn;
 
 class Numeric extends Field implements Customfieldable
 {
     /**
-     * This field support input group
+     * Field component.
      */
-    public bool $supportsInputGroup = true;
-
-    /**
-     * Field component
-     */
-    public ?string $component = 'numeric-field';
+    public static $component = 'numeric-field';
 
     /**
      * Field currency
      */
-    public null|Currency $currency = null;
+    public ?Currency $currency = null;
+
+    /**
+     * Append short text before the field.
+     */
+    public ?string $appendText = null;
+
+    /**
+     * Prepend short text after the field.
+     */
+    public ?string $prependText = null;
 
     /**
      * Initialize Numeric field
@@ -44,34 +49,13 @@ class Numeric extends Field implements Customfieldable
     {
         parent::__construct($attribute, $label);
 
-        $this->rules('nullable', 'numeric', 'decimal:0,3', 'min:0')
-            ->prepareForValidation(function ($value, $request, $validator) {
-                return with($value, function ($value) {
-                    if (Innoclapps::importStatus() === false) {
-                        return $value;
-                    }
-
-                    return $this->ensureProperImportValue($value);
-                });
-            })->withMeta(['attributes' => ['placeholder' => '--']])
-            ->provideSampleValueUsing(fn () => rand(20000, 40000));
-    }
-
-    /**
-     * Resolve the actual field value
-     *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @return mixed
-     */
-    public function resolve($model)
-    {
-        if (is_callable($this->resolveCallback)) {
-            return call_user_func_array($this->resolveCallback, [$model, $this->attribute]);
-        }
-
-        $value = $model->{$this->attribute};
-
-        return is_null($value) ? $value : (float) $value;
+        $this->rules(['nullable', 'numeric', 'decimal:0,3', 'min:0'])
+            ->prepareForValidation(function (mixed $value) {
+                return $this->parsePreValidationValue($value);
+            })
+            ->withMeta(['attributes' => ['placeholder' => '--']])
+            ->provideSampleValueUsing(fn () => rand(20000, 40000))
+            ->resolveUsing(fn ($model, $attribute) => is_null($model->{$attribute}) ? 0 : (float) $model->{$attribute});
     }
 
     /**
@@ -93,34 +77,55 @@ class Numeric extends Field implements Customfieldable
         }
 
         if ($this->currency) {
-            $value = to_money($value, $this->currency)->format();
+            return $this->currency->toMoney($value)->format();
         }
 
-        return $value;
+        return $this->appendText.$value.$this->prependText;
+    }
+
+    /**
+     * Prepend short text before the field.
+     */
+    public function prependText(string $text): static
+    {
+        throw_if(
+            ! is_null($this->currency),
+            new Exception('Method "prependText" cannot be used in combination with currency.')
+        );
+
+        $this->prependText = $text;
+
+        return $this;
+    }
+
+    /**
+     * Append short text after the field.
+     */
+    public function appendText(string $text): static
+    {
+        throw_if(
+            ! is_null($this->currency),
+            new Exception('Method "appendText" cannot be used in combination with currency.')
+        );
+
+        $this->appendText = $text;
+
+        return $this;
     }
 
     /**
      * Set the field currency
      */
-    public function currency(string|null|Currency $currency = null): static
+    public function currency(string|Currency $currency = null): static
     {
-        if (is_string($currency) || is_null($currency)) {
-            $currency = new Currency($currency ?: Innoclapps::currency());
-        }
+        throw_if(
+            ! is_null($this->appendText) || ! is_null($this->prependText),
+            new Exception('Method "currency" cannot be used in combination with "prependText" or "appendText".')
+        );
 
-        $this->currency = $currency;
+        $this->currency = Innoclapps::currency($currency);
 
-        $method = $currency->isSymbolFirst() ? 'inputGroupPrepend' : 'inputGroupAppend';
-
-        return $this->{$method}($currency->getCurrency());
-    }
-
-    /**
-     * Provide the column used for index
-     */
-    public function indexColumn(): NumericColumn
-    {
-        return (new NumericColumn($this->attribute, $this->label))->currency($this->currency);
+        return $this;
     }
 
     /**
@@ -137,6 +142,8 @@ class Numeric extends Field implements Customfieldable
 
     /**
      * Set the numeric field decimal precision
+     *
+     * Only use when no currency is provided.
      *
      * @param  int  $precision
      * @return static
@@ -209,12 +216,12 @@ class Numeric extends Field implements Customfieldable
     }
 
     /**
-     * Ensure that the given value is formatted for import
+     * Ensure that the given value is parsed.
      *
      * @param  mixed  $value
      * @return mixed
      */
-    protected function ensureProperImportValue($value)
+    protected function parsePreValidationValue($value)
     {
         if (is_null($value) || is_int($value) || is_float($value)) {
             return $value;
@@ -235,11 +242,28 @@ class Numeric extends Field implements Customfieldable
         }
 
         // If currency is found, we will strip the currency code from the
-        // value and return unly the unformatted number for storage
+        // value and return only the unformatted number for storage
         if ($currencyCode && $currency = config('money.'.strtoupper($currencyCode))) {
             return $this->unformatNumber($value, true, $currency['decimal_mark'], $currency['thousands_separator']);
         }
 
         return $value;
+    }
+
+    /**
+     * Serialize for front end
+     */
+    public function jsonSerialize(): array
+    {
+        return array_merge(parent::jsonSerialize(), [
+            'currency' => $this->currency ? with($this->currency, function ($currency) {
+                return array_merge(
+                    $currency->toArray()[$isoCode = $currency->getCurrency()],
+                    ['iso_code' => $isoCode]
+                );
+            }) : null,
+            'prependText' => $this->prependText,
+            'appendText' => $this->appendText,
+        ]);
     }
 }

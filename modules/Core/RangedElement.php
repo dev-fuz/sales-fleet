@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,10 +12,11 @@
 
 namespace Modules\Core;
 
-use Illuminate\Support\Facades\Request;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Request as RequestFacade;
 use InvalidArgumentException;
 use JsonSerializable;
-use Modules\Core\Date\Carbon;
+use Modules\Core\Support\Date\Carbon;
 
 class RangedElement implements JsonSerializable
 {
@@ -50,10 +51,8 @@ class RangedElement implements JsonSerializable
 
     /**
      * Get the current range for the given request
-     *
-     * @param  \Illuminate\Http\Request  $request
      */
-    protected function getCurrentRange($request): string|int|null
+    protected function getCurrentRange(Request $request): string|int|null
     {
         return $request->range ?? $this->defaultRange ?? array_keys($this->ranges())[0] ?? null;
     }
@@ -71,9 +70,8 @@ class RangedElement implements JsonSerializable
     /**
      * Determine the proper aggregate starting date.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @param  string  $unit
-     * @return \Modules\Core\Date\Carbon
+     * @return \Modules\Core\Support\Date\Carbon
      */
     protected function getStartingDate($range, $unit)
     {
@@ -94,7 +92,7 @@ class RangedElement implements JsonSerializable
     public function jsonSerialize(): array
     {
         return [
-            'range' => $this->getCurrentRange(Request::instance()),
+            'range' => $this->getCurrentRange(RequestFacade::instance()),
             'ranges' => $this->getFormattedRanges(),
         ];
     }

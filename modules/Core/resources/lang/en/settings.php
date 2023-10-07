@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -63,14 +63,5 @@ return [
         'migrate' => 'Run the database migrations',
         'optimize' => 'Cache the application bootstrap files like config and routes.',
         'seed-mailables' => 'Seed the application mail templates',
-    ],
-
-    'integrations' => [
-        'twilio' => [
-            'create_app' => 'Create Application',
-            'disconnect' => 'Disconnect Integration',
-            'number' => 'Select Twilio number from your account that will be used to make and receive calls.',
-            'app' => 'Create application that will handle initiating new calls and incoming calls.',
-        ],
     ],
 ];

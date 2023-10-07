@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Modules\Core\Facades\Innoclapps;
+use Modules\Core\Rules\ValidLocaleRule;
 use Modules\Core\Rules\ValidTimezoneCheckRule;
 use Modules\Users\Models\User;
 use Modules\Users\Models\UserInvitation;
@@ -51,19 +52,19 @@ class UserInvitationAcceptController extends Controller
             'email' => 'email|max:191|unique:'.(new User())->getTable(),
             'password' => 'required|confirmed|min:6',
             'timezone' => ['required', new ValidTimezoneCheckRule],
-            'locale' => ['nullable', Rule::in(Innoclapps::locales())],
+            'locale' => ['nullable', new ValidLocaleRule],
             'date_format' => ['required', Rule::in(config('core.date_formats'))],
             'time_format' => ['required', Rule::in(config('core.time_formats'))],
             'first_day_of_week' => 'required|in:1,6,0',
         ]);
 
-        $user = $service->create(array_merge($data, [
+        $user = $service->create(new User, array_merge($data, [
             'super_admin' => $invitation->super_admin,
             'access_api' => $invitation->access_api,
             'roles' => $invitation->roles,
             'teams' => $invitation->teams,
             'email' => $invitation->email,
-            'notifications' => collect(Innoclapps::notificationsInformation())->mapWithKeys(function ($setting) {
+            'notifications' => collect(Innoclapps::notificationsPreferences())->mapWithKeys(function ($setting) {
                 return [$setting['key'] => $setting['channels']->mapWithKeys(function ($channel) {
                     return [$channel => true];
                 })->all()];

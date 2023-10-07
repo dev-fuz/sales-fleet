@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,7 @@
 namespace Modules\MailClient\Client\Gmail;
 
 use Modules\Core\Facades\Google as Client;
-use Modules\Core\OAuth\AccessTokenProvider;
+use Modules\Core\Support\OAuth\AccessTokenProvider;
 use Modules\MailClient\Client\AbstractSmtpClient;
 use Modules\MailClient\Client\Compose\PreparesSymfonyMessage;
 use Modules\MailClient\Client\FolderIdentifier;
@@ -51,7 +51,7 @@ class SmtpClient extends AbstractSmtpClient
      * @param  string  $remoteId
      * @return \Modules\MailClient\Client\Contracts\MessageInterface
      */
-    public function reply($remoteId, ?FolderIdentifier $folder = null)
+    public function reply($remoteId, FolderIdentifier $folder = null)
     {
         /** @var \Modules\MailClient\Client\Gmail\Message * */
         $remoteMessage = $this->imap->getMessage($remoteId);
@@ -82,7 +82,7 @@ class SmtpClient extends AbstractSmtpClient
      * @param  int  $remoteId
      * @return \Modules\MailClient\Client\Contracts\MessageInterface
      */
-    public function forward($remoteId, ?FolderIdentifier $folder = null)
+    public function forward($remoteId, FolderIdentifier $folder = null)
     {
         /** @var \Modules\MailClient\Client\Gmail\Message * */
         $remoteMessage = $this->imap->getMessage($remoteId);

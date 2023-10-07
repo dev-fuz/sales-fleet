@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,8 +16,8 @@ use Illuminate\Http\JsonResponse;
 use Modules\Core\Contracts\Resources\HasEmail;
 use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Http\Controllers\ApiController;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Resource\EmailSearch;
-use Modules\Core\Resource\Http\ResourceRequest;
 
 class EmailSearchController extends ApiController
 {
@@ -33,7 +33,7 @@ class EmailSearchController extends ApiController
         $resources = Innoclapps::registeredResources()->whereInstanceOf(HasEmail::class);
 
         return $this->response(
-            new EmailSearch($request, $resources)
+            new EmailSearch($request, $resources->all())
         );
     }
 }

@@ -2,10 +2,10 @@
   <ICard :header="$t('core::app.system_info')" no-body>
     <template #actions>
       <IButton
-        @click="download"
         size="sm"
         icon="DocumentDownload"
         variant="white"
+        @click="download"
       />
     </template>
     <ITable>
@@ -18,16 +18,18 @@
             <span
               class="text-neutral-500 dark:text-neutral-300"
               v-text="value"
-             />
+            />
           </td>
         </tr>
       </tbody>
     </ITable>
   </ICard>
 </template>
+
 <script setup>
 import { ref } from 'vue'
 import FileDownload from 'js-file-download'
+
 const info = ref({})
 
 function retrieve() {

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -19,7 +19,6 @@ use Modules\Activities\Models\Calendar;
 use Modules\Activities\Services\ActivityGuestService;
 use Modules\Contacts\Models\Contact;
 use Modules\Core\Facades\ChangeLogger;
-use Modules\Core\Fields\User as UserField;
 use Modules\Core\Models\OAuthAccount;
 use Modules\Users\Models\User;
 
@@ -30,11 +29,6 @@ class CalendarSynchronization
      */
     protected function processViaChange(array $data, User $user, string|int $eventId, string $iCalUID, Calendar $calendar): array
     {
-        UserField::setAssigneer($user);
-
-        // Will help as well executing the changes faster to prevent webhooks overlapping
-        UserField::skipNotification();
-
         ChangeLogger::disable();
 
         $guests = Arr::pull($data, 'guests', []);
@@ -65,24 +59,22 @@ class CalendarSynchronization
      */
     protected function getActivityInstanceFromEvent(int|string $eventId, array $attributes, User $user, Calendar $calendar): Activity
     {
-        $instance = Activity::byEventSyncId($eventId)->first();
+        $instance = Activity::byEventSyncId($eventId)->first() ?? new Activity;
 
-        if ($instance) {
-            $instance->calendarable = false;
+        $instance->calendarable = false;
 
-            if ($instance->trashed()) {
-                $instance->restore();
-            }
+        if ($instance->trashed()) {
+            $instance->restore();
         }
 
-        $attributes = array_merge($attributes, ! $instance ? [
+        $attributes = array_merge($attributes, ! $instance->exists ? [
             'user_id' => $user->getKey(),
             'created_by' => $user->getKey(),
             'owner_assigned_date' => now(),
             'activity_type_id' => $calendar->activity_type_id,
         ] : []);
 
-        return ($instance ?: new Activity)->forceFill($attributes);
+        return $instance->forceFill($attributes);
     }
 
     /**
@@ -178,7 +170,7 @@ class CalendarSynchronization
     /**
      * Determine the activity user from the given email address
      */
-    protected function determineUser(?string $email, ?User $default = null): ?User
+    protected function determineUser(?string $email, User $default = null): ?User
     {
         if (empty($email)) {
             return $default;

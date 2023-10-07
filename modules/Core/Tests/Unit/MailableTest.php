@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,7 +12,6 @@
 
 namespace Modules\Core\Tests\Unit;
 
-use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\File;
 use Modules\Core\Facades\MailableTemplates;
 use Modules\Core\Models\MailableTemplate;
@@ -23,9 +22,6 @@ class MailableTest extends TestCase
 {
     public function test_mailable_template_is_seeded_when_new_mailable_exist()
     {
-        RefreshDatabaseState::$lazilyRefreshed = true;
-        $this->baseRefreshDatabase();
-
         MailableTemplates::dontDiscover();
         MailableTemplates::flushCache()->register(SampleMailTemplate::class)->seedIfRequired();
 
@@ -41,9 +37,6 @@ class MailableTest extends TestCase
 
     public function test_mailable_templates_are_seeded_when_new_locale_exist()
     {
-        RefreshDatabaseState::$lazilyRefreshed = true;
-        $this->baseRefreshDatabase();
-
         File::ensureDirectoryExists(lang_path('en_TEST'));
 
         MailableTemplates::seedIfRequired();
@@ -54,9 +47,6 @@ class MailableTest extends TestCase
 
     public function test_mailable_templates_are_seeded_for_all_locales()
     {
-        RefreshDatabaseState::$lazilyRefreshed = true;
-        $this->baseRefreshDatabase();
-
         File::ensureDirectoryExists(lang_path('en_TEST'));
         File::ensureDirectoryExists(lang_path('fr_TEST'));
 

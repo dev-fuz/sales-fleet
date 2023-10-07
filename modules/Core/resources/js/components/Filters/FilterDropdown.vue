@@ -1,9 +1,9 @@
 <template>
   <IDropdown
+    ref="dropdownRef"
     :placement="placement"
     wrapper-class="w-full flex-1"
     class="min-w-0 max-w-full sm:max-w-xs"
-    ref="dropdownRef"
     icon="Filter"
     no-caret
     v-bind="$attrs"
@@ -19,8 +19,8 @@
         class="border-b border-neutral-200 px-4 py-3 dark:border-neutral-700"
       >
         <a
+          v-t="'core::filters.new'"
           href="#"
-          @click.prevent="initiateNewFilter"
           :class="[
             'link mr-2 text-sm',
             {
@@ -28,27 +28,28 @@
                 activeFilter,
             },
           ]"
-          v-t="'core::filters.new'"
+          @click.prevent="initiateNewFilter"
         />
 
         <a
           v-show="activeFilter"
+          v-t="'core::filters.edit'"
           href="#"
           class="link border-r border-neutral-300 pr-2 text-sm dark:border-neutral-700"
           @click.prevent="initiateEdit"
-          v-t="'core::filters.edit'"
         />
 
         <a
-          href="#"
           v-show="activeFilter"
+          v-t="'core::filters.clear_applied'"
+          href="#"
           class="link pl-2 text-sm"
           @click.prevent="clearActive"
-          v-t="'core::filters.clear_applied'"
         />
 
-        <FormInputSearch
+        <SearchInput
           v-model="search"
+          size="sm"
           class="mt-3"
           :placeholder="$t('core::filters.search')"
         />
@@ -64,8 +65,8 @@
 
       <p
         v-show="!hasSavedFilters || searchResultIsEmpty"
-        class="block px-4 py-2 text-center text-sm text-neutral-500 dark:text-neutral-300"
         v-t="'core::filters.not_available'"
+        class="block px-4 py-2 text-sm text-neutral-500 dark:text-neutral-300"
       />
 
       <div
@@ -85,16 +86,15 @@
     </div>
   </IDropdown>
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
+
+import { useQueryBuilder } from '~/Core/composables/useQueryBuilder'
+
+import { useFilterable } from '../../composables/useFilterable'
+
 import FilterDropdownItem from './FilterDropdownItem.vue'
-import { useQueryBuilder } from '~/Core/resources/js/components/QueryBuilder/useQueryBuilder'
-import { useFilterable } from './useFilterable'
 
 const emit = defineEmits(['apply'])
 
@@ -102,6 +102,10 @@ const props = defineProps({
   placement: { default: 'bottom-end', type: String },
   identifier: { required: true, type: String },
   view: { required: true, type: String },
+})
+
+defineOptions({
+  inheritAttrs: false,
 })
 
 const { queryBuilderRules, rulesAreVisible, toggleFiltersRules } =

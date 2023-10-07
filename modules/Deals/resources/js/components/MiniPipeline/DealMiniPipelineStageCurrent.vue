@@ -1,9 +1,9 @@
 <template>
   <a
     href="#"
-    @click.prevent="$emit('click')"
-    class="flex items-center py-2 px-4 text-sm font-medium"
+    class="flex items-center px-4 py-2 text-sm font-medium"
     aria-current="step"
+    @click.prevent="$emit('click')"
   >
     <span
       class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-success-500 dark:border-success-400"
@@ -27,6 +27,7 @@
     </span>
   </a>
 </template>
+
 <script setup>
 defineEmits(['click'])
 

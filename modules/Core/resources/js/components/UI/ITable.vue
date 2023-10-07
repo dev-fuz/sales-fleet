@@ -1,7 +1,7 @@
 <template>
   <div
-    class="table-responsive"
     ref="elRef"
+    class="table-responsive"
     :style="{ maxHeight: maxHeight }"
     :class="[
       wrapperClass,
@@ -34,21 +34,21 @@
     </div>
   </div>
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
-import { ref, computed, useAttrs } from 'vue'
+import { computed, ref, useAttrs } from 'vue'
 
 defineProps({
   maxHeight: String,
   condensed: Boolean,
   wrapperClass: [String, Object, Array],
   shadow: { default: true, type: Boolean },
-  bordered: { default: false, type: Boolean },
-  sticky: { default: false, type: Boolean },
+  bordered: Boolean,
+  sticky: Boolean,
+})
+
+defineOptions({
+  inheritAttrs: false,
 })
 
 const elRef = ref(null)
@@ -58,6 +58,7 @@ const tableAttrs = computed(() => {
   const result = { ...attrs }
   delete result.class
   delete result.style
+
   return result
 })
 

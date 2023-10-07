@@ -1,16 +1,19 @@
-import { defineConfig, splitVendorChunkPlugin } from 'vite'
-import laravel from 'laravel-vite-plugin'
-import vue from '@vitejs/plugin-vue'
 import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
+import vue from '@vitejs/plugin-vue'
+import laravel from 'laravel-vite-plugin'
 import Unfonts from 'unplugin-fonts/vite'
+import { defineConfig, splitVendorChunkPlugin } from 'vite'
 
 export default defineConfig({
   resolve: {
-    alias: {
-      '@': '/resources/js',
-      '~': '/modules',
-      vue: 'vue/dist/vue.esm-bundler.js',
-    },
+    alias: [
+      { find: '@', replacement: '/resources/js' },
+      {
+        find: /~\/([a-zA-Z]+)\/(.*)/,
+        replacement: '/modules/$1/resources/js/$2',
+      },
+      { find: 'vue', replacement: 'vue/dist/vue.esm-bundler.js' },
+    ],
   },
   server: {
     hmr: {

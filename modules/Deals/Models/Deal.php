@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -25,18 +25,19 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 use Modules\Activities\Concerns\HasActivities;
 use Modules\Billable\Concerns\HasProducts;
+use Modules\Calls\Concerns\HasCalls;
 use Modules\Core\Casts\ISO8601Date;
-use Modules\Core\Changelog\LogsModelChanges;
 use Modules\Core\Concerns\HasCreator;
+use Modules\Core\Concerns\HasTags;
 use Modules\Core\Concerns\HasUuid;
+use Modules\Core\Concerns\LazyTouchesViaPivot;
 use Modules\Core\Concerns\Prunable;
 use Modules\Core\Contracts\Presentable;
 use Modules\Core\Facades\ChangeLogger;
-use Modules\Core\Media\HasMedia;
 use Modules\Core\Models\Model;
-use Modules\Core\Models\PinnedTimelineSubject;
 use Modules\Core\Resource\Resourceable;
-use Modules\Core\Timeline\HasTimeline;
+use Modules\Core\Support\Media\HasMedia;
+use Modules\Core\Support\Timeline\HasTimeline;
 use Modules\Core\Workflow\HasWorkflowTriggers;
 use Modules\Deals\Database\Factories\DealFactory;
 use Modules\Deals\Enums\DealStatus;
@@ -45,21 +46,23 @@ use Modules\MailClient\Concerns\HasEmails;
 
 class Deal extends Model implements Presentable
 {
-    use LogsModelChanges,
-        Resourceable,
-        HasUuid,
-        HasMedia,
+    use BroadcastsEvents,
+        HasActivities,
+        HasCalls,
         HasCreator,
-        HasWorkflowTriggers,
-        HasTimeline,
+        HasDocuments,
         HasEmails,
         HasFactory,
-        HasActivities,
+        HasMedia,
         HasProducts,
-        HasDocuments,
-        SoftDeletes,
-        BroadcastsEvents,
-        Prunable;
+        HasTags,
+        HasTimeline,
+        HasUuid,
+        HasWorkflowTriggers,
+        LazyTouchesViaPivot,
+        Prunable,
+        Resourceable,
+        SoftDeletes;
 
     /**
      * The attributes that aren't mass assignable.
@@ -105,9 +108,9 @@ class Deal extends Model implements Presentable
         'lost_date',
         'lost_reason',
         'next_activity_id',
+        'deleted_at',
         // Stage change are handled via custom pivot log events
         'stage_id',
-        'deleted_at',
     ];
 
     /**
@@ -142,14 +145,20 @@ class Deal extends Model implements Presentable
         'created_by' => 'int',
         'web_form_id' => 'int',
         'next_activity_id' => 'int',
+        'next_activity_date' => 'datetime',
     ];
 
     /**
-     * The fields for the model that are searchable.
+     * The columns for the model that are searchable.
      */
-    protected static array $searchableFields = [
-        'pipeline_id',
+    protected static array $searchableColumns = [
         'name' => 'like',
+        'pipeline_id',
+        'created_by',
+        'user_id',
+        'stage_id',
+        'status',
+        'amount',
     ];
 
     /**
@@ -163,89 +172,12 @@ class Deal extends Model implements Presentable
     public bool $broadcastToCurrentUser = false;
 
     /**
-     * Boot the model
-     */
-    protected static function boot(): void
-    {
-        parent::boot();
-
-        static::restoring(function ($model) {
-            $model->logToAssociatedRelationsThatRelatedInstanceIsRestored(['contacts', 'companies']);
-        });
-
-        static::created(function ($model) {
-            if ($model->status === DealStatus::open) {
-                $model->startStageHistory();
-            }
-        });
-
-        static::saving(function ($model) {
-            if ($model->isDirty('status')) {
-                if ($model->status === DealStatus::open) {
-                    $model->fill(['won_date' => null, 'lost_date' => null, 'lost_reason' => null]);
-                } elseif ($model->status === DealStatus::lost) {
-                    $model->fill(['lost_date' => now(), 'won_date' => null]);
-                } else {
-                    // won status
-                    $model->fill(['won_date' => now(), 'lost_date' => null, 'lost_reason' => null]);
-                }
-            }
-        });
-
-        static::updating(function ($model) {
-            if ($model->isDirty('stage_id')) {
-                $model->stage_changed_date = now();
-            }
-
-            if (! $model->isDirty('status')) {
-                // Guard these attributes when the status is not changed
-                foreach (['won_date', 'lost_date'] as $guarded) {
-                    if ($model->isDirty($guarded)) {
-                        $model->fill([$guarded => $model->getOriginal($guarded)]);
-                    }
-                }
-
-                // Allow updating the lost reason only when status is lost
-                if ($model->status !== DealStatus::lost && $model->isDirty('lost_reason')) {
-                    $model->fill(['lost_reason' => $model->getOriginal('lost_reason')]);
-                }
-            }
-        });
-
-        static::updated(function ($model) {
-            if ($model->wasChanged('status')) {
-                if ($model->status === DealStatus::won || $model->status === DealStatus::lost) {
-                    $model->stopLastStageTiming();
-                } else {
-                    // changed to open
-                    $model->startStageHistory();
-                }
-            }
-
-            if ($model->wasChanged('stage_id') && $model->status === DealStatus::open) {
-                $model->recordStageHistory($model->stage_id);
-            }
-        });
-
-        static::deleting(function ($model) {
-            if ($model->isForceDeleting()) {
-                $model->purge();
-            } else {
-                $model->logRelatedIsTrashed(['contacts', 'companies'], [
-                    'key' => 'core::timeline.associate_trashed',
-                    'attrs' => ['displayName' => $model->display_name],
-                ]);
-            }
-        });
-    }
-
-    /**
      * Check whether the falls behind the expected close date
      */
     public function fallsBehindExpectedCloseDate(): Attribute
     {
         return Attribute::get(function () {
-            if (! $this->expected_close_date || $this->status !== DealStatus::open) {
+            if (! $this->expected_close_date || ! $this->isOpen()) {
                 return false;
             }
 
@@ -254,22 +186,66 @@ class Deal extends Model implements Presentable
     }
 
     /**
-     * Mark the deal as lost
+     * Determine whether the deal is lost.
      */
-    public function markAsLost(?string $reason = null): static
+    public function isLost(): bool
     {
-        if ($reason) {
-            $this->lost_reason = $reason;
+        return $this->status === DealStatus::lost;
+    }
+
+    /**
+     * Determine whether the deal is won.
+     */
+    public function isWon()
+    {
+        return $this->status === DealStatus::won;
+    }
+
+    /**
+     * Determine whether the deal is open.
+     */
+    public function isOpen(): bool
+    {
+        return $this->status === DealStatus::open;
+    }
+
+    /**
+     * Check whether the status for the deal can be changed.
+     */
+    public function isStatusLocked(DealStatus $status): bool
+    {
+        // If it's the same status, it's not locked.
+        if ($this->status === $status) {
+            return false;
         }
 
-        $this->status = DealStatus::lost;
-        $this->save();
+        if ($this->isLost() || $this->isWon()) {
+            return $status !== DealStatus::open;
+        }
 
-        $activity = $this->logStatusChangeActivity('marked_as_lost', ['reason' => $this->lost_reason]);
+        return false;
+    }
 
-        $attrs = [$this->id, static::class, $activity->getKey(), $activity::class];
+    /**
+     * Fill the deal status.
+     */
+    public function fillStatus(DealStatus $status, string $lostReason = null): static
+    {
+        $this->status = $status;
 
-        (new PinnedTimelineSubject())->pin(...$attrs);
+        if ($status === DealStatus::lost) {
+            $this->lost_reason = $lostReason;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Mark the deal as lost
+     */
+    public function markAsLost(string $reason = null): static
+    {
+        $this->fillStatus(DealStatus::lost, $reason)->save();
 
         return $this;
     }
@@ -279,10 +255,7 @@ class Deal extends Model implements Presentable
      */
     public function markAsWon(): static
     {
-        $this->status = DealStatus::won;
-        $this->save();
-
-        $this->logStatusChangeActivity('marked_as_won');
+        $this->fillStatus(DealStatus::won)->save();
 
         return $this;
     }
@@ -292,23 +265,9 @@ class Deal extends Model implements Presentable
      */
     public function markAsOpen(): static
     {
-        $this->status = DealStatus::open;
-        $this->save();
-        $this->logStatusChangeActivity('marked_as_open');
+        $this->fillStatus(DealStatus::open)->save();
 
         return $this;
-    }
-
-    /**
-     * Change the deal status
-     */
-    public function changeStatus(DealStatus $status, ?string $lostReason = null): static
-    {
-        return match ($status) {
-            DealStatus::won => $this->markAsWon(),
-            DealStatus::lost => $this->markAsLost($lostReason),
-            DealStatus::open => $this->markAsOpen(),
-        };
     }
 
     /**
@@ -316,11 +275,11 @@ class Deal extends Model implements Presentable
      *
      * @return \Modules\Core\Models\Changelog
      */
-    protected function logStatusChangeActivity(string $langKey, array $attrs = [])
+    public function logStatusChangeActivity(string $type, array $attrs = [])
     {
         return ChangeLogger::onModel($this, [
             'lang' => [
-                'key' => 'deals::deal.timeline.'.$langKey,
+                'key' => 'deals::deal.timeline.'.$type,
                 'attrs' => $attrs,
             ],
         ])->log();
@@ -443,14 +402,6 @@ class Deal extends Model implements Presentable
     }
 
     /**
-     * Get all of the calls for the deal
-     */
-    public function calls(): MorphToMany
-    {
-        return $this->morphToMany(\Modules\Calls\Models\Call::class, 'callable');
-    }
-
-    /**
      * Get the deal owner
      */
     public function user(): BelongsTo
@@ -471,7 +422,9 @@ class Deal extends Model implements Presentable
      */
     public function path(): Attribute
     {
-        return Attribute::get(fn () => "/deals/{$this->id}");
+        return Attribute::get(
+            fn () => "/deals/{$this->id}"
+        );
     }
 
     /**
@@ -571,7 +524,17 @@ class Deal extends Model implements Presentable
      */
     public function scopeClosed(Builder $query): void
     {
-        $query->where('status', DealStatus::won)->orWhere('status', DealStatus::lost);
+        $query->where(function (Builder $query) {
+            $query->where('status', DealStatus::won)->orWhere('status', DealStatus::lost);
+        });
+    }
+
+    /**
+     * Scope a query to only include only deals of the given pipeline.
+     */
+    public function scopeOfPipeline(Builder $query, Pipeline|int $pipeline): void
+    {
+        $query->where('pipeline_id', is_int($pipeline) ? $pipeline : $pipeline->getKey());
     }
 
     /**
@@ -579,20 +542,12 @@ class Deal extends Model implements Presentable
      */
     public function scopeWithCommon(Builder $query): void
     {
-        $query->withCount(['calls', 'notes'])->with([
-            'changelog',
-            'changelog.pinnedTimelineSubjects',
+        $query->withCount(['calls', 'notes', 'products'])->with([
             'stagesHistory',
             'media',
             'contacts.phones', // for calling
             'companies.phones', // for calling
-            'billable',
-            'billable.products',
-            'billable.products.originalProduct',
-            'billable.products.billable',
-            'pipeline.stages' => function ($query) {
-                $query->orderByDisplayOrder();
-            },
+            'pipeline.stages',
         ]);
     }
 
@@ -611,12 +566,22 @@ class Deal extends Model implements Presentable
             });
         }
 
+        $this->loadMissing('billable');
+
         if ($this->billable) {
             $this->billable->delete();
         }
 
-        $this->notes->each->delete();
-        $this->calls->each->delete();
+        $this->loadMissing('notes')->notes->each->delete();
+        $this->loadMissing('calls')->calls->each->delete();
+    }
+
+    /**
+     * Provide the related pivot relationships to touch.
+     */
+    protected function relatedPivotRelationsToTouch(): array
+    {
+        return ['companies', 'deals'];
     }
 
     /**

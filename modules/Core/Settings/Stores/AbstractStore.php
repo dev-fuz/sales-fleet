@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,7 +14,6 @@ namespace Modules\Core\Settings\Stores;
 
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Contracts\Foundation\Application;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Crypt;
 use Modules\Core\Settings\Contracts\Store;
 use Modules\Core\Settings\Utilities\Arr;
@@ -31,6 +30,9 @@ abstract class AbstractStore implements Store
      */
     protected array $original = [];
 
+    /**
+     * Config overrides.
+     */
     protected array $overrides;
 
     /**
@@ -163,68 +165,37 @@ abstract class AbstractStore implements Store
     {
         if (! $this->isSaved()) {
             $this->write($this->data);
-            $this->recacheConfigIfOverridesChanged();
             $this->original = $this->data;
             $this->unsaved = false;
-            $this->configureOverrides();
+            $this->overrideConfig();
         }
 
         return $this;
     }
 
     /**
-     * Configure the settings overrides for Laravel configuration.
+     * Add override keys.
      */
-    public function configureOverrides(): void
+    public function override(array $keys): static
     {
-        foreach (Arr::dot($this->overrides) as $configKey => $settingKey) {
+        $this->overrides = array_merge($this->overrides, $keys);
+        $this->overrideConfig($keys);
+
+        return $this;
+    }
+
+    /**
+     * Override the Laravel config.
+     */
+    public function overrideConfig($overrides = []): void
+    {
+        foreach (Arr::dot($overrides ?: $this->overrides) as $configKey => $settingKey) {
             $configKey = $configKey ?: $settingKey;
             $value = $this->get($settingKey);
 
             if (! is_null($value)) {
-                config()->set([$configKey => $value]);
+                config([$configKey => $value]);
             }
-        }
-    }
-
-    /**
-     * Reache the config if settings that overrides config has changed
-     *
-     * The config may be cached with overrides set and when the settings are updated
-     * e.q set to null, the Laravel config won't be updated because only non-null values are overridden
-     */
-    protected function recacheConfigIfOverridesChanged(): void
-    {
-        if (! file_exists($this->app->getCachedConfigPath())) {
-            return;
-        }
-
-        $recache = false;
-
-        foreach ($this->overrides as $settingKey) {
-            // Was null
-            if (! array_key_exists($settingKey, $this->original)) {
-                // Is value set now?
-                if (! is_null($this->get($settingKey))) {
-                    $recache = true;
-
-                    break;
-                }
-
-                // Not modified, as it does not exists in data
-                continue;
-            }
-
-            // Value changed?
-            if ($this->original[$settingKey] !== $this->get($settingKey)) {
-                $recache = true;
-
-                break;
-            }
-        }
-
-        if ($recache) {
-            Artisan::call('config:cache');
         }
     }
 

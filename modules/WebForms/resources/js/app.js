@@ -1,20 +1,20 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import i18n from '~/Core/resources/js/i18n'
+import i18n from '~/Core/i18n'
 
+import RecordTabTimelineWebFormSubmission from './components/RecordTabTimelineWebFormSubmission.vue'
 import SettingsWebForms from './components/SettingsWebForms.vue'
 import WebFormPublicView from './views/WebFormPublicView.vue'
-import RecordTabTimelineWebFormSubmission from './components/RecordTabTimelineWebFormSubmission.vue'
-import CreateWebForm from './views/CreateWebForm.vue'
-import EditWebForm from './views/EditWebForm.vue'
+import CreateWebForm from './views/WebFormsCreate.vue'
+import EditWebForm from './views/WebFormsEdit.vue'
 
 if (window.Innoclapps) {
   Innoclapps.booting(function (Vue, router) {

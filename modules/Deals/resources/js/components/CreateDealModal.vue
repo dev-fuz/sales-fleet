@@ -1,26 +1,26 @@
 <template>
   <ISlideover
-    @shown="handleModalShownEvent"
-    @hidden="handleModalHiddenEvent"
-    @submit="createUsing ? createUsing(create) : create()"
-    @update:visible="$emit('update:visible', $event)"
+    id="createDealModal"
     :visible="visible"
     :title="title || $t('deals::deal.create')"
     :ok-title="$t('core::app.create')"
     :ok-disabled="form.busy"
     :cancel-title="$t('core::app.cancel')"
-    id="createDealModal"
     :initial-focus="modalCloseElement"
     static-backdrop
     form
     :size="withProducts ? 'xxl' : 'md'"
+    @shown="handleModalShownEvent"
+    @hidden="handleModalHiddenEvent"
+    @submit="createUsing ? createUsing(create) : create()"
+    @update:visible="$emit('update:visible', $event)"
   >
     <FieldsPlaceholder v-if="fields.isEmpty()" />
 
-    <slot name="top" :isReady="fields.isNotEmpty()"></slot>
+    <slot name="top" :is-ready="fields.isNotEmpty()"></slot>
 
     <div v-show="fieldsVisible">
-      <div v-if="withProducts" class="border-b border-neutral-200 pb-8">
+      <div v-if="withProducts" class="mb-4 border-b border-neutral-200 pb-8">
         <h3
           class="mb-5 inline-flex items-center text-base font-medium text-neutral-800"
         >
@@ -28,49 +28,49 @@
 
           <a
             v-show="withProducts"
+            v-t="'deals::deal.dont_add_products'"
             href="#"
             class="link ml-2 mt-0.5 text-sm"
             @click.prevent="hideProductsSection"
-            v-t="'deals::deal.dont_add_products'"
           />
         </h3>
 
-        <FormTaxTypes
+        <BillableFormTaxTypes
           v-model="form.billable.tax_type"
           class="mb-4 flex flex-col space-y-1 sm:flex-row sm:space-x-2 sm:space-y-0"
         />
 
-        <FormTableProducts
+        <BillableFormTableProducts
           v-model:products="form.billable.products"
           :tax-type="form.billable.tax_type"
-          @productSelected="
+          @product-selected="
             form.errors.clear('billable.products.' + $event.index + '.name')
           "
-          @productRemoved="handleProductRemovedEvent"
+          @product-removed="handleProductRemovedEvent"
         >
           <template #after-product-select="{ index }">
             <IFormError
               v-text="form.getError('billable.products.' + index + '.name')"
             />
           </template>
-        </FormTableProducts>
+        </BillableFormTableProducts>
       </div>
 
-      <FieldsGenerator
-        focus-first
-        :form-id="form.formId"
+      <FormFields
         :fields="fields"
-        view="create"
-        :is-floating="true"
+        :form-id="form.formId"
+        :resource-name="resourceName"
+        is-floating
+        focus-first
       >
         <template #after-contacts-field>
           <span class="-mt-2 block text-right">
             <a
               href="#"
-              @click.prevent="contactBeingCreated = true"
               class="link text-sm"
+              @click.prevent="contactBeingCreated = true"
             >
-              + {{ $t('contacts::contact.create') }}
+              &plus; {{ $t('contacts::contact.create') }}
             </a>
           </span>
         </template>
@@ -79,10 +79,10 @@
           <span class="-mt-2 block text-right">
             <a
               href="#"
-              @click.prevent="companyBeingCreated = true"
               class="link text-sm"
+              @click.prevent="companyBeingCreated = true"
             >
-              + {{ $t('contacts::company.create') }}
+              &plus; {{ $t('contacts::company.create') }}
             </a>
           </span>
         </template>
@@ -94,21 +94,22 @@
               href="#"
               class="link text-sm"
               @click.prevent="showProductsSection"
-              v-t="'deals::deal.add_products'"
-            />
+            >
+              &plus; {{ $t('deals::deal.add_products') }}
+            </a>
             <a
               v-show="withProducts"
+              v-t="'deals::deal.dont_add_products'"
               href="#"
               class="link text-sm"
               @click.prevent="hideProductsSection"
-              v-t="'deals::deal.dont_add_products'"
             />
           </span>
         </template>
-      </FieldsGenerator>
+      </FormFields>
     </div>
 
-    <template #modal-ok v-if="withExtendedSubmitButtons">
+    <template v-if="withExtendedSubmitButtons" #modal-ok>
       <IDropdownButtonGroup
         type="submit"
         placement="top-end"
@@ -117,13 +118,13 @@
         :text="$t('core::app.create')"
       >
         <IDropdownItem
-          @click="createAndAddAnother"
           :text="$t('core::app.create_and_add_another')"
+          @click="createAndAddAnother"
         />
         <IDropdownItem
           v-if="goToList"
-          @click="createAndGoToList"
           :text="$t('core::app.create_and_go_to_list')"
+          @click="createAndGoToList"
         />
       </IDropdownButtonGroup>
     </template>
@@ -150,16 +151,21 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useResourceFields } from '~/Core/resources/js/composables/useResourceFields'
-import { whenever } from '@vueuse/core'
-import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import FormTableProducts from '~/Billable/resources/js/components/Billable/FormTableProducts.vue'
-import FormTaxTypes from '~/Billable/resources/js/components/Billable/FormTaxTypes.vue'
-import find from 'lodash/find'
-import castArray from 'lodash/castArray'
-import { useFieldsForm } from '~/Core/resources/js/components/Fields/useFieldsForm'
+import { useRouter } from 'vue-router'
+import { whenever } from '@vueuse/core'
 import { computedWithControl } from '@vueuse/shared'
+import castArray from 'lodash/castArray'
+import cloneDeep from 'lodash/cloneDeep'
+import find from 'lodash/find'
+import findIndex from 'lodash/findIndex'
+
+import { useFieldsForm } from '~/Core/composables/useFieldsForm'
+import { useResourceable } from '~/Core/composables/useResourceable'
+import { useResourceFields } from '~/Core/composables/useResourceFields'
+
+import BillableFormTableProducts from '~/Billable/components/BillableFormTableProducts.vue'
+import BillableFormTaxTypes from '~/Billable/components/BillableFormTaxTypes.vue'
 
 const emit = defineEmits([
   'created',
@@ -172,9 +178,9 @@ const emit = defineEmits([
 const props = defineProps({
   visible: { type: Boolean, default: true },
   goToList: { type: Boolean, default: true },
-  redirectToView: { type: Boolean, default: false },
+  redirectToView: Boolean,
   createUsing: Function,
-  withExtendedSubmitButtons: { type: Boolean, default: false },
+  withExtendedSubmitButtons: Boolean,
   fieldsVisible: { type: Boolean, default: true },
   title: String,
 
@@ -189,6 +195,8 @@ const props = defineProps({
   contacts: Array,
   companies: Array,
 })
+
+const resourceName = Innoclapps.resourceName('deals')
 
 const { t } = useI18n()
 const router = useRouter()
@@ -207,6 +215,8 @@ const { form } = useFieldsForm(fields, {
   },
 })
 
+const { createResource } = useResourceable(resourceName)
+
 // Provide initial focus element as the modal can be nested and it's not
 // finding an element for some reason when the second modal is closed
 // showing error "There are no focusable elements inside the <FocusTrap />"
@@ -217,7 +227,7 @@ const modalCloseElement = computedWithControl(
 
 whenever(() => props.visible, prepareComponent, { immediate: true })
 
-function createdHandler(data) {
+function onAfterCreate(data) {
   data.indexRoute = { name: 'deal-index' }
 
   if (data.action === 'go-to-list') {
@@ -251,6 +261,7 @@ function handleModalHiddenEvent() {
   resetBillable()
 
   fields.value.set([])
+  form.reset()
 }
 
 /** Reset the form billable */
@@ -280,21 +291,21 @@ function handleProductRemovedEvent(e) {
 }
 
 function create() {
-  request().then(createdHandler)
+  makeCreateRequest().then(onAfterCreate)
 }
 
 function createAndAddAnother() {
-  request('create-another').then(data => {
+  makeCreateRequest('create-another').then(data => {
     form.reset()
-    createdHandler(data)
+    onAfterCreate(data)
   })
 }
 
 function createAndGoToList() {
-  request('go-to-list').then(createdHandler)
+  makeCreateRequest('go-to-list').then(onAfterCreate)
 }
 
-async function request(actionType = null) {
+async function makeCreateRequest(actionType = null) {
   if (!withProducts.value) {
     resetBillable()
   }
@@ -303,15 +314,13 @@ async function request(actionType = null) {
     form.fill(props.associations)
   }
 
-  let deal = await form
-    .hydrate()
-    .post('/deals')
-    .catch(e => {
-      if (e.isValidationError()) {
-        Innoclapps.error(t('core::app.form_validation_failed'), 3000)
-      }
-      return Promise.reject(e)
-    })
+  let deal = await createResource(form).catch(e => {
+    if (e.isValidationError()) {
+      Innoclapps.error(t('core::app.form_validation_failed'), 3000)
+    }
+
+    return Promise.reject(e)
+  })
 
   let payload = {
     deal: deal,
@@ -327,33 +336,38 @@ async function request(actionType = null) {
 }
 
 async function prepareComponent() {
-  let createFields = await getCreateFields(
-    Innoclapps.config('fields.groups.deals')
-  )
-
-  fields.value.set(createFields)
+  let createFields = cloneDeep(await getCreateFields(resourceName))
 
   // From props, same attribute name and prop name
   ;['contacts', 'companies', 'name'].forEach(attribute => {
     if (props[attribute]) {
-      fields.value.updateValue(attribute, props[attribute])
+      createFields[findIndex(createFields, ['attribute', attribute])].value =
+        props[attribute]
     }
   })
 
   if (props.pipeline) {
-    fields.value.updateValue('pipeline_id', props.pipeline)
+    createFields[findIndex(createFields, ['attribute', 'pipeline_id'])].value =
+      props.pipeline
+
+    // If pipeline is provided and no stage is provided, the default field value may have a different
+    // stage, in this case, we need to set the first stage as active stage from the provided pipeline.
+    if (!props.stageId) {
+      createFields[findIndex(createFields, ['attribute', 'stage_id'])].value =
+        props.pipeline.stages[0]
+    }
   }
 
   if (props.stageId) {
     // Sets to read only as if the user change the e.q. stage
     // manually will have unexpected UI confusions
-    fields.value.updateValue(
-      'stage_id',
+    createFields[findIndex(createFields, ['attribute', 'stage_id'])].value =
       props.stageId
         ? find(props.pipeline.stages, stage => stage.id === props.stageId)
         : null
-    )
   }
+
+  fields.value.set(createFields)
 
   if (props.disabledFields) {
     castArray(props.disabledFields).forEach(attribute =>

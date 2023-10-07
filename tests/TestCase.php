@@ -3,19 +3,19 @@
 namespace Tests;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Modules\Core\Application;
-use Modules\Core\Changelog\LogsModelChanges;
 use Modules\Core\Database\Seeders\MailableTemplatesSeeder;
 use Modules\Core\DatabaseState;
 use Modules\Core\Facades\MailableTemplates;
 use Modules\Core\Fields\CustomFieldService;
 use Modules\Core\Fields\FieldsManager;
 use Modules\Core\Resource\Resource;
-use Modules\Core\Timeline\Timeline;
+use Modules\Core\Support\Changelog\LogsModelChanges;
+use Modules\Core\Support\Timeline\Timeline;
+use Modules\Core\Workflow\Action as WorkflowAction;
 use Modules\Core\Workflow\Workflows;
 use Modules\Users\Support\TeamCache;
 use Nwidart\Modules\Facades\Module;
@@ -26,9 +26,7 @@ use Tests\Fixtures\EventResource;
 
 abstract class TestCase extends BaseTestCase
 {
-    use CreatesApplication, CreatesUser, RefreshDatabase {
-        refreshDatabase as baseRefreshDatabase;
-    }
+    use CreatesApplication, CreatesUser, RefreshDatabase;
 
     /**
      * @var \Illuminate\Support\Collection
@@ -36,31 +34,11 @@ abstract class TestCase extends BaseTestCase
     protected static $models;
 
     /**
-     * Define hooks to migrate the database before and after each test.
+     * Run a specific seeder before each test.
      *
-     * @see \Illuminate\Foundation\Testing\LazilyRefreshDatabase
+     * @var string
      */
-    public function refreshDatabase(): void
-    {
-        $database = $this->app->make('db');
-
-        $database->beforeExecuting(function () {
-            if (RefreshDatabaseState::$lazilyRefreshed) {
-                return;
-            }
-
-            RefreshDatabaseState::$lazilyRefreshed = true;
-
-            $this->baseRefreshDatabase();
-            $this->seed(MailableTemplatesSeeder::class);
-
-            $this->artisan('migrate', ['--path' => 'tests/Migrations']);
-        });
-
-        $this->beforeApplicationDestroyed(function () {
-            RefreshDatabaseState::$lazilyRefreshed = false;
-        });
-    }
+    protected $seeder = MailableTemplatesSeeder::class;
 
     /**
      * Setup the tests.
@@ -87,22 +65,30 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
+     * Perform any work that should take place before the database has started refreshing.
+     *
+     * @return void
+     */
+    protected function beforeRefreshingDatabase()
+    {
+        $this->app['migrator']->path(base_path('tests/Migrations'));
+    }
+
+    /**
      * Tear down the tests.
      */
     protected function tearDown(): void
     {
-        Application::setImportStatus(false);
         Resource::clearRegisteredResources();
-        Timeline::flushPinableSubjects();
-        FieldsManager::flushLoadedCache();
-        FieldsManager::flushRegisteredCache();
+        Timeline::forgetPinableSubjects();
+        FieldsManager::flushCache();
         TeamCache::flush();
-        \Spatie\Once\Cache::getInstance()->flush();
         MailableTemplates::autoDiscovery(true);
         MailableTemplates::flushCache();
-        DatabaseState::flush();
-
-        (new CustomFieldService())->flushCache();
+        DatabaseState::forgetSeeders();
+        CustomFieldService::flushCache();
+        WorkflowAction::disableExecutions(false);
+        \Spatie\Once\Cache::getInstance()->flush();
 
         $this->tearDownChangelog();
 
@@ -140,19 +126,15 @@ abstract class TestCase extends BaseTestCase
      */
     protected function listModels(): Collection
     {
-        $paths = array_filter(array_values(array_map(function ($module) {
-            $path = module_path($module->getLowerName(), 'Models');
-
-            if (! is_dir($path)) {
-                return null;
-            }
-
-            return $path;
-        }, Module::allEnabled())));
-
-        $paths[] = app_path('Models');
-
         if (! static::$models) {
+            $paths = array_filter(array_values(array_map(function ($module) {
+                $path = module_path($module->getLowerName(), 'Models');
+
+                return is_dir($path) ? $path : null;
+            }, Module::allEnabled())));
+
+            $paths[] = app_path('Models');
+
             static::$models = collect((new Finder)->in($paths)->files()->name('*.php'))
                 ->map(function ($model) {
                     if (str_contains($model, config('modules.paths.modules'))) {

@@ -17,17 +17,17 @@
         <IButton
           v-show="fieldsVisible"
           variant="white"
-          @click="reset"
           class="mr-2"
           :loading="resetting"
           :text="$t('core::app.reset')"
           :disabled="requestInProgress"
           size="sm"
+          @click="reset"
         />
         <IButton
+          v-show="fieldsVisible"
           variant="white"
           size="sm"
-          v-show="fieldsVisible"
           :loading="fetching"
           icon="ChevronUp"
           :disabled="requestInProgress"
@@ -47,18 +47,17 @@
         <IButton
           v-show="!fieldsVisible"
           variant="white"
-          @click="toggle"
           size="sm"
           :text="$t('core::fields.manage')"
           class="mt-4 shrink-0 lg:ml-5 lg:mt-0"
+          @click="toggle"
         />
       </div>
-      <div class="mb-0 mt-3" v-show="fieldsVisible">
-        <FormInputSearch v-model="search" />
+      <div v-show="fieldsVisible" class="mb-0 mt-3">
+        <SearchInput v-model="search" />
       </div>
     </div>
-
-    <ul class="max-h-96 overflow-y-auto" v-show="fieldsVisible">
+    <ul v-show="fieldsVisible" class="max-h-96 overflow-y-auto">
       <draggable
         v-bind="scrollableDraggableOptions"
         :list="filteredFields"
@@ -82,11 +81,19 @@
                   >
                     {{ element.label }}
                   </span>
+
                   <IBadge
                     v-show="element.customField"
                     variant="info"
                     :text="$t('core::fields.custom.field')"
                   />
+
+                  <IBadge
+                    v-show="element.isUnique"
+                    variant="success"
+                    :text="$t('core::fields.field_is_unique')"
+                  />
+
                   <IBadge
                     v-show="element.readonly"
                     variant="warning"
@@ -106,35 +113,65 @@
                   <br />{{ $t('core::fields.primary') }}
                 </span>
               </div>
-              <div class="flex space-x-3">
+              <div class="flex items-center space-x-2 self-start">
+                <IButtonCopy
+                  v-i-tooltip="$t('core::app.copy_api_key')"
+                  :text="element.attribute"
+                  icon-class="h-4 w-4"
+                />
+
                 <IButtonIcon
                   v-if="element.customField || element.optionsViaResource"
+                  v-i-tooltip="$t('core::app.edit')"
                   icon="PencilAlt"
+                  icon-class="h-4 w-4"
                   @click="requestEdit(element)"
                 />
+
                 <IButtonIcon
                   v-if="element.customField"
+                  v-i-tooltip="$t('core::app.delete')"
                   icon="Trash"
+                  icon-class="h-4 w-4"
                   @click="requestDelete(element.customField.id)"
                 />
+
                 <IButtonIcon
                   icon="Selector"
+                  icon-class="h-4 w-4"
                   class="field-draggable-handle cursor-move"
                 />
               </div>
             </div>
             <div v-if="!element.primary" class="mt-3">
               <IFormCheckbox
-                :disabled="element.isRequired"
                 v-model:checked="element[visibilityKey]"
+                :disabled="element.isRequired"
                 :label="$t('core::fields.visible')"
               />
               <IFormCheckbox
                 v-if="element.canUnmarkUnique"
                 :checked="element.isUnique && !element.uniqueUnmarked"
                 @change="element.uniqueUnmarked = !$event"
-                :label="$t('core::fields.is_unique')"
-              />
+              >
+                <span class="inline-flex items-center">
+                  <span v-t="'core::fields.mark_as_unique'" />
+                  <span
+                    v-show="element.uniqueUnmarked"
+                    class="ml-1.5 mt-0.5 text-xs text-neutral-500 dark:text-neutral-300"
+                  >
+                    {{
+                      !isCreateView
+                        ? $t('core::fields.option_disabled_will_propagate', {
+                            view_name: isUpdateView
+                              ? $t('core::fields.settings.detail')
+                              : $t('core::fields.settings.update'),
+                          })
+                        : ''
+                    }}
+                  </span>
+                </span>
+              </IFormCheckbox>
               <IFormCheckbox
                 v-if="collapseOption"
                 v-model:checked="element.collapsed"
@@ -142,8 +179,8 @@
               />
               <IFormCheckbox
                 v-if="!element.isPrimary && !element.readonly"
-                @change="$event ? (element[visibilityKey] = true) : ''"
                 v-model:checked="element.isRequired"
+                @change="$event ? (element[visibilityKey] = true) : ''"
               >
                 <span class="inline-flex items-center">
                   <span v-t="'core::fields.is_required'" />
@@ -154,7 +191,7 @@
                   >
                     {{
                       !isCreateView
-                        ? $t('core::fields.required_will_propagate', {
+                        ? $t('core::fields.option_enabled_will_propagate', {
                             view_name: isUpdateView
                               ? $t('core::fields.settings.detail')
                               : $t('core::fields.settings.update'),
@@ -171,15 +208,17 @@
     </ul>
   </ICard>
 </template>
-<script setup>
-import { ref, unref, computed, watch } from 'vue'
-import draggable from 'vuedraggable'
-import { useDraggable } from '~/Core/resources/js/composables/useDraggable'
-import { useRoute } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { useApp } from '~/Core/resources/js/composables/useApp'
 
-const emit = defineEmits(['delete-requested', 'update-requested'])
+<script setup>
+import { computed, ref, unref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
+import draggable from 'vuedraggable'
+
+import { useApp } from '~/Core/composables/useApp'
+import { useDraggable } from '~/Core/composables/useDraggable'
+
+const emit = defineEmits(['delete-requested', 'update-requested', 'saved'])
 
 const props = defineProps({
   group: { required: true, type: String },
@@ -212,6 +251,10 @@ const filteredFields = computed({
     fields.value = value.map(field => {
       if (field.isRequired) {
         field[unref(visibilityKey)] = true
+      }
+
+      if (!field.isUnique && field.canUnmarkUnique) {
+        field.uniqueUnmarked = true
       }
 
       return field
@@ -248,6 +291,8 @@ const visibilityKey = computed(() => {
   } else if (isDetailView.value) {
     return 'showOnDetail'
   }
+
+  return ''
 })
 
 function createRequestUri() {
@@ -297,11 +342,12 @@ function submit(userAction) {
         intent: props.view,
       },
     })
-    .then(({ data }) => {
+    .then(() => {
       resetStoreState()
 
       if (userAction) {
         Innoclapps.success(t('core::fields.configured'))
+        emit('saved')
       }
     })
     .finally(() => (saving.value = false))
@@ -324,7 +370,7 @@ function reset() {
       },
     })
     .then(({ data }) => {
-      filteredFields.value = data.settings
+      filteredFields.value = data
       resetStoreState()
       Innoclapps.success(t('core::fields.reseted'))
     })
@@ -333,6 +379,7 @@ function reset() {
 
 async function fetch() {
   fetching.value = true
+
   let { data } = await Innoclapps.request().get(createRequestUri(), {
     params: {
       intent: props.view,

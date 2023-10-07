@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -15,11 +15,6 @@ namespace Modules\Core\Fields;
 trait ChecksForDuplicates
 {
     /**
-     * Duplicate checker data
-     */
-    protected array $checkDuplicatesWith = [];
-
-    /**
      * Add duplicates checker data
      */
     public function checkPossibleDuplicatesWith(string $url, array $params, string $langKey): static
@@ -31,5 +26,15 @@ trait ChecksForDuplicates
                 'lang_keypath' => $langKey,
             ],
         ]);
+    }
+
+    /**
+     * Disable the duplicate checks for the field.
+     */
+    public function disableDuplicateChecks(): static
+    {
+        unset($this->meta['checkDuplicatesWith']);
+
+        return $this;
     }
 }

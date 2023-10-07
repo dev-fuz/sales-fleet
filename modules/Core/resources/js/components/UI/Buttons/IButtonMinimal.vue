@@ -4,14 +4,14 @@
     :type="type"
     :class="computedClasses"
     :disabled="disabled"
-    @click="handleClickEvent"
     :tabindex="disabled ? '-1' : undefined"
     class="inline-flex items-center px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2"
+    @click="handleClickEvent"
   >
     <Icon
       v-if="icon"
-      :icon="icon"
       v-show="!loading"
+      :icon="icon"
       :class="[
         // avoid click event.target propagating to the icon, see FloatingFilters vco middleware
         'pointer-events-none h-4 w-4 shrink-0',
@@ -20,11 +20,13 @@
     />
 
     <ISpinner v-if="loading" class="mr-2 h-3 w-3 text-current" />
+
     <slot>
       {{ text }}
     </slot>
   </component>
 </template>
+
 <script>
 const colorMaps = {
   // fix neutral on dark mode, it's not appealing
@@ -55,8 +57,8 @@ const props = defineProps({
   icon: String,
   tag: { default: 'button', type: [String, Object] },
   type: { type: String, default: 'button' },
-  disabled: { type: Boolean, default: false },
-  loading: { type: Boolean, default: false },
+  disabled: Boolean,
+  loading: Boolean,
   variant: {
     default: 'primary',
     type: String,

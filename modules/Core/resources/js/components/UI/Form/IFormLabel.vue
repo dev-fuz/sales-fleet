@@ -7,6 +7,7 @@
     <slot>{{ label }}</slot>
   </component>
 </template>
+
 <script setup>
 import { computed, useSlots } from 'vue'
 

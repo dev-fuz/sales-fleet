@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,15 +12,15 @@
 
 namespace Modules\Activities\Resource;
 
-use Illuminate\Http\Request;
 use Modules\Activities\Http\Resources\ActivityTypeResource;
-use Modules\Core\Contracts\Resources\Resourceful;
-use Modules\Core\Fields\ColorSwatches;
+use Modules\Core\Contracts\Resources\HasOperations;
+use Modules\Core\Fields\ColorSwatch;
 use Modules\Core\Fields\IconPicker;
 use Modules\Core\Fields\Text;
+use Modules\Core\Http\Requests\ResourceRequest;
 use Modules\Core\Resource\Resource;
 
-class ActivityType extends Resource implements Resourceful
+class ActivityType extends Resource implements HasOperations
 {
     /**
      * The column the records should be default ordered by when retrieving
@@ -43,12 +43,12 @@ class ActivityType extends Resource implements Resourceful
     /**
      * Set the available resource fields
      */
-    public function fields(Request $request): array
+    public function fields(ResourceRequest $request): array
     {
         return [
-            Text::make('name', __('activities::activity.type.name'))->rules('required', 'string', 'max:191')->unique(static::$model),
-            IconPicker::make('icon', __('activities::activity.type.icon'))->rules('required', 'string', 'max:50')->unique(static::$model),
-            ColorSwatches::make('swatch_color', __('core::app.colors.color'))->rules('nullable', 'string', 'max:7'),
+            Text::make('name', __('activities::activity.type.name'))->rules(['required', 'string', 'max:191'])->unique(static::$model),
+            IconPicker::make('icon', __('activities::activity.type.icon'))->rules(['required', 'string', 'max:50'])->unique(static::$model),
+            ColorSwatch::make('swatch_color', __('core::app.colors.color'))->rules('required'), // required for calendar color
         ];
     }
 

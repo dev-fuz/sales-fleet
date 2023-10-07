@@ -13,6 +13,7 @@
     </Transition>
   </div>
 </template>
+
 <script setup>
 defineProps(['message'])
 </script>

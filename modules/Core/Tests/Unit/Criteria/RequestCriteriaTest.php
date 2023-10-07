@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -27,12 +27,12 @@ class RequestCriteriaTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->searchFields = (new Contact())->getSearchableFields();
+        $this->searchFields = (new Contact())->getSearchableColumns();
     }
 
     protected function tearDown(): void
     {
-        (new Contact())->setSearchableFields($this->searchFields);
+        (new Contact())->setSearchableColumns($this->searchFields);
         unset($this->searchFields);
         parent::tearDown();
     }
@@ -52,7 +52,7 @@ class RequestCriteriaTest extends TestCase
         $model = new Contact();
 
         if ($fields) {
-            $model->setSearchableFields($fields);
+            $model->setSearchableColumns($fields);
         }
 
         $criteria = new RequestCriteria(

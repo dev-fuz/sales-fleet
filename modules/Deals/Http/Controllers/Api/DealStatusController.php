@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -24,26 +24,30 @@ class DealStatusController extends ApiController
 {
     /**
      * Change the deal status.
+     *
+     * @deprecated
      */
     public function handle(Deal $deal, $status, Request $request): JsonResponse
     {
         $this->authorize('update', $deal);
 
+        $status = DealStatus::find($status);
+
         // User must unmark the deal as open when the deal status is won or lost in order to change any further statuses
         abort_if(
-            ($deal->status === DealStatus::lost || $deal->status === DealStatus::won) && $status !== DealStatus::open->name,
+            $deal->isStatusLocked($status),
             409,
-            'The deal first must be marked as open in order to apply the '.$status.' status.'
+            'The deal first must be marked as open in order to apply the '.$status->name.' status.'
         );
 
         $request->validate([
             'lost_reason' => [
-                'sometimes', Rule::requiredIf(settings('lost_reason_is_required')),
+                Rule::requiredIf(settings('lost_reason_is_required')),
                 'nullable', 'string', 'max:191',
             ],
         ]);
 
-        $deal->changeStatus(DealStatus::find($status), $request->lost_reason);
+        $deal->fillStatus($status, $request->lost_reason)->save();
 
         return $this->response(
             new DealResource(

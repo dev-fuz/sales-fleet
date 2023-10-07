@@ -1,52 +1,40 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import i18n from '~/Core/resources/js/i18n'
-
-// General routes
-
-import Dashboard from './views/Dashboard/DashboardIndex.vue'
-import EditDashboard from './views/Dashboard/EditDashboard.vue'
-
-import OAuthAccounts from './views/OAuth/OAuthAccounts.vue'
-
-import NotificationIndex from './views/Notifications/NotificationIndex.vue'
-
-import TrashedResourceRecords from './views/Resources/TrashedResourceRecords.vue'
-import ResourceImport from './views/Resources/ImportResource.vue'
-
-import Error404 from './views/Error404.vue'
-import Error403 from './views/Error403.vue'
-
+import i18n from '~/Core/i18n'
+import SettingsFields from '~/Core/views/Settings/Fields/SettingsFields.vue'
+import SettingsRecaptcha from '~/Core/views/Settings/Security/SettingsRecaptcha.vue'
+import SettingsSecurity from '~/Core/views/Settings/Security/SettingsSecurity.vue'
 // Settings general routes
+import SettingsIndex from '~/Core/views/Settings/Settings.vue'
+import SettingsGeneral from '~/Core/views/Settings/SettingsGeneral.vue'
+import SettingsMailableTemplates from '~/Core/views/Settings/SettingsMailableTemplates.vue'
+import SettingsSystemInfo from '~/Core/views/Settings/System/SettingsSystemInfo.vue'
+import SettingsSystemLogs from '~/Core/views/Settings/System/SettingsSystemLogs.vue'
+import SettingsTools from '~/Core/views/Settings/System/SettingsTools.vue'
+import SettingsUpdate from '~/Core/views/Settings/System/SettingsUpdate.vue'
+import SettingsWorkflows from '~/Core/views/Workflows/WorkflowsList.vue'
 
-import SettingsIndex from '~/Core/resources/js/views/Settings/Settings.vue'
-import SettingsGeneral from '~/Core/resources/js/views/Settings/SettingsGeneral.vue'
-
-import SettingsUpdate from '~/Core/resources/js/views/Settings/System/SettingsUpdate.vue'
-import SettingsTools from '~/Core/resources/js/views/Settings/System/SettingsTools.vue'
-import SettingsSystemInfo from '~/Core/resources/js/views/Settings/System/SettingsSystemInfo.vue'
-import SettingsSystemLogs from '~/Core/resources/js/views/Settings/System/SettingsSystemLogs.vue'
-
-import SettingsSecurity from '~/Core/resources/js/views/Settings/Security/SettingsSecurity.vue'
-import SettingsRecaptcha from '~/Core/resources/js/views/Settings/Security/SettingsRecaptcha.vue'
-import SettingsMailableTemplates from '~/Core/resources/js/views/Settings/SettingsMailableTemplates.vue'
-import SettingsWorkflows from '~/Core/resources/js/views/Workflows/WorkflowList.vue'
-import SettingsFields from '~/Core/resources/js/views/Settings/Fields/SettingsFields.vue'
-
-// Settings integration routes
-
-import SettingsMicrosoft from './views/Settings/Integrations/SettingsMicrosoft.vue'
+import DashboardEdit from './views/Dashboard/DashboardEdit.vue'
+// General routes
+import Dashboard from './views/Dashboard/DashboardIndex.vue'
+import Error403 from './views/Error403.vue'
+import Error404 from './views/Error404.vue'
+import NotificationsIndex from './views/Notifications/NotificationsIndex.vue'
+import OAuthAccounts from './views/OAuth/OAuthAccounts.vue'
+import ResourceImport from './views/Resources/ImportResource.vue'
+import TrashedResourceRecords from './views/Resources/TrashedResourceRecords.vue'
 import SettingsGoogle from './views/Settings/Integrations/SettingsGoogle.vue'
+// Settings integration routes
+import SettingsMicrosoft from './views/Settings/Integrations/SettingsMicrosoft.vue'
 import SettingsPusher from './views/Settings/Integrations/SettingsPusher.vue'
-import SettingsTwilio from './views/Settings/Integrations/SettingsTwilio.vue'
 import SettingsZapier from './views/Settings/Integrations/SettingsZapier.vue'
 
 const routes = [
@@ -71,12 +59,12 @@ const routes = [
   {
     path: '/dashboard/:id/edit',
     name: 'edit-dashboard',
-    component: EditDashboard,
+    component: DashboardEdit,
   },
   {
     path: '/notifications',
     name: 'notifications',
-    component: NotificationIndex,
+    component: NotificationsIndex,
     meta: {
       title: i18n.t('core::notifications.your'),
     },
@@ -84,6 +72,9 @@ const routes = [
   {
     path: '/import/:resourceName',
     name: 'import-resource',
+    meta: {
+      title: i18n.t('core::import.import_records'),
+    },
     component: ResourceImport,
   },
   {
@@ -105,11 +96,17 @@ const routes = [
   {
     name: '404',
     path: '/404',
+    meta: {
+      title: '404',
+    },
     component: Error404,
   },
   {
     name: '403',
     path: '/403',
+    meta: {
+      title: '403',
+    },
     component: Error403,
   },
   {
@@ -163,14 +160,6 @@ const routes = [
         name: 'settings-integrations-pusher',
         meta: {
           title: 'Pusher',
-        },
-      },
-      {
-        path: 'integrations/twilio',
-        component: SettingsTwilio,
-        name: 'settings-integrations-twilio',
-        meta: {
-          title: 'Twilio',
         },
       },
       {

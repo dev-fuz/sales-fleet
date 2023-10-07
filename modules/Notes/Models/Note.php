@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -17,18 +17,18 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Modules\Comments\Concerns\HasComments;
-use Modules\Core\Media\HasAttributesWithPendingMedia;
 use Modules\Core\Models\Model;
 use Modules\Core\Resource\Resourceable;
-use Modules\Core\Timeline\Timelineable;
+use Modules\Core\Support\Media\HasAttributesWithPendingMedia;
+use Modules\Core\Support\Timeline\Timelineable;
 use Modules\Notes\Database\Factories\NoteFactory;
 
 class Note extends Model
 {
-    use HasComments,
-        Resourceable,
-        HasAttributesWithPendingMedia,
+    use HasAttributesWithPendingMedia,
+        HasComments,
         HasFactory,
+        Resourceable,
         Timelineable;
 
     /**
@@ -50,9 +50,9 @@ class Note extends Model
     ];
 
     /**
-     * The fields for the model that are searchable.
+     * The columns for the model that are searchable.
      */
-    protected static array $searchableFields = [
+    protected static array $searchableColumns = [
         'body' => 'like',
     ];
 
@@ -126,9 +126,9 @@ class Note extends Model
     public function scopeWithCommon(Builder $query): void
     {
         $query->withCount(['comments'])->with([
-            'companies.nextActivity',
-            'contacts.nextActivity',
-            'deals.nextActivity',
+            'companies',
+            'contacts',
+            'deals',
             'user',
         ]);
     }

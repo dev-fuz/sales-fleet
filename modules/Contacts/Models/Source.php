@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -18,9 +18,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Lang;
 use Modules\Contacts\Database\Factories\SourceFactory;
 use Modules\Core\Contracts\Primaryable;
-use Modules\Core\Models\Model;
+use Modules\Core\Models\CacheModel;
 
-class Source extends Model implements Primaryable
+class Source extends CacheModel implements Primaryable
 {
     use HasFactory;
 
@@ -34,9 +34,9 @@ class Source extends Model implements Primaryable
     ];
 
     /**
-     * The fields for the model that are searchable.
+     * The columns for the model that are searchable.
      */
-    protected static array $searchableFields = [
+    protected static array $searchableColumns = [
         'name' => 'like',
     ];
 

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -18,7 +18,6 @@ use Illuminate\Support\Collection;
 use Modules\Core\Contracts\Workflow\EventTrigger;
 use Modules\Core\Contracts\Workflow\ModelTrigger;
 use Modules\Core\Models\Workflow;
-use Modules\Core\SubClassDiscovery;
 
 class Workflows
 {
@@ -165,16 +164,6 @@ class Workflows
     public static function isWorkflowRunning(): bool
     {
         return static::$workflowRunning;
-    }
-
-    /**
-     * Set the custom discovery path for the workflows triggers.
-     */
-    public static function triggersIn(string $directory)
-    {
-        $triggers = SubClassDiscovery::make(Trigger::class)->in($directory)->find();
-
-        static::triggers(collect($triggers)->sort()->all());
     }
 
     /**

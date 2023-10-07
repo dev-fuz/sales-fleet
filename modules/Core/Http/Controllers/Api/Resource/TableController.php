@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,10 +13,10 @@
 namespace Modules\Core\Http\Controllers\Api\Resource;
 
 use Illuminate\Http\JsonResponse;
+use Modules\Core\Filters\QueryBuilder\Exceptions\QueryBuilderException;
 use Modules\Core\Http\Controllers\ApiController;
 use Modules\Core\Http\Requests\ResourceTableRequest;
 use Modules\Core\Http\Resources\TableResource;
-use Modules\Core\QueryBuilder\Exceptions\QueryBuilderException;
 
 class TableController extends ApiController
 {
@@ -26,10 +26,14 @@ class TableController extends ApiController
     public function index(ResourceTableRequest $request): JsonResponse
     {
         try {
+            $table = $request->boolean('trashed') ?
+                $request->resolveTrashedTable() :
+                $request->resolveTable();
+
             return $this->response(
-                TableResource::collection($request->boolean('trashed') ?
-            $request->resolveTrashedTable()->make() :
-            $request->resolveTable()->make())
+                TableResource::collection($table->make())->additional(['meta' => array_merge([
+                    'pre_total' => $table->preTotal,
+                ], $table->meta)])
             );
         } catch (QueryBuilderException $e) {
             abort(400, $e->getMessage());

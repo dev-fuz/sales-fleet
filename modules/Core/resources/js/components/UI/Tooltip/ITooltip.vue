@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div
       ref="tooltipRef"
-      class="pointer-events-none absolute top-0 left-0 z-[1300]"
+      class="pointer-events-none absolute left-0 top-0 z-[1300]"
     >
       <Transition
         enter-active-class="duration-200 ease"
@@ -23,7 +23,7 @@
           />
           <div class="relative max-w-sm" :class="variantClasses[variant].inner">
             <div
-              class="py-1.5 px-4 text-center text-sm"
+              class="px-4 py-1.5 text-center text-sm"
               :class="variantClasses[variant].content"
             >
               {{ content }}
@@ -34,9 +34,16 @@
     </div>
   </Teleport>
 </template>
+
 <script setup>
-import { ref, watch, nextTick, onBeforeUnmount, onMounted } from 'vue'
-import { arrow, computePosition, offset, shift } from '@floating-ui/dom'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { arrow, computePosition, shift } from '@floating-ui/dom'
+import { offset as floatingOffset } from '@floating-ui/dom'
+
+const props = defineProps({
+  delay: { type: Number, default: 300 },
+  offset: { type: Number, default: 8 },
+})
 
 const variantClasses = {
   dark: {
@@ -54,11 +61,6 @@ const variantClasses = {
       'border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800',
   },
 }
-
-const props = defineProps({
-  delay: { type: Number, default: 300 },
-  offset: { type: Number, default: 8 },
-})
 
 const arrowRef = ref()
 const tooltipRef = ref()
@@ -85,19 +87,20 @@ const mouseoverListener = e => {
     }, props.delay)
   }
 }
+
 const showTooltip = async () => {
   if (!activeElement.value) return
 
   await nextTick()
 
-  const elPlacement = activeElement.value.getAttribute('v-placement')
-  variant.value = activeElement.value.getAttribute('v-variant')
+  const elPlacement = activeElement.value.getAttribute('v-tooltip-placement')
+  variant.value = activeElement.value.getAttribute('v-tooltip-variant')
   content.value = activeElement.value.getAttribute('v-tooltip') || ''
 
   const options = {
     placement: elPlacement,
     middleware: [
-      offset(props.offset),
+      floatingOffset(props.offset),
       shift(),
       arrow({ element: arrowRef.value }),
     ],

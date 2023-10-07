@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,7 +14,7 @@ function isValueEmpty(value) {
   if (value !== null && typeof value !== 'undefined') {
     if (typeof value === 'string' && value !== '') {
       return false
-    } else if (typeof value === 'array' && value.length > 0) {
+    } else if (Array.isArray(value) && value.length > 0) {
       return false
     } else if (typeof value === 'object' && Object.keys(value).length > 0) {
       return false

@@ -24,23 +24,24 @@
             v-text="subject"
           />
           <AssociationsPopover
-            :disabled="syncingAssociations"
-            @change="syncAssociations"
             class="inline-flex"
             placement="bottom-start"
-            :associated="message.associations"
+            :model-value="message.associations"
+            :disabled="associationsBeingSaved"
+            :associateables="message.associations"
+            @change="syncAssociations(message.id, $event)"
           />
         </div>
 
         <div class="mt-2 shrink-0 self-start sm:mt-0">
           <div v-if="componentReady" class="flex items-center space-x-3">
             <div v-show="!account.is_sync_stopped">
-              <Actions
+              <ActionSelector
                 type="dropdown"
                 :ids="message.id"
                 :actions="message.actions"
                 :action-request-params="actionRequestParams"
-                resource-name="emails"
+                :resource-name="resourceName"
                 @run="handleActionExecuted"
               />
             </div>
@@ -50,9 +51,9 @@
               variant="white"
               size="sm"
               :disabled="account.is_sync_stopped"
-              @click="reply(true)"
               icon="Reply"
               :text="$t('mailclient::inbox.reply')"
+              @click="reply(true)"
             />
             <!-- TODO, find reply-all icon -->
             <IButton
@@ -60,34 +61,36 @@
               variant="white"
               size="sm"
               :disabled="account.is_sync_stopped"
-              @click="replyAll()"
               icon="Reply"
               :text="$t('mailclient::inbox.reply_all')"
+              @click="replyAll()"
             />
+
             <IButton
               v-if="canReply"
               variant="white"
               size="sm"
               icon="Share"
               :disabled="account.is_sync_stopped"
-              @click="forward(true)"
               :text="$t('mailclient::inbox.forward')"
+              @click="forward(true)"
             />
+
             <IMinimalDropdown type="horizontal">
               <IDropdownItem
-                @click="showCreateContactForm"
                 icon="Users"
                 :text="$t('contacts::contact.convert')"
+                @click="showCreateContactForm"
               />
               <IDropdownItem
-                @click="showCreateDealForm"
                 icon="Banknotes"
                 :text="$t('deals::deal.create')"
+                @click="showCreateDealForm"
               />
               <IDropdownItem
-                @click="prepareActivityCreate"
                 icon="Calendar"
                 :text="$t('activities::activity.create')"
+                @click="prepareActivityCreate"
               />
             </IMinimalDropdown>
           </div>
@@ -101,7 +104,7 @@
     :rounded="false"
     :overlay="isLoading"
   >
-    <div class="flex" v-if="componentReady">
+    <div v-if="componentReady" class="flex">
       <div class="mr-2">
         <IAvatar v-once :src="message.avatar_url" />
       </div>
@@ -134,10 +137,10 @@
           :show-when-empty="false"
         />
         <p class="mt-2 text-sm text-neutral-800 dark:text-neutral-100">
-          <span class="mr-1 font-semibold" v-t="'mailclient::inbox.date'" />
+          <span v-t="'mailclient::inbox.date'" class="mr-1 font-semibold" />
           <span
-            class="text-neutral-700 dark:text-neutral-300"
             v-once
+            class="text-neutral-700 dark:text-neutral-300"
             v-text="localizedDateTime(message.date)"
           />
         </p>
@@ -160,7 +163,6 @@
       </IBadge>
     </div>
   </ICard>
-
   <ICard class="mb-3" :overlay="isLoading">
     <MessagePreview
       v-if="!isLoading"
@@ -168,15 +170,13 @@
       :hidden-text="message.hidden_text"
     />
   </ICard>
-
   <div v-if="hasAttachments" class="mb-3 mt-5">
     <dd
-      class="mb-2 text-sm font-medium leading-6 text-neutral-900 dark:text-neutral-100"
       v-t="'mailclient.mail.attachments'"
+      class="mb-2 text-sm font-medium leading-6 text-neutral-900 dark:text-neutral-100"
     />
     <MessageAttachments :attachments="message.media" />
   </div>
-
   <MessageReply
     v-if="canReply"
     :message="message"
@@ -185,27 +185,22 @@
     :forward="isForwarding"
     @modal-hidden="replyModalHidden"
   />
-
   <CreateDealModal
-    @created="getMessage(), (dealIsBeingCreated = false)"
     v-model:visible="dealIsBeingCreated"
     :associations="{ emails: [message.id] }"
     :contacts="relatedContacts"
     :name="message.subject"
+    @created="getMessage(), (dealIsBeingCreated = false)"
   />
-
   <CreateContactModal
-    @modal-hidden="createContactBindings = {}"
-    @created="getMessage(), (contactIsBeingCreated = false)"
     v-model:visible="contactIsBeingCreated"
     :associations="{ emails: [message.id] }"
     v-bind="createContactBindings"
+    @modal-hidden="createContactBindings = {}"
+    @created="getMessage(), (contactIsBeingCreated = false)"
   />
-
   <CreateActivityModal
     v-if="activityIsBeingCreated"
-    @created="getMessage(), (activityIsBeingCreated = false)"
-    @modal-hidden="activityIsBeingCreated = false"
     :contacts="activityCreateContacts"
     :title="
       $t('activities::activity.title_via_create_message', {
@@ -213,35 +208,46 @@
       })
     "
     :message="message"
+    @created="getMessage(), (activityIsBeingCreated = false)"
+    @modal-hidden="activityIsBeingCreated = false"
   />
 </template>
+
 <script setup>
-import { ref, shallowRef, computed, onMounted, onBeforeUnmount } from 'vue'
-import MessageRecipients from '../../Emails/MessageRecipients.vue'
-import MessageReply from '../../Emails/MessageReply.vue'
-import MessageAttachments from '../../Emails/MessageAttachments.vue'
-import MessagePreview from '../../Emails/MessagePreview.vue'
-import Actions from '~/Core/resources/js/components/Actions/Actions.vue'
-import AssociationsPopover from '~/Core/resources/js/components/AssociationsPopover.vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
-import { useApp } from '~/Core/resources/js/composables/useApp'
-import { useI18n } from 'vue-i18n'
-import { useDates } from '~/Core/resources/js/composables/useDates'
-import { useLoader } from '~/Core/resources/js/composables/useLoader'
+
+import ActionSelector from '~/Core/components/Actions/ActionSelector.vue'
+import AssociationsPopover from '~/Core/components/AssociationsPopover.vue'
+import { useDates } from '~/Core/composables/useDates'
+import { useLoader } from '~/Core/composables/useLoader'
+import { usePageTitle } from '~/Core/composables/usePageTitle'
+import { useResourceable } from '~/Core/composables/useResourceable'
+
+import MessageAttachments from '../../Emails/MessageAttachments.vue'
+import MessagePreview from '../../Emails/MessagePreview.vue'
+import MessageRecipients from '../../Emails/MessageRecipients.vue'
+import MessageReply from '../../Emails/MessageReply.vue'
 
 const props = defineProps({
   account: { required: true, type: Object },
 })
+
+const resourceName = Innoclapps.resourceName('emails')
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const store = useStore()
 
-const { setPageTitle } = useApp()
+const pageTitle = usePageTitle()
 const { localizedDateTime } = useDates()
 const { setLoading, isLoading } = useLoader()
+
+const { syncAssociations, associationsBeingSaved } =
+  useResourceable(resourceName)
 
 const message = ref({})
 const dealIsBeingCreated = ref(false)
@@ -250,7 +256,6 @@ const activityIsBeingCreated = ref(false)
 const isReplying = ref(false)
 const isForwarding = ref(false)
 const replyToAll = ref(false)
-const syncingAssociations = ref(false)
 const messageInfoIsFullyVisible = ref(false)
 const relatedContacts = ref([])
 const activityCreateContacts = shallowRef([])
@@ -327,6 +332,7 @@ async function prepareActivityCreate() {
   activityCreateContacts.value = contacts
   activityIsBeingCreated.value = true
 }
+
 /**
  * Initiate show create deal form
  */
@@ -341,7 +347,8 @@ async function showCreateDealForm() {
 function showCreateContactForm() {
   contactIsBeingCreated.value = true
   createContactBindings.value['email'] = message.value.from.address
-  if (Boolean(message.value.from.name)) {
+
+  if (message.value.from.name) {
     createContactBindings.value['first-name'] =
       message.value.from.name.split(' ')[0]
     createContactBindings.value['last-name'] =
@@ -374,21 +381,6 @@ function replyModalHidden() {
 }
 
 /**
- * Sync the email associations
- *
- * @param  {Object} data
- *
- * @return {Void}
- */
-function syncAssociations(data) {
-  syncingAssociations.value = true
-
-  Innoclapps.request()
-    .post(`associations/emails/${message.value.id}`, data)
-    .finally(() => (syncingAssociations.value = false))
-}
-
-/**
  * Handle action executed event
  *
  * @param  {Object} action
@@ -404,7 +396,9 @@ function handleActionExecuted(action) {
     getMessageSilently()
   } else if (action.uriKey === 'email-account-message-delete') {
     // Message parmanently deleted, navigate to inbox
-    if (Number(route.params.folder_id) === Number(props.account.trash_folder.id)) {
+    if (
+      Number(route.params.folder_id) === Number(props.account.trash_folder.id)
+    ) {
       router.replace({ name: 'inbox' })
     } else {
       replaceMessageRouteFolder(props.account.trash_folder.id)
@@ -508,7 +502,7 @@ async function getMessage(includeLoader = true) {
     )
   }
 
-  setPageTitle(subject.value)
+  pageTitle.value = subject.value
   setLoading(false)
 }
 

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,44 +12,65 @@
 
 namespace Modules\Deals\Cards;
 
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Modules\Core\Card\TableCard;
-use Modules\Core\Date\Carbon;
-use Modules\Deals\Enums\DealStatus;
+use Modules\Core\Support\Date\Carbon;
 use Modules\Users\Models\User;
 
 class CreatedDealsBySaleAgent extends TableCard
 {
     /**
-     * Provide the table items
+     * Provide the table items.
      *
-     * @return \Illuminate\Http\Resources\Json\JsonResource
+     * @return \Illuminate\Support\Collection
      */
-    public function items(): iterable
+    public function items(Request $request): iterable
     {
-        $range = $this->getCurrentRange(request());
+        $range = $this->getCurrentRange($request);
         $startingDate = $this->getStartingDate($range, static::BY_MONTHS);
         $endingDate = Carbon::asAppTimezone();
 
-        return User::withCount(['createdDeals' => function ($query) use ($startingDate, $endingDate) {
-            return $query->whereBetween('created_at', [$startingDate, $endingDate]);
-        }])
+        /** @var \Modules\Users\Models\User */
+        $currentUser = Auth::user();
+
+        return User::select(['id', 'name'])
+            ->withCount([
+                'createdDeals' => function (Builder $query) use ($startingDate, $endingDate) {
+                    $query->whereBetween(
+                        $query->getModel()->getCreatedAtColumn(),
+                        [$startingDate, $endingDate]
+                    );
+                },
+            ])
+            ->withSum([
+                'createdDeals as forecast_amount' => function (Builder $query) use ($startingDate, $endingDate) {
+                    $query->whereBetween(
+                        $query->getModel()->getCreatedAtColumn(),
+                        [$startingDate, $endingDate]
+                    );
+                }], 'amount')
+            ->withSum([
+                'createdDeals as closed_amount' => function (Builder $query) use ($startingDate, $endingDate) {
+                    $query->won()
+                        ->whereBetween(
+                            $query->getModel()->getCreatedAtColumn(),
+                            [$startingDate, $endingDate]
+                        );
+                }], 'amount')
+            ->when(
+                $currentUser->cant('view all deals'), fn (Builder $query) => $query->ofManager($currentUser)
+            )
             ->get()
-            ->map(function ($user) use ($startingDate, $endingDate) {
-                return [
-                    'name' => $user->name,
-                    'created_deals_count' => $user->created_deals_count,
-
-                    'forecast_amount' => to_money(
-                        $user->createdDeals()->whereBetween('created_at', [$startingDate, $endingDate])->sum('amount')
-                    )->format(),
-
-                    'closed_amount' => to_money(
-                        $user->createdDeals()->where('status', DealStatus::won)
-                            ->whereBetween('created_at', [$startingDate, $endingDate])
-                            ->sum('amount')
-                    )->format(),
-                ];
-            })->sortByDesc('created_deals_count')->values();
+            ->map(fn (User $user) => [
+                'name' => $user->name,
+                'created_deals_count' => $user->created_deals_count,
+                'forecast_amount' => to_money($user->forecast_amount ?: 0)->format(),
+                'closed_amount' => to_money($user->closed_amount ?: 0)->format(),
+            ])
+            ->sortByDesc('created_deals_count')
+            ->values();
     }
 
     /**
@@ -91,7 +112,7 @@ class CreatedDealsBySaleAgent extends TableCard
     public function jsonSerialize(): array
     {
         return array_merge(parent::jsonSerialize(), [
-            'help' => __('deals::deal.cards.created_by_sale_agent_info'),
+            'helpText' => __('deals::deal.cards.created_by_sale_agent_info'),
         ]);
     }
 }

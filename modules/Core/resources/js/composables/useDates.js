@@ -1,7 +1,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -9,7 +9,8 @@
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
 import { computed } from 'vue'
-import { isISODate, isStandardDateTime, isDate } from '@/utils'
+import isString from 'lodash/isString'
+
 import { useApp } from './useApp'
 
 export function useDates() {
@@ -111,10 +112,13 @@ export function useDates() {
       return value
     }
 
-    return appMoment(value)
-      .clone()
-      .tz(userTimezone.value)
-      .format(format || dateFormatForMoment.value)
+    const instance = appMoment(value).clone()
+
+    if (isISODate(value) && !/T00:00:00.000000Z$/.test(value)) {
+      instance.tz(userTimezone.value)
+    }
+
+    return instance.format(format || dateFormatForMoment.value)
   }
 
   /**
@@ -131,20 +135,76 @@ export function useDates() {
     return appMoment().format(format)
   }
 
-  function maybeFormatDateValue(value) {
-    if (isDate(value)) {
-      return localizedDate(value)
-    } else if (isStandardDateTime(value)) {
-      return localizedDateTime(value)
-    } else if (isISODate(value)) {
+  /**
+   * Determine if the given string is date time in ISO format
+   */
+  function isISODate(str) {
+    // First perform the checks below, less IQ
+    if (!isString(str)) {
+      return false
+    }
+
+    if (str.indexOf('-') === 1) {
+      return false
+    }
+
+    // 2020-04-02T03:39:56.000000Z
+    return /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3,6}Z/.test(str)
+  }
+
+  /**
+   * Determine if the given string is standard date time
+   */
+  function isStandardDateTime(str) {
+    // First perform the checks below, less IQ
+    if (!isString(str)) {
+      return false
+    }
+
+    if (
+      str.indexOf('-') <= 1 ||
+      str.indexOf(' ') === 0 ||
+      str.indexOf(':') === 0
+    ) {
+      return false
+    }
+
+    return /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(str)
+  }
+
+  /**
+   * Determine if the given string is date
+   */
+  function isDate(str) {
+    // First perform the checks below, less IQ
+    if (!isString(str)) {
+      return false
+    }
+
+    if (str.indexOf('-') === 1) {
+      return false
+    }
+
+    return /\d{4}-\d{2}-\d{2}$/.test(str)
+  }
+
+  /**
+   * Maybe format date
+   */
+  function maybeFormatDateValue(value, fallbackValue = null) {
+    if (isISODate(value)) {
       if (/T00:00:00.000000Z$/.test(value)) {
         return localizedDate(value)
       }
 
       return localizedDateTime(value)
+    } else if (isDate(value)) {
+      return localizedDate(value)
+    } else if (isStandardDateTime(value)) {
+      return localizedDateTime(value)
     }
 
-    return value
+    return fallbackValue
   }
 
   return {
@@ -161,5 +221,9 @@ export function useDates() {
     userTimezone,
     usesTwelveHourTime,
     maybeFormatDateValue,
+
+    isISODate,
+    isStandardDateTime,
+    isDate,
   }
 }

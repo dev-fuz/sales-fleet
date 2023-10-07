@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,7 +13,6 @@
 namespace Modules\Core\Tests\Feature\Updater;
 
 use GuzzleHttp\Psr7\Response;
-use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
@@ -271,28 +270,7 @@ class UpdaterTest extends TestCase
 
     public function test_cannot_perform_update_with_invalid_files_permissions()
     {
-        Updater::providePermissionsCheckerFinderUsing(function ($path) {
-            // Exclude the main folder so we can only verify the invalid-file.php
-            // and void looping over all the files and buid up memory when testing
-            return (new Finder)->files()->in($path)->exclude([
-                'app',
-                'bootstrap',
-                'config',
-                'database',
-                'lang',
-                'node_modules',
-                'public',
-                'resources',
-                'routes',
-                'storage',
-                'tests',
-                'vendor',
-                'patchers',
-            ]);
-        });
-
-        file_put_contents($file = base_path('invalid-file.php'), '');
-        chmod($file, 0444);
+        Updater::checkPermissionsUsing(fn ($finder, $path, $excludedFolders) => false);
 
         $updater = $this->createUpdaterInstance([
             new Response(200, [], $this->archiveResponse()),
@@ -322,9 +300,6 @@ class UpdaterTest extends TestCase
 
     public function test_can_perform_update_via_the_console_command()
     {
-        RefreshDatabaseState::$lazilyRefreshed = true;
-        $this->baseRefreshDatabase();
-
         App::singleton(Updater::class, function () {
             return $this->createUpdaterInstance([
                 new Response(200, [], $this->archiveResponse()),
@@ -452,6 +427,7 @@ class UpdaterTest extends TestCase
     protected function tearDown(): void
     {
         Updater::providePermissionsCheckerFinderUsing(null);
+        Updater::checkPermissionsUsing(null);
         $this->guzzleMock = null;
         $this->cleanFixturesFiles();
         parent::tearDown();

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -62,8 +62,8 @@ class ChartResult implements JsonSerializable
                 'value' => $value,
                 'color' => data_get($this->colors, $label),
             ], function ($value) {
-                    return ! is_null($value);
-                });
+                return ! is_null($value);
+            });
         })->values()->all();
     }
 }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,13 +16,15 @@ use Illuminate\Support\ServiceProvider;
 use Modules\Core\DatabaseState;
 use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Facades\MailableTemplates;
-use Modules\Core\Highlights\Highlights;
+use Modules\Core\Menu\Highlights\Highlights;
 use Modules\Core\Settings\DefaultSettings;
 use Modules\Core\Workflow\Workflows;
 use Modules\Deals\Events\DealMovedToStage;
 use Modules\Deals\Highlights\OpenDeals;
 use Modules\Deals\Listeners\LogDealMovedToStageActivity;
 use Modules\Deals\Listeners\TransferDealsUserData;
+use Modules\Deals\Models\Deal;
+use Modules\Deals\Observers\DealObserver;
 use Modules\Deals\Support\ToScriptProvider;
 use Modules\Users\Events\TransferringUserData;
 
@@ -56,6 +58,7 @@ class DealsServiceProvider extends ServiceProvider
         $this->app->booted(function () {
             $this->registerResources();
             Innoclapps::whenReadyForServing($this->bootModule(...));
+            Deal::observe(DealObserver::class);
         });
     }
 

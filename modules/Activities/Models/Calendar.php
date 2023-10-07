@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -18,15 +18,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Modules\Activities\Calendar\CalendarSyncManager;
 use Modules\Activities\Database\Factories\CalendarFactory;
-use Modules\Core\Concerns\Synchronizable;
 use Modules\Core\Models\Model;
 use Modules\Core\Models\OAuthAccount;
-use Modules\Core\OAuth\EmptyRefreshTokenException;
+use Modules\Core\Support\OAuth\EmptyRefreshTokenException;
+use Modules\Core\Support\Synchronization\Synchronizable;
 use Modules\Users\Models\User;
 
 class Calendar extends Model
 {
-    use Synchronizable, HasFactory;
+    use HasFactory, Synchronizable;
 
     /**
      * The attributes that should be cast to native types.
@@ -104,10 +104,12 @@ class Calendar extends Model
      */
     public function connectionType(): Attribute
     {
-        return Attribute::get(fn () => match ($this->oAuthAccount->type) {
-            'microsoft' => 'outlook',
-            default => $this->oAuthAccount->type,
-        });
+        return Attribute::get(
+            fn () => match ($this->oAuthAccount->type) {
+                'microsoft' => 'outlook',
+                default => $this->oAuthAccount->type,
+            }
+        );
     }
 
     /**

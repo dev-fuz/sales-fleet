@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,12 +14,11 @@ namespace Modules\Deals\Cards;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Expression;
-use Illuminate\Support\Facades\Auth;
-use Modules\Core\Card\Card;
+use Illuminate\Http\Request;
 use Modules\Core\Card\TableAsyncCard;
 use Modules\Core\ProvidesBetweenArgumentsViaString;
+use Modules\Deals\Criteria\ViewAuthorizedDealsCriteria;
 use Modules\Deals\Models\Deal;
-use Modules\Users\Criteria\ManagesOwnerTeamCriteria;
 use Modules\Users\Criteria\QueriesByUserCriteria;
 
 class ClosingDeals extends TableAsyncCard
@@ -41,26 +40,20 @@ class ClosingDeals extends TableAsyncCard
     /**
      * Provide the query that will be used to retrieve the items.
      */
-    public function query(): Builder
+    public function query(Request $request): Builder
     {
-        /** @var \Modules\Users\Models\User */
-        $user = Auth::user();
+        $query = Deal::select(['id', 'name', 'expected_close_date'])
+            ->open()
+            ->criteria(ViewAuthorizedDealsCriteria::class);
 
-        $query = Deal::open()->when($user->cant('view all deals'), function ($query) use ($user) {
-            if ($user->can('view team deals')) {
-                $query->criteria(new ManagesOwnerTeamCriteria($user));
-            } else {
-                $query->criteria(new QueriesByUserCriteria($user));
-            }
-        });
-
-        if ($filterByUser = $this->getUser()) {
-            $query->criteria(new QueriesByUserCriteria($filterByUser));
+        if ($userId = $this->getUserId($request)) {
+            $query->criteria(new QueriesByUserCriteria($userId));
         }
 
-        $period = $this->getBetweenArguments(request()->range ?? $this->defaultRange);
+        $period = $this->getBetweenArguments($request->range ?? $this->defaultRange);
 
-        return $query->whereNotNull('expected_close_date')->whereBetween('expected_close_date', $period);
+        return $query->whereNotNull('expected_close_date')
+            ->whereBetween('expected_close_date', $period);
     }
 
     /**
@@ -96,18 +89,9 @@ class ClosingDeals extends TableAsyncCard
     }
 
     /**
-     * Get the user for the card query
-     *
-     * @return mixed
+     * Check whether the current user can perform user filter.
      */
-    protected function getUser()
-    {
-        if ($this->canViewOtherUsersCardData()) {
-            return request()->filled('user_id') ? request()->integer('user_id') : auth()->user();
-        }
-    }
-
-    public function canViewOtherUsersCardData(): bool
+    public function authorizedToFilterByUser(): bool
     {
         return request()->user()->canAny(['view all deals', 'view team deals']);
     }

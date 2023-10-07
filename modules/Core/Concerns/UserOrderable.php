@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -36,27 +36,50 @@ trait UserOrderable
     }
 
     /**
+     * Save the display order for the model for the given user.
+     */
+    public function saveUserDisplayOrder(User|int $user, int $displayOrder): static
+    {
+        if (! is_null($this->userOrder)) {
+            $this->userOrder->update(['display_order' => $displayOrder]);
+        } else {
+            $this->userOrder()->save(
+                new UserOrderedModel([
+                    'display_order' => $displayOrder,
+                    'user_id' => is_int($user) ? $user : $user->id,
+                ])
+            );
+        }
+
+        return $this;
+    }
+
+    /**
      * Get the current user model order
      */
-    public function userOrder(): MorphOne
+    public function userOrder(User|int $user = null): MorphOne
     {
-        return $this->morphOne(UserOrderedModel::class, 'orderable')->where('user_id', Auth::id());
+        $userId = is_null($user) ? Auth::id() : (is_int($user) ? $user : $user->id);
+
+        return $this->morphOne(UserOrderedModel::class, 'orderable')->where('user_id', $userId);
     }
 
     /**
      * Apply a scope query to order the records as the user specified.
      */
-    public function scopeUserOrdered(Builder $query, ?User $user = null): void
+    public function scopeUserOrdered(Builder $query, User|int $user = null): void
     {
+        $userId = is_null($user) ? Auth::id() : (is_int($user) ? $user : $user->id);
+
         $table = (new UserOrderedModel)->getTable();
 
         $query->select($this->prepareColumnsForUserOrderedQuery($query))
-            ->leftJoin($table, function ($join) use ($query, $table, $user) {
+            ->leftJoin($table, function ($join) use ($userId, $query, $table) {
                 $orderableModel = $query->getModel();
 
                 $join->on($table.'.orderable_id', '=', $orderableModel->getTable().'.'.$orderableModel->getKeyName())
                     ->where($table.'.orderable_type', $orderableModel::class)
-                    ->where($table.'.user_id', $user ?: Auth::id());
+                    ->where($table.'.user_id', $userId);
             })
             ->orderBy($table.'.display_order', 'asc');
     }

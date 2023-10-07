@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -67,7 +67,7 @@ class Folder extends AbstractFolder
      * Get messages in the folder
      *
      * @param  int  $limit
-     * @return \Illuminate\Support\Collection&\Modules\Core\Google\Services\MessageCollection
+     * @return \Illuminate\Support\Collection&\Modules\Core\Support\Google\Services\MessageCollection
      *
      * @throws \Modules\MailClient\Client\Exceptions\ConnectionErrorException
      */
@@ -93,7 +93,7 @@ class Folder extends AbstractFolder
      *
      * @param  string  $dateTime
      * @param  int  $limit
-     * @return \Illuminate\Support\Collection&\Modules\Core\Google\Services\MessageCollection
+     * @return \Illuminate\Support\Collection&\Modules\Core\Support\Google\Services\MessageCollection
      *
      * @throws \Modules\MailClient\Client\Exceptions\ConnectionErrorException
      */

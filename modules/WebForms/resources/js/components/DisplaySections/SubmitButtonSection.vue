@@ -7,10 +7,10 @@
       />
       <IFormError v-text="form.getError('g-recaptcha-response')" />
     </IFormGroup>
-    <div class="mb-3 flex" v-if="section.privacyPolicyAcceptIsRequired">
+    <div v-if="section.privacyPolicyAcceptIsRequired" class="mb-3 flex">
       <IFormCheckbox
-        v-model:checked="privacyPolicyAccepted"
         id="acceptPrivacyPolicy"
+        v-model:checked="privacyPolicyAccepted"
         @change="form.fill('_privacy-policy', $event)"
       />
       <div class="text-sm text-neutral-600 dark:text-neutral-300">
@@ -21,9 +21,9 @@
         >
           <template #privacyPolicyLink>
             <a
+              v-t="'core::app.privacy_policy'"
               :href="section.privacyPolicyUrl"
               class="link"
-              v-t="'core::app.privacy_policy'"
             />
           </template>
         </i18n-t>
@@ -33,8 +33,8 @@
       </div>
     </div>
     <IButton
-      type="submit"
       id="submitButton"
+      type="submit"
       size="lg"
       :disabled="form.busy"
       :loading="form.busy"
@@ -43,9 +43,11 @@
     />
   </div>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import { VueRecaptcha } from 'vue-recaptcha'
+
 import propsDefinition from './props'
 
 const props = defineProps(propsDefinition)
@@ -65,6 +67,7 @@ function handleReCaptchaVerified(response) {
   props.form.fill('g-recaptcha-response', response)
 }
 </script>
+
 <style>
 #submitButton {
   color: var(--primary-contrast);

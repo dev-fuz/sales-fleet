@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,9 +12,7 @@
 
 namespace Modules\Deals\Resource;
 
-use Modules\Core\Actions\ForceDeleteAction;
-use Modules\Core\Actions\RestoreAction;
-use Modules\Core\Table\LengthAwarePaginator;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Modules\Core\Table\Table;
 use Modules\Deals\Criteria\ViewAuthorizedDealsCriteria;
 use Modules\Deals\Models\Deal;
@@ -23,41 +21,30 @@ use Modules\Deals\Services\SummaryService;
 class DealTable extends Table
 {
     /**
-     * Indicates whether the user can customize columns orders and visibility
+     * Additional database columns to select for the table query.
+     */
+    protected array $select = [
+        'user_id', // user_id is for the policy checks
+        'expected_close_date', // falls_behind_expected_close_date check
+        'status', // falls_behind_expected_close_date check
+    ];
+
+    /**
+     * Attributes to be appended with the response.
+     */
+    protected array $appends = [
+        'falls_behind_expected_close_date', // row class
+    ];
+
+    /**
+     * Whether the table columns can be customized.
      */
     public bool $customizeable = true;
 
     /**
-     * Provide the attributes that should be appended within the response
+     * Whether the table has actions column.
      */
-    protected function appends(): array
-    {
-        return [
-            'falls_behind_expected_close_date', // row class
-        ];
-    }
-
-    /**
-     * Additional fields to be selected with the query
-     */
-    public function addSelect(): array
-    {
-        return [
-            'user_id', // user_id is for the policy checks
-            'expected_close_date', // falls_behind_expected_close_date check
-            'status', // falls_behind_expected_close_date check
-        ];
-    }
-
-    /**
-     * Get the actions intended for the trashed table
-     *
-     * NOTE: No authorization is performed on these action, all actions will be visible to the user
-     */
-    public function actionsForTrashedTable(): array
-    {
-        return [new RestoreAction, new ForceDeleteAction];
-    }
+    public bool $withActionsColumn = true;
 
     /**
      * Tap the response
@@ -72,11 +59,11 @@ class DealTable extends Table
 
         $summary = (new SummaryService())->calculate($query);
 
-        $response->merge(['summary' => [
+        $this->meta = ['summary' => [
             'count' => $summary->sum('count'),
             'value' => $summary->sum('value'),
             'weighted_value' => $summary->sum('weighted_value'),
-        ]]);
+        ]];
     }
 
     /**

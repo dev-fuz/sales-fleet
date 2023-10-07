@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,6 +13,9 @@
 namespace Modules\Core\Actions;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Modules\Core\Facades\Innoclapps;
+use Modules\Core\Http\Requests\ActionRequest;
 
 class DeleteAction extends DestroyableAction
 {
@@ -34,29 +37,23 @@ class DeleteAction extends DestroyableAction
     protected $authorizedToRunWhen;
 
     /**
-     * Action name
-     *
-     * @var string
-     */
-    protected $name;
-
-    /**
-     * Model method action
-     *
-     * @var string
-     */
-    protected $method = 'delete';
-
-    /**
      * Handle method.
      *
      * @return mixed
      */
     public function handle(Collection $models, ActionFields $fields)
     {
-        foreach ($models as $model) {
-            $model->{$this->method}();
-        }
+        $resource = Innoclapps::resourceByModel($models[0]);
+
+        DB::transaction(function () use ($models, $resource) {
+            foreach ($models as $model) {
+                if ($resource) {
+                    $resource->delete($model);
+                } else {
+                    $model->delete();
+                }
+            }
+        });
     }
 
     /**
@@ -84,26 +81,6 @@ class DeleteAction extends DestroyableAction
     }
 
     /**
-     * Use the given name.
-     */
-    public function useName(string $name): static
-    {
-        $this->name = $name;
-
-        return $this;
-    }
-
-    /**
-     * Set that the action will force delete the model.
-     */
-    public function forceDelete(): static
-    {
-        $this->method = 'forceDelete';
-
-        return $this;
-    }
-
-    /**
      * Set that the action is bulk action.
      */
     public function isBulk(): static
@@ -115,19 +92,11 @@ class DeleteAction extends DestroyableAction
     }
 
     /**
-     * Action name.
-     */
-    public function name(): string
-    {
-        return $this->name;
-    }
-
-    /**
      * Get the URI key for the card.
      */
     public function uriKey(): string
     {
-        $key = $this->method === 'forceDelete' ? 'force-delete' : 'delete';
+        $key = 'delete';
 
         return ($this->isBulk ? 'bulk-' : '').$key;
     }

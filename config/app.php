@@ -41,7 +41,7 @@ return [
     |
     */
 
-    'debug' => (bool) env('APP_DEBUG', true),
+    'debug' => (bool) env('APP_DEBUG', false),
 
     /*
     |--------------------------------------------------------------------------
@@ -157,7 +157,7 @@ return [
     |
     */
 
-    'providers' => [
+    'providers' => array_merge([
 
         /*
         * Laravel Framework Service Providers...
@@ -198,7 +198,7 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
         Mavinoo\Batch\BatchServiceProvider::class,
-    ],
+    ], is_file(app_path('Providers/CustomServiceProvider.php')) ? ['App\\Providers\\CustomServiceProvider'] : []),
 
     /*
     |--------------------------------------------------------------------------

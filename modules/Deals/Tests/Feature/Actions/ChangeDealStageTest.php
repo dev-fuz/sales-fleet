@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,7 +12,6 @@
 
 namespace Modules\Deals\Tests\Feature\Actions;
 
-use Modules\Core\Database\Seeders\PermissionsSeeder;
 use Modules\Core\Tests\ResourceTestCase;
 use Modules\Deals\Actions\ChangeDealStage;
 use Modules\Deals\Models\Pipeline;
@@ -53,7 +52,6 @@ class ChangeDealStageTest extends ResourceTestCase
 
     public function test_authorized_user_can_run_change_deal_stage_action()
     {
-        $this->seed(PermissionsSeeder::class);
         $this->asRegularUser()->withPermissionsTo('edit all deals')->signIn();
         $user = $this->createUser();
         $pipeline = Pipeline::factory()->withStages()->create();
@@ -70,7 +68,6 @@ class ChangeDealStageTest extends ResourceTestCase
 
     public function test_unauthorized_user_can_run_change_deal_stage_action_on_own_deal()
     {
-        $this->seed(PermissionsSeeder::class);
         $signedInUser = $this->asRegularUser()->withPermissionsTo('edit own deals')->signIn();
         $this->createUser();
 

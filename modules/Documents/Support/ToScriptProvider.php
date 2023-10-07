@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -38,7 +38,7 @@ class ToScriptProvider
             'placeholders' => (new Document)->placeholders(),
 
             'statuses' => collect(DocumentStatus::cases())->mapWithKeys(
-                fn ($case) => [$case->value => ['name' => $case->value, 'icon' => $case->icon(), 'color' => $case->color()]]
+                fn (DocumentStatus $case) => [$case->value => ['name' => $case->value, 'icon' => $case->icon(), 'color' => $case->color()]]
             ),
 
             'types' => DocumentTypeResource::collection(

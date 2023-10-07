@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -117,7 +117,7 @@ return [
     'yes' => 'Sí',
     'no' => 'No',
     'no_associations' => 'Sin asociaciones',
-    'associated_with_total_records' => 'Asociado a :total registros',
+    'associated_with_total_records' => 'Asociado a :count registro|Asociado a :count registros',
     'action_not_authorized' => 'Su cuenta no está autorizada para realizar esta acción',
     'record_view' => [
         'manage_sidebar' => 'Gestionar las secciones de la barra lateral',

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -53,11 +53,11 @@ class BoardUpdater
     public function perform(): void
     {
         $data = $this->filterAuthorizedDeals();
-        $order = $data->mapWithKeys(fn ($data) => [$data['id'] => $data['board_order']]);
+        $order = $data->mapWithKeys(fn (array $data) => [$data['id'] => $data['board_order']]);
 
         // We will map the appropriate data for the Batch
         // so we can perform the update without any injected fields
-        $attributes = $data->map(function ($attrs) {
+        $attributes = $data->map(function (array $attrs) {
             $model = $this->deals($attrs['id']);
             $stageId = (int) $attrs['stage_id'];
 

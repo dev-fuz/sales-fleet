@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,13 +16,16 @@ use Illuminate\Support\ServiceProvider;
 use Modules\Contacts\Listeners\AttachEmailAccountMessageToContact;
 use Modules\Contacts\Listeners\CreateContactFromEmailAccountMessage;
 use Modules\Contacts\Listeners\TransferContactsUserData;
-use Modules\Contacts\Resource\Contact\Contact;
+use Modules\Contacts\Models\Company;
+use Modules\Contacts\Models\Contact;
+use Modules\Contacts\Observers\CompanyObserver;
+use Modules\Contacts\Observers\ContactObserver;
 use Modules\Core\DatabaseState;
 use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Facades\MailableTemplates;
-use Modules\Core\Resource\Events\ResourceRecordCreated;
 use Modules\Core\Settings\DefaultSettings;
 use Modules\Core\Workflow\Workflows;
+use Modules\MailClient\Events\EmailAccountMessageCreated;
 use Modules\Users\Events\TransferringUserData;
 
 class ContactsServiceProvider extends ServiceProvider
@@ -40,6 +43,7 @@ class ContactsServiceProvider extends ServiceProvider
             \Modules\Contacts\Database\State\EnsureDefaultFiltersArePresent::class,
             \Modules\Contacts\Database\State\EnsureIndustriesArePresent::class,
             \Modules\Contacts\Database\State\EnsureSourcesArePresent::class,
+            \Modules\Contacts\Database\State\EnsureDefaultContactTagsArePresent::class,
         ]);
 
         DefaultSettings::add('require_calling_prefix_on_phones', true);
@@ -49,12 +53,6 @@ class ContactsServiceProvider extends ServiceProvider
         $this->app['events']->listen(EmailAccountMessageCreated::class, AttachEmailAccountMessageToContact::class);
         $this->app['events']->listen(TransferringUserData::class, TransferContactsUserData::class);
 
-        $this->app['events']->listen(ResourceRecordCreated::class, function (ResourceRecordCreated $event) {
-            if ($event->resource instanceof Contact && (bool) settings('auto_associate_company_to_contact')) {
-                $event->model->associateToCompaniesByEmailDomain();
-            }
-        });
-
         $this->registerTranslations();
         $this->registerConfig();
         $this->registerViews();
@@ -63,6 +61,9 @@ class ContactsServiceProvider extends ServiceProvider
         $this->app->booted(function () {
             $this->registerResources();
             Innoclapps::whenReadyForServing($this->bootModule(...));
+
+            Contact::observe(ContactObserver::class);
+            Company::observe(CompanyObserver::class);
         });
     }
 

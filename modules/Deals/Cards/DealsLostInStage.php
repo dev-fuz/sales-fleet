@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -44,7 +44,7 @@ class DealsLostInStage extends DealPresentationCard
     {
         $query = Deal::lost()
             ->criteria(ViewAuthorizedDealsCriteria::class)
-            ->where('pipeline_id', $this->getPipeline($request));
+            ->ofPipeline($this->getPipelineId($request));
 
         return $this->withStageLabels(
             $this->byMonths('lost_date')->count($request, $query, 'stage_id')
@@ -77,7 +77,7 @@ class DealsLostInStage extends DealPresentationCard
     public function jsonSerialize(): array
     {
         return array_merge(parent::jsonSerialize(), [
-            'help' => __('deals::deal.cards.lost_in_stage_info'),
+            'helpText' => __('deals::deal.cards.lost_in_stage_info'),
         ]);
     }
 }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -33,10 +33,7 @@ class UserAssignedToCompany extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): AssignedToCompanyMailable&MailableTemplate
     {
-        return $this->viaMailableTemplate(
-            new AssignedToCompanyMailable($this->company, $this->assigneer),
-            $notifiable
-        );
+        return (new AssignedToCompanyMailable($this->company, $this->assigneer))->to($notifiable);
     }
 
     /**

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,23 +12,20 @@
 
 namespace Modules\Users\Http\Resources;
 
-use App\Http\Resources\ProvidesCommonData;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Http\Resources\DashboardResource;
 use Modules\Core\Http\Resources\RoleResource;
-use Modules\Core\Resource\Http\JsonResource;
+use Modules\Core\Resource\JsonResource;
 
 /** @mixin \Modules\Users\Models\User */
 class UserResource extends JsonResource
 {
-    use ProvidesCommonData;
-
     /**
      * Transform the resource collection into an array.
      *
-     * @param  \Modules\Core\Resource\Http\ResourceRequest  $request
+     * @param  \Modules\Core\Http\Requests\ResourceRequest  $request
      */
     public function toArray(Request $request): array
     {
@@ -38,6 +35,9 @@ class UserResource extends JsonResource
             'timezone' => $this->timezone,
             'mail_signature' => clean($this->mail_signature),
             $this->mergeWhen(! $request->isZapier(), [
+                'guest_email' => $this->getGuestEmail(),
+                'guest_display_name' => $this->getGuestDisplayName(),
+                'teams' => TeamResource::collection($this->whenLoaded('teams', fn () => $this->allTeams(), [])),
                 'super_admin' => $this->super_admin,
                 'access_api' => $this->access_api,
                 'locale' => $this->locale,
@@ -52,15 +52,15 @@ class UserResource extends JsonResource
                 ]),
                 'notifications' => [
                     $this->mergeWhen($this->is(Auth::user()) &&
-                        $this->relationLoaded('latestFifteenNotifications'), function () {
-                            return ['latest' => $this->latestFifteenNotifications];
-                        }),
+                                $this->relationLoaded('latestFifteenNotifications'), function () {
+                                    return ['latest' => $this->latestFifteenNotifications];
+                                }),
                     $this->mergeWhen($this->is(Auth::user()) && ! is_null($this->unread_notifications_count), [
                         'unread_count' => (int) $this->unread_notifications_count,
                     ]),
                     // Admin user edit and profile
                     $this->mergeWhen(Auth::user()->isSuperAdmin() || $this->is(Auth::user()), [
-                        'settings' => Innoclapps::notificationsInformation($this->resource),
+                        'settings' => Innoclapps::notificationsPreferences($this->resource),
                     ]),
                 ],
                 $this->mergeWhen($this->is(Auth::user()), function () {

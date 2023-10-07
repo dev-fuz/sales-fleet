@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,18 +12,16 @@
 
 namespace Modules\Users\Http\Controllers\Api;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Core\Http\Controllers\ApiController;
 
 class NotificationController extends ApiController
 {
     /**
-     * List current user notifications
-     *
-     *
-     * @return \Illuminate\Http\JsonResponse
+     * List current user notifications.
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         return $this->response(
             $request->user()->notifications()->paginate($request->integer('per_page', 15))
@@ -31,12 +29,9 @@ class NotificationController extends ApiController
     }
 
     /**
-     * Retrieve current user notification
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\JsonResponse
+     * Retrieve current user notification.
      */
-    public function show($id, Request $request)
+    public function show(string $id, Request $request): JsonResponse
     {
         return $this->response(
             $request->user()->notifications()->findOrFail($id)
@@ -44,12 +39,9 @@ class NotificationController extends ApiController
     }
 
     /**
-     * Set all notifications for current user as read
-     *
-     *
-     * @return \Illuminate\Http\JsonResponse
+     * Set all notifications for current user as read.
      */
-    public function update(Request $request)
+    public function update(Request $request): JsonResponse
     {
         $request->user()->unreadNotifications()->update(['read_at' => now()]);
 
@@ -58,11 +50,8 @@ class NotificationController extends ApiController
 
     /**
      * Delete current user notification
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\JsonResponse
      */
-    public function destroy($id, Request $request)
+    public function destroy(string $id, Request $request): JsonResponse
     {
         $request->user()
             ->notifications()

@@ -4,22 +4,23 @@
     :placeholder="placeholder"
     :disabled="readOnly"
     size="sm"
-    :modelValue="query.value"
+    :model-value="query.value"
     @input="updateValue($event)"
   />
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
-import { toRef, computed } from 'vue'
-import { useType } from './useType'
-import propsDefinition from './props'
+import { computed, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import propsDefinition from './props'
+import { useType } from './useType'
+
 const props = defineProps(propsDefinition)
+
+defineOptions({
+  inheritAttrs: false,
+})
 
 const { t } = useI18n()
 

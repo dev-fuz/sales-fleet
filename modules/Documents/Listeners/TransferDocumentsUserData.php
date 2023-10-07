@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -44,6 +44,6 @@ class TransferDocumentsUserData
      */
     public function documentTemplates($toUserId, $fromUserId): void
     {
-        DocumentTemplate::where('user_id', $fromUserId)->where('is_shared', true)->update(['user_id' => $toUserId]);
+        DocumentTemplate::where('user_id', $fromUserId)->shared()->update(['user_id' => $toUserId]);
     }
 }

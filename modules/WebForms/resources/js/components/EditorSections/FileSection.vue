@@ -16,10 +16,10 @@
     <template #actions>
       <div class="inline-flex space-x-2">
         <IButtonIcon
+          v-show="canEditSection"
           icon="PencilAlt"
           class="block md:hidden md:group-hover:block"
           icon-class="h-4 w-4"
-          v-show="canEditSection"
           @click="setEditingMode"
         />
         <IButtonIcon
@@ -34,6 +34,7 @@
       v-show="!editing"
       class="text-sm text-neutral-900 dark:text-neutral-300"
     >
+      <!-- eslint-disable-next-line vue/no-v-html -->
       <p v-html="section.label"></p>
     </div>
     <div v-if="editing">
@@ -42,59 +43,59 @@
         label-for="resourceName"
       >
         <ICustomSelect
+          v-model="resourceName"
           label="label"
           field-id="resourceName"
           :clearable="false"
           :options="availableResources"
           :reduce="resource => resource.id"
-          v-model="resourceName"
         />
       </IFormGroup>
       <IFormGroup :label="$t('core::fields.label')">
         <Editor
+          v-model="label"
           :with-image="false"
           default-tag="div"
           toolbar="bold italic underline link removeformat"
-          v-model="label"
         />
       </IFormGroup>
       <IFormGroup>
         <IFormCheckbox
           id="is-required"
-          name="is-required"
           v-model:checked="isRequired"
+          name="is-required"
           :label="$t('core::fields.is_required')"
         />
         <IFormCheckbox
           id="file-multiple"
-          name="file-multiple"
           v-model:checked="multiple"
+          name="file-multiple"
           :label="$t('webforms::form.sections.file.multiple')"
         />
       </IFormGroup>
-
       <div class="space-x-2 text-right">
         <IButton
           size="sm"
-          @click="editing = false"
           variant="white"
           :text="$t('core::app.cancel')"
+          @click="editing = false"
         />
         <IButton
           size="sm"
-          @click="requestSectionSave"
           :disabled="saveIsDisabled"
           :text="$t('core::app.save')"
           variant="secondary"
+          @click="requestSectionSave"
         />
       </div>
     </div>
   </ICard>
 </template>
+
 <script setup>
-import { ref, computed } from 'vue'
-import find from 'lodash/find'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import find from 'lodash/find'
 
 const emit = defineEmits([
   'update-section-requested',

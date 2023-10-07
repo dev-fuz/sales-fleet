@@ -1,42 +1,42 @@
 <template>
   <ICard
     tag="form"
-    @submit.prevent="create"
     method="POST"
     :overlay="fields.isEmpty()"
+    @submit.prevent="create"
   >
-    <FieldsGenerator
-      focus-first
-      :form-id="form.formId"
+    <FormFields
       :fields="fields"
-      :via-resource="viaResource"
-      :via-resource-id="record.id"
-      view="create"
+      :form-id="form.formId"
+      :resource-name="resourceName"
+      focus-first
     />
 
     <template #footer>
       <div class="flex w-full flex-wrap items-center justify-between sm:w-auto">
         <div>
           <AssociationsPopover
-            :resource-name="viaResource"
-            :associateable="record"
             v-model="form.associations"
+            :primary-record="relatedResource"
+            :primary-resource-name="viaResource"
+            :primary-record-disabled="true"
+            :initial-associateables="relatedResource"
           />
         </div>
         <div
           class="mt-sm-0 mt-2 flex w-full flex-col sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:space-x-2"
         >
           <IFormToggle
+            v-model="form.is_completed"
             class="mb-4 mr-4 pr-4 sm:mb-0 sm:border-r sm:border-neutral-200 sm:dark:border-neutral-700"
             :label="$t('activities::activity.mark_as_completed')"
-            v-model="form.is_completed"
           />
           <IButton
             class="mb-2 sm:mb-0"
             variant="white"
-            @click="$emit('cancel')"
             size="sm"
             :text="$t('core::app.cancel')"
+            @click="$emit('cancel')"
           />
           <IButton
             type="submit"
@@ -50,7 +50,7 @@
 
     <IAlert
       :show="form.recentlySuccessful"
-      class="border border-success-300"
+      class="mt-4 border border-success-300"
       variant="success"
     >
       {{ $t('activities::activity.created') }}
@@ -59,27 +59,28 @@
 </template>
 
 <script setup>
-import AssociationsPopover from '~/Core/resources/js/components/AssociationsPopover.vue'
-import { useResourceFields } from '~/Core/resources/js/composables/useResourceFields'
-import { useRecordStore } from '~/Core/resources/js/composables/useRecordStore'
-import { useFieldsForm } from '~/Core/resources/js/components/Fields/useFieldsForm'
+import { computed, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const resourceName = Innoclapps.config('resources.activities.name')
+import AssociationsPopover from '~/Core/components/AssociationsPopover.vue'
+import { useFieldsForm } from '~/Core/composables/useFieldsForm'
+import { useResourceable } from '~/Core/composables/useResourceable'
+import { useResourceFields } from '~/Core/composables/useResourceFields'
 
-const emit = defineEmits(['cancel'])
+defineEmits(['cancel'])
 
 const props = defineProps({
   viaResource: { type: String, required: true },
+  viaResourceId: { type: [String, Number], required: true },
+  relatedResource: { required: true, type: Object },
 })
 
-const { t } = useI18n()
+const synchronizeResource = inject('synchronizeResource')
+const incrementResourceCount = inject('incrementResourceCount')
 
-const {
-  record,
-  incrementResourceRecordCount,
-  addResourceRecordHasManyRelationship,
-} = useRecordStore()
+const resourceName = Innoclapps.resourceName('activities')
+
+const { t } = useI18n()
 
 const { fields, getCreateFields } = useResourceFields()
 
@@ -88,7 +89,7 @@ const { form } = useFieldsForm(
   {
     is_completed: false,
     associations: {
-      [props.viaResource]: [record.value.id],
+      [props.viaResource]: [props.viaResourceId],
     },
   },
   {
@@ -96,11 +97,23 @@ const { form } = useFieldsForm(
   }
 )
 
-function prepareComponent() {
-  getCreateFields(resourceName, {
-    viaResource: props.viaResource,
-    viaResourceId: record.value.id,
-  }).then(createFields => fields.value.set(createFields))
+const { createResource } = useResourceable(resourceName)
+
+const contactsForGuestsSelectField = computed(() =>
+  props.viaResource === 'contacts'
+    ? [props.relatedResource]
+    : props.relatedResource.contacts || []
+)
+
+async function prepareComponent() {
+  fields.value
+    .set(
+      await getCreateFields(resourceName, {
+        viaResource: props.viaResource,
+        viaResourceId: props.viaResourceId,
+      })
+    )
+    .update('guests', { contacts: contactsForGuestsSelectField })
 }
 
 /**
@@ -108,19 +121,21 @@ function prepareComponent() {
  *
  * @return {Void}
  */
-function create() {
-  form
-    .withQueryString({
+async function create() {
+  let activity = await createResource(
+    form.withQueryString({
       via_resource: props.viaResource,
-      via_resource_id: record.value.id,
+      via_resource_id: props.viaResourceId,
     })
-    .hydrate()
-    .post('/activities')
-    .then(activity => {
-      Innoclapps.success(t('activities::activity.created'))
-      incrementResourceRecordCount('incomplete_activities_for_user_count')
-      addResourceRecordHasManyRelationship(activity, 'activities')
-    })
+  )
+
+  Innoclapps.success(t('activities::activity.created'))
+
+  if (!activity.is_completed) {
+    incrementResourceCount('incomplete_activities_for_user_count')
+  }
+
+  synchronizeResource({ activities: [activity] })
 }
 
 prepareComponent()

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -20,18 +20,21 @@ use Modules\Activities\Console\Commands\ActivitiesNotificationsCommand;
 use Modules\Activities\Highlights\TodaysActivities;
 use Modules\Activities\Listeners\StopRelatedOAuthCalendars;
 use Modules\Activities\Listeners\TransferActivitiesUserData;
+use Modules\Activities\Models\Activity;
+use Modules\Activities\Observers\ActivityObserver;
+use Modules\Activities\Observers\ActivityTransactionAwareObserver;
 use Modules\Activities\Support\SyncNextActivity;
 use Modules\Activities\Support\ToScriptProvider;
-use Modules\Contacts\Resource\Company\Frontend\ViewComponent as CompanyViewComponent;
-use Modules\Contacts\Resource\Contact\Frontend\ViewComponent as ContactViewComponent;
+use Modules\Contacts\Resource\Company\Pages\DetailComponent as CompanyDetailComponent;
+use Modules\Contacts\Resource\Contact\Pages\DetailComponent as ContactDetailComponent;
 use Modules\Core\DatabaseState;
 use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Facades\MailableTemplates;
-use Modules\Core\Highlights\Highlights;
-use Modules\Core\OAuth\Events\OAuthAccountDeleting;
+use Modules\Core\Menu\Highlights\Highlights;
 use Modules\Core\Settings\DefaultSettings;
+use Modules\Core\Support\OAuth\Events\OAuthAccountDeleting;
 use Modules\Core\SystemInfo;
-use Modules\Deals\Resource\Frontend\ViewComponent as DealViewComponent;
+use Modules\Deals\Resource\Pages\DetailComponent as DealDetailComponent;
 use Modules\Users\Events\TransferringUserData;
 
 class ActivitiesServiceProvider extends ServiceProvider
@@ -68,11 +71,12 @@ class ActivitiesServiceProvider extends ServiceProvider
         $this->app->booted(function () {
             $this->registerResources();
             Innoclapps::whenReadyForServing($this->bootModule(...));
+            Activity::observe(ActivityObserver::class);
+            Activity::observe(ActivityTransactionAwareObserver::class);
         });
 
         SystemInfo::register('PREFERRED_DEFAULT_HOUR', $this->app['config']->get('activities.defaults.hour'));
         SystemInfo::register('PREFERRED_DEFAULT_MINUTES', $this->app['config']->get('activities.defaults.minutes'));
-        SystemInfo::register('PREFERRED_DEFAULT_REMINDER_MINUTES', $this->app['config']->get('activities.defaults.reminder_minutes'));
     }
 
     /**
@@ -132,23 +136,26 @@ class ActivitiesServiceProvider extends ServiceProvider
      */
     protected function scheduleTasks(): void
     {
+        /** @var \Illuminate\Console\Scheduling\Schedule */
         $schedule = $this->app->make(Schedule::class);
 
-        $schedule->call(function () {
-            (new SyncNextActivity)->__invoke();
-        })
+        $dueCommandName = 'notify-due-activities';
+
+        $schedule->call(new SyncNextActivity)
             ->name('sync-next-activity')
             ->everyFiveMinutes()
             ->withoutOverlapping(5);
 
-        if (function_exists('proc_open') && function_exists('proc_close')) {
-            $schedule->command('activities:due-notifications')->everyMinute()->withoutOverlapping(5);
-        } else {
-            $schedule->call(function () {
-                Artisan::call('activities:due-notifications');
-            })
+        if (Innoclapps::canRunProcess()) {
+            $schedule->command(ActivitiesNotificationsCommand::class)
+                ->name($dueCommandName)
                 ->everyMinute()
-                ->name('notify-due-activities')
+                ->withoutOverlapping(5);
+        } else {
+            $schedule
+                ->call(fn () => Artisan::call(ActivitiesNotificationsCommand::class))
+                ->name($dueCommandName)
+                ->everyMinute()
                 ->withoutOverlapping(5);
         }
     }
@@ -196,9 +203,9 @@ class ActivitiesServiceProvider extends ServiceProvider
     {
         $tab = Tab::make('activities', 'activities-tab')->panel('activities-tab-panel')->order(15);
 
-        ContactViewComponent::registerTab($tab);
-        CompanyViewComponent::registerTab($tab);
-        DealViewComponent::registerTab($tab);
+        ContactDetailComponent::registerTab($tab);
+        CompanyDetailComponent::registerTab($tab);
+        DealDetailComponent::registerTab($tab);
     }
 
     /**

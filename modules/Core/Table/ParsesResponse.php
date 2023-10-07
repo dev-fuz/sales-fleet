@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,77 +12,121 @@
 
 namespace Modules\Core\Table;
 
-use Closure;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Modules\Core\Contracts\Presentable;
-use Modules\Core\Table\LengthAwarePaginator as TableLengthAwarePaginator;
+use Modules\Core\Models\Model;
 
+/** @mixin \Modules\Core\Table\Table */
 trait ParsesResponse
 {
     /**
-     * Parse the response for the request
+     * Parse the response for the request.
      */
-    private function parseResponse(LengthAwarePaginator $result, int $allTimeTotal): TableLengthAwarePaginator
+    protected function parseResponse(LengthAwarePaginator $result): LengthAwarePaginator
     {
-        $columns = $this->getUserColumns()->reject(fn ($column) => $column->isHidden())->all();
+        $columns = $this->getUserColumns()->filter->shouldQuery();
 
-        $result->getCollection()->transform(function ($model) use ($columns) {
-            $displayAs = [];
+        $result->getCollection()->transform(function (Model $model) use ($columns) {
+            $columns->filter->isRelation()->each(function (Column $column) use ($model) {
+                $this->appendAttributesWhenRelation($column, $model);
+            });
 
-            // Global main table models appends
-            $model->append(
-                array_merge($this->appends(), $model instanceof Presentable ? ['path'] : [])
-            );
-
-            foreach ($columns as $column) {
-                // Check for custom appends for relation the models
-                if ($column->isRelation()) {
-                    $this->appendAttributesWhenRelation($column, $model);
-                }
-
-                // Inline displayAs closure provided
-                if ($column->displayAs instanceof Closure) {
-                    data_set($displayAs, $column->attribute, call_user_func_array($column->displayAs, [$model]));
-                }
-
-                // Vuejs casts 0 as empty and 0 will be shown as empty
-                elseif ($column->isCountable() && $column->counts()) {
-                    data_set($displayAs, $column->attribute, (string) $model->{$column->attribute});
-                }
-            }
-
-            // Set the model displayAs attribute so it can be serialized for the front-end
-            $model->setAttribute('displayAs', $displayAs);
-
-            // If any authorizations, set them as attribute so they can be serialized for the front-end
-            if ($authorizations = $this->getAuthorizations($model)) {
-                $model->setAttribute('authorizations', $authorizations);
-            }
-
-            return $model;
+            return $this->createRow($model, $columns);
         });
 
-        $response = (new TableLengthAwarePaginator(
-            $result->getCollection(),
-            $result->total(),
-            $result->perPage(),
-            $result->currentPage()
-        ))->setAllTimeTotal($allTimeTotal);
+        $this->tapResponse($result);
 
-        $this->tapResponse($response);
-
-        return $response;
+        return $result;
     }
 
     /**
-     * Tap the response
+     * Create new row for the response.
      */
-    protected function tapResponse(TableLengthAwarePaginator $response): void
+    protected function createRow(Model $model, Collection $columns): array
+    {
+        $row = ['id' => $model->getKey()];
+
+        $columns->each(function (Column $column) use ($model, &$row) {
+            $row += $model->only($this->getAppendedAttributesForColumn($column, $model));
+
+            $row['authorizations'] = $this->getAuthorizations($model);
+
+            $this->addDisabledFieldsForEditToRow($row, $column, $model);
+
+            $column->fillRowData($row, $model);
+
+            $this->addCountedRelationshipsToRow($row, $model);
+        });
+
+        return $row;
+    }
+
+    protected function getAppendedAttributesForColumn(Column $column, Model $model): array
+    {
+        return array_merge(
+            $this->appends,
+            $column->appends,
+            $model instanceof Presentable ? ['path'] : []
+        );
+    }
+
+    /**
+     * Tap the table response.
+     */
+    protected function tapResponse(LengthAwarePaginator $response): void
     {
     }
 
     /**
-     * Append attributes when column is relation
+     * Add the disabled fields data to the row.
+     */
+    protected function addDisabledFieldsForEditToRow(array &$row, Column $column, Model $model): void
+    {
+        $field = $column->field;
+
+        if (! $field) {
+            return;
+        }
+
+        if (! array_key_exists('_edit_disabled', $row)) {
+            $row['_edit_disabled'] = [];
+        }
+
+        // When the field is not applicable for update and has custom inline edit field
+        // we will assume that we wanted this field to be applicable for update as added custom inline edit field(s)
+        $row['_edit_disabled'][$field->attribute] = with($field, function ($field) use ($model) {
+            if (! $field->isApplicableForUpdate() && is_null($field->inlineEditField())) {
+                return true;
+            }
+
+            return $field->isInlineEditDisabled($model);
+        });
+    }
+
+    /**
+     * Add the counted relationship to the row, including the counted without columns.
+     */
+    protected function addCountedRelationshipsToRow(array &$row, Model $model): void
+    {
+        foreach ($this->getCountedRelationships() as $key => $relation) {
+            if (is_string($key)) {
+                $relation = $key;
+            } elseif (str_contains($relation, ' as ')) {
+                $relation = Str::after($relation, 'as ');
+            }
+
+            $attribute = $relation.'_count';
+
+            if (! array_key_exists($attribute, $row)) {
+                $row[$attribute] = $model->{$attribute};
+            }
+        }
+    }
+
+    /**
+     * Append attributes when column is relation.
      *
      * @param  \Illuminate\Database\Eloquent\Model  $model
      */
@@ -90,13 +134,13 @@ trait ParsesResponse
     {
         if ($column instanceof BelongsToColumn && $model->{$column->relationName}) {
             $this->appendAttributesWhenBelongsTo($column, $model);
-        } elseif (($column instanceof HasManyColumn || $column instanceof BelongsToManyColumn) && ! $column->counts()) {
+        } elseif (($column instanceof HasManyColumn || $column instanceof BelongsToManyColumn)) {
             $this->appendAttributesWhenHasManyOrBelongsToMany($column, $model);
         }
     }
 
     /**
-     * Append attributes when BelongsToColumn
+     * Append attributes when BelongsToColumn.
      *
      * @param  \Illuminate\Database\Eloquent\Model  $model
      */
@@ -109,7 +153,7 @@ trait ParsesResponse
     }
 
     /**
-     * Append attributes when HasManyColumn
+     * Append attributes when HasManyColumn.
      *
      * @param  \Illuminate\Database\Eloquent\Model  $model
      */

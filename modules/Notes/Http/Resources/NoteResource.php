@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,24 +12,21 @@
 
 namespace Modules\Notes\Http\Resources;
 
-use App\Http\Resources\ProvidesCommonData;
 use Illuminate\Http\Request;
 use Modules\Comments\Http\Resources\CommentResource;
 use Modules\Contacts\Http\Resources\CompanyResource;
 use Modules\Contacts\Http\Resources\ContactResource;
-use Modules\Core\Resource\Http\JsonResource;
+use Modules\Core\Resource\JsonResource;
 use Modules\Deals\Http\Resources\DealResource;
 use Modules\Users\Http\Resources\UserResource;
 
 /** @mixin \Modules\Notes\Models\Note */
 class NoteResource extends JsonResource
 {
-    use ProvidesCommonData;
-
     /**
      * Transform the resource collection into an array.
      *
-     * @param  \Modules\Core\Resource\Http\ResourceRequest  $request
+     * @param  \Modules\Core\Http\Requests\ResourceRequest  $request
      */
     public function toArray(Request $request): array
     {

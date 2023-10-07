@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -13,11 +13,10 @@
 namespace Modules\Deals\Models;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Lang;
-use Modules\Core\Models\Model;
+use Modules\Core\Models\CacheModel;
 
-class LostReason extends Model
+class LostReason extends CacheModel
 {
     /**
      * The attributes that are mass assignable.
@@ -29,19 +28,11 @@ class LostReason extends Model
     ];
 
     /**
-     * The fields for the model that are searchable.
+     * The columns for the model that are searchable.
      */
-    protected static array $searchableFields = [
+    protected static array $searchableColumns = [
         'name' => 'like',
     ];
-
-    /**
-     * A lost reason has many deals
-     */
-    public function deals(): HasMany
-    {
-        return $this->hasMany(\Modules\Deals\Models\Deal::class);
-    }
 
     /**
      * Name attribute accessor

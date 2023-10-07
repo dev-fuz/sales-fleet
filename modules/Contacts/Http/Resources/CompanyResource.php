@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -12,25 +12,22 @@
 
 namespace Modules\Contacts\Http\Resources;
 
-use App\Http\Resources\ProvidesCommonData;
 use Illuminate\Http\Request;
 use Modules\Activities\Http\Resources\ActivityResource;
 use Modules\Calls\Http\Resources\CallResource;
 use Modules\Core\Http\Resources\ChangelogResource;
 use Modules\Core\Http\Resources\MediaResource;
-use Modules\Core\Resource\Http\JsonResource;
+use Modules\Core\Resource\JsonResource;
 use Modules\MailClient\Http\Resources\EmailAccountMessageResource;
 use Modules\Notes\Http\Resources\NoteResource;
 
 /** @mixin \Modules\Contacts\Models\Company */
 class CompanyResource extends JsonResource
 {
-    use ProvidesCommonData;
-
     /**
      * Transform the resource collection into an array.
      *
-     * @param  \Modules\Core\Resource\Http\ResourceRequest  $request
+     * @param  \Modules\Core\Http\Requests\ResourceRequest  $request
      */
     public function toArray(Request $request): array
     {

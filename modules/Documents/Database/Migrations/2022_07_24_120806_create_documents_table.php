@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -32,6 +32,7 @@ return new class extends Migration
             $table->boolean('requires_signature')->default(true);
             $table->mediumText('content')->nullable();
             $table->string('view_type')->default(DocumentViewType::NAV_TOP->value);
+            $table->string('locale');
             $table->dateTime('accepted_at')->nullable();
             $table->foreignId('marked_accepted_by')->nullable()->constrained('users');
             $table->dateTime('send_at')->nullable();

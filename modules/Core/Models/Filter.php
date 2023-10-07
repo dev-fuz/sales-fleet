@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,6 +14,7 @@ namespace Modules\Core\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Casts\Json;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -22,9 +23,10 @@ use Modules\Core\Concerns\HasMeta;
 use Modules\Core\Contracts\Metable;
 use Modules\Core\Database\Factories\FilterFactory;
 
-class Filter extends Model implements Metable
+class Filter extends CacheModel implements Metable
 {
-    use HasMeta, HasFactory;
+    use HasFactory,
+        HasMeta;
 
     /**
      * The attributes that are mass assignable.
@@ -41,7 +43,6 @@ class Filter extends Model implements Metable
      * @var array
      */
     protected $casts = [
-        'rules' => 'array',
         'is_shared' => 'boolean',
         'is_readonly' => 'boolean',
         'user_id' => 'int',
@@ -68,7 +69,9 @@ class Filter extends Model implements Metable
      */
     public function isSystemDefault(): Attribute
     {
-        return Attribute::get(fn () => is_null($this->user_id));
+        return Attribute::get(
+            fn () => is_null($this->user_id)
+        );
     }
 
     /**
@@ -104,16 +107,21 @@ class Filter extends Model implements Metable
      */
     public function rules(): Attribute
     {
-        return Attribute::set(function ($value) {
-            if (is_array($value) && ! array_key_exists('children', $value)) {
-                $value = [
-                    'condition' => 'and',
-                    'children' => $value,
-                ];
-            }
+        return Attribute::make(
+            set: function ($value) {
+                if (is_array($value) && ! array_key_exists('children', $value)) {
+                    $value = [
+                        'condition' => 'and',
+                        'children' => $value,
+                    ];
+                }
 
-            return json_encode(is_array($value) ? $value : []);
-        });
+                return Json::encode(is_array($value) ? $value : []);
+            },
+            get: function ($value) {
+                return Json::decode($value ?? '');
+            }
+        );
     }
 
     /**
@@ -160,6 +168,14 @@ class Filter extends Model implements Metable
     }
 
     /**
+     * Scope a query to only include shared filters.
+     */
+    public function scopeShared(Builder $query): void
+    {
+        $query->where('is_shared', true);
+    }
+
+    /**
      * Find filter by flag.
      */
     public static function findByFlag(string $flag): ?Filter
@@ -185,6 +201,20 @@ class Filter extends Model implements Metable
                 ->orWhere('is_shared', true)
                 ->orWhereNull('user_id');
         });
+    }
+
+    /**
+     * Scope a query to retrieve filters for the given user.
+     */
+    public function scopeForUser(Builder $query, int $userId, string $identifier): void
+    {
+        $query
+            ->with([
+                'defaults' => fn ($query) => $query->where('user_id', $userId),
+            ])
+            ->visibleFor($userId)
+            ->ofIdentifier($identifier)
+            ->orderBy('name');
     }
 
     /**

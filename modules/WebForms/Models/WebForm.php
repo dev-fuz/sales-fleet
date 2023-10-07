@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,7 +14,6 @@ namespace Modules\WebForms\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -24,20 +23,21 @@ use Modules\Core\Concerns\HasCreator;
 use Modules\Core\Concerns\HasInitialAttributes;
 use Modules\Core\Concerns\HasUuid;
 use Modules\Core\Facades\Innoclapps;
+use Modules\Core\Fields\ChecksForDuplicates;
 use Modules\Core\Fields\Field;
 use Modules\Core\Fields\FieldsCollection;
-use Modules\Core\Models\Model;
+use Modules\Core\Models\CacheModel;
 use Modules\Deals\Models\Pipeline;
 use Modules\Deals\Models\Stage;
 use Modules\WebForms\Database\Factories\WebFormFactory;
 use Modules\WebForms\Enums\WebFormSection;
 
-class WebForm extends Model
+class WebForm extends CacheModel
 {
     use HasCreator,
         HasFactory,
-        HasUuid,
-        HasInitialAttributes;
+        HasInitialAttributes,
+        HasUuid;
 
     /**
      * The attributes that are mass assignable.
@@ -107,7 +107,9 @@ class WebForm extends Model
      */
     public function publicUrl(): Attribute
     {
-        return Attribute::get(fn () => route('webform.view', $this->uuid));
+        return Attribute::get(
+            fn () => route('webform.view', $this->uuid)
+        );
     }
 
     /**
@@ -117,14 +119,15 @@ class WebForm extends Model
     {
         return Attribute::get(function ($value) {
             $value = json_decode($value ?? '[]', true);
+            $pipelineId = $value['pipeline_id'] ?? null;
 
-            if (! isset($value['pipeline_id']) || Pipeline::where('id', $value['pipeline_id'])->count() === 0) {
+            if (! $pipelineId || is_null(Pipeline::find($pipelineId))) {
                 $pipeline = Pipeline::findPrimary();
                 $value['pipeline_id'] = $pipeline->getKey();
-                $value['stage_id'] = $pipeline->stages->sortBy('display_order')->first()->getKey();
-            } elseif (Stage::where('id', $value['stage_id'])->count() === 0) {
-                $pipeline = Pipeline::find($value['pipeline_id']);
-                $value['stage_id'] = $pipeline->stages->sortBy('display_order')->first()->getKey();
+                $value['stage_id'] = $pipeline->stages->first()->getKey();
+            } elseif (is_null(Stage::find($value['stage_id']))) {
+                $pipeline = Pipeline::find($pipelineId);
+                $value['stage_id'] = $pipeline->stages->first()->getKey();
             }
 
             return $value;
@@ -234,11 +237,15 @@ class WebForm extends Model
                     ->help('')
                     ->canSee(fn () => true);
 
+                if (in_array(ChecksForDuplicates::class, class_uses_recursive($field))) {
+                    $field->disableDuplicateChecks();
+                }
+
                 if ($section['isRequired']) {
                     $field->rules('required');
 
-                    if ($field->isOptionable()) {
-                        $field->withMeta(['attributes' => ['clearable' => false]]);
+                    if ($field->isOptionable() && method_exists($field, 'withoutClearAction')) {
+                        $field->withoutClearAction();
                     }
                 }
 

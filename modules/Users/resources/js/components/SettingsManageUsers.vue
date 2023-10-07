@@ -20,7 +20,7 @@
     <ITabPanels>
       <!-- Make users tab lazy as ManageTeams is clearing the table settings in modifications -->
       <ITabPanel lazy>
-        <UserIndex />
+        <UsersIndex />
       </ITabPanel>
       <ITabPanel>
         <router-view name="roles" />
@@ -31,10 +31,12 @@
     </ITabPanels>
   </ITabGroup>
 </template>
+
 <script setup>
 import { ref } from 'vue'
-import { useRoute, useRouter, onBeforeRouteUpdate } from 'vue-router'
-import UserIndex from '../views/UserIndex.vue'
+import { onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
+
+import UsersIndex from '../views/UsersIndex.vue'
 
 const route = useRoute()
 const router = useRouter()

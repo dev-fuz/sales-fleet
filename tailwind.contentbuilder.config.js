@@ -1,10 +1,11 @@
 /** @type {import('tailwindcss').Config} */
 
-const colors = require('tailwindcss/colors')
-const defaultTheme = require('tailwindcss/defaultTheme')
-const utils = require('./resources/js/tailwindcss/utils')
+import colors from 'tailwindcss/colors'
+import defaultTheme from 'tailwindcss/defaultTheme'
 
-module.exports = {
+import { generateColorVariant } from './resources/js/tailwindcss/utils'
+
+export default {
   content: [],
 
   safelist: [],
@@ -25,12 +26,12 @@ module.exports = {
       black: colors.black,
       white: colors.white,
 
-      neutral: utils.generateColorVariant('neutral'),
-      danger: utils.generateColorVariant('danger'),
-      warning: utils.generateColorVariant('warning'),
-      success: utils.generateColorVariant('success'),
-      info: utils.generateColorVariant('info'),
-      primary: utils.generateColorVariant('primary'),
+      neutral: generateColorVariant('neutral'),
+      danger: generateColorVariant('danger'),
+      warning: generateColorVariant('warning'),
+      success: generateColorVariant('success'),
+      info: generateColorVariant('info'),
+      primary: generateColorVariant('primary'),
     },
   },
   plugins: [],

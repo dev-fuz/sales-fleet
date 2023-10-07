@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -28,21 +28,22 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Modules\Activities\Contracts\Attendeeable;
 use Modules\Activities\Database\Factories\ActivityFactory;
-use Modules\Activities\Jobs\CreateCalendarEvent;
 use Modules\Activities\Jobs\DeleteCalendarEvent;
 use Modules\Activities\Models\Calendar as CalendarModel;
 use Modules\Comments\Concerns\HasComments;
 use Modules\Contacts\Models\Company;
 use Modules\Contacts\Models\Contact;
 use Modules\Core\Concerns\HasCreator;
+use Modules\Core\Concerns\LazyTouchesViaPivot;
 use Modules\Core\Concerns\Prunable;
 use Modules\Core\Contracts\DisplaysOnCalendar;
 use Modules\Core\Contracts\Presentable;
-use Modules\Core\Date\Carbon;
-use Modules\Core\Media\HasMedia;
 use Modules\Core\Models\Model;
+use Modules\Core\Resource\Import\Import;
 use Modules\Core\Resource\Resourceable;
-use Modules\Core\Timeline\Timelineable;
+use Modules\Core\Support\Date\Carbon;
+use Modules\Core\Support\Media\HasMedia;
+use Modules\Core\Support\Timeline\Timelineable;
 use Modules\Deals\Models\Deal;
 use Modules\Users\Models\User;
 use Spatie\IcalendarGenerator\Components\Calendar;
@@ -51,14 +52,15 @@ use Spatie\IcalendarGenerator\Enums\ParticipationStatus;
 
 class Activity extends Model implements DisplaysOnCalendar, Presentable
 {
-    use HasFactory,
+    use HasComments,
         HasCreator,
+        HasFactory,
         HasMedia,
-        HasComments,
+        LazyTouchesViaPivot,
+        Prunable,
         Resourceable,
-        Timelineable,
         SoftDeletes,
-        Prunable;
+        Timelineable;
 
     /**
      * The attributes that are mass assignable.
@@ -89,11 +91,13 @@ class Activity extends Model implements DisplaysOnCalendar, Presentable
     ];
 
     /**
-     * The fields for the model that are searchable.
+     * The columns for the model that are searchable.
      */
-    protected static array $searchableFields = [
+    protected static array $searchableColumns = [
+        'user_id',
+        'created_by',
+        'activity_type_id',
         'title' => 'like',
-        'note' => 'like',
     ];
 
     /**
@@ -101,49 +105,7 @@ class Activity extends Model implements DisplaysOnCalendar, Presentable
      */
     public bool $calendarable = true;
 
-    /**
-     * Boot up model and set default data
-     */
-    protected static function boot(): void
-    {
-        parent::boot();
-
-        static::creating(function ($model) {
-            $model->reminder_at = static::determineReminderAtDate($model);
-        });
-
-        static::updating(function ($model) {
-            // We will update the date only if the attribute is set on the model
-            // because if it's not set, probably was not provided and no need to determine or update the reminder_at
-            if (array_key_exists('reminder_minutes_before', $model->getAttributes())) {
-                tap($model->reminder_at, function ($originalReminder) use (&$model) {
-                    $model->reminder_at = static::determineReminderAtDate($model);
-
-                    // We will check if the reminder_at column has been changed, if yes,
-                    // we will reset the reminded_at value to null so new reminder can be sent to the user
-                    if (is_null($model->reminder_at) || ($model->isReminded && $originalReminder->ne($model->reminder_at))) {
-                        $model->reminded_at = null;
-                    }
-                });
-            }
-        });
-
-        static::deleting(function ($model) {
-            if ($model->isForceDeleting()) {
-                $model->purge(false);
-            }
-
-            if ($model->calendarable) {
-                $model->deleteFromCalendar();
-            }
-        });
-
-        static::restored(function ($model) {
-            if ($model->calendarable && $model->user->canSyncToCalendar() && $model->typeCanBeSynchronizedToCalendar()) {
-                CreateCalendarEvent::dispatch($model->user->calendar, $model);
-            }
-        });
-    }
+    public static $preUpdateUser = null;
 
     /**
      * Determine the reminder at date value
@@ -189,7 +151,7 @@ class Activity extends Model implements DisplaysOnCalendar, Presentable
     /**
      * Get the activity latest synchronization for the given calendar
      */
-    public function latestSynchronization(?CalendarModel $calendar = null): ?CalendarModel
+    public function latestSynchronization(CalendarModel $calendar = null): ?CalendarModel
     {
         return $this->synchronizations->where(
             'id', // calendar id from calendars table
@@ -204,7 +166,7 @@ class Activity extends Model implements DisplaysOnCalendar, Presentable
     {
         return $this->belongsToMany(\Modules\Activities\Models\Calendar::class, 'activity_calendar_sync')
             ->withPivot(['event_id', 'synchronized_at'])
-            ->orderBy('synchronized_at', 'desc');
+            ->latest('synchronized_at');
     }
 
     /**
@@ -274,7 +236,9 @@ class Activity extends Model implements DisplaysOnCalendar, Presentable
      */
     public function isReminded(): Attribute
     {
-        return Attribute::get(fn () => ! is_null($this->reminded_at));
+        return Attribute::get(
+            fn () => ! is_null($this->reminded_at)
+        );
     }
 
     /**
@@ -282,7 +246,9 @@ class Activity extends Model implements DisplaysOnCalendar, Presentable
      */
     public function isCompleted(): Attribute
     {
-        return Attribute::get(fn () => ! is_null($this->completed_at));
+        return Attribute::get(
+            fn () => ! is_null($this->completed_at)
+        );
     }
 
     /**
@@ -390,7 +356,9 @@ class Activity extends Model implements DisplaysOnCalendar, Presentable
      */
     public function path(): Attribute
     {
-        return Attribute::get(fn () => "/activities/{$this->id}");
+        return Attribute::get(
+            fn () => "/activities/{$this->id}"
+        );
     }
 
     /**
@@ -399,7 +367,7 @@ class Activity extends Model implements DisplaysOnCalendar, Presentable
     public function isDue(): Attribute
     {
         return Attribute::get(
-            fn () => ! $this->isCompleted && $this->full_due_date < date('Y-m-d H:i:s')
+            fn () => ! $this->is_completed && $this->full_due_date < date('Y-m-d H:i:s')
         );
     }
 
@@ -434,7 +402,7 @@ class Activity extends Model implements DisplaysOnCalendar, Presentable
     /**
      * Create due date expression for query
      */
-    public static function dueDateQueryExpression(?string $as = null): ?Expression
+    public static function dueDateQueryExpression(string $as = null): ?Expression
     {
         return static::dateTimeExpression('due_date', 'due_time', $as);
     }
@@ -442,7 +410,7 @@ class Activity extends Model implements DisplaysOnCalendar, Presentable
     /**
      * Create date time expression for querying
      */
-    public static function dateTimeExpression(string $dateField, string $timeField, ?string $as = null): ?Expression
+    public static function dateTimeExpression(string $dateField, string $timeField, string $as = null): ?Expression
     {
         $driver = (new static)->getConnection()->getDriverName();
 
@@ -547,7 +515,7 @@ class Activity extends Model implements DisplaysOnCalendar, Presentable
     public function scopeReminderable(Builder $query): void
     {
         $query->notReminded()
-            ->whereHas('user')
+            ->incomplete()
             ->whereNotNull('reminder_at')
             ->where('reminder_at', '<=', Carbon::asAppTimezone());
     }
@@ -565,8 +533,10 @@ class Activity extends Model implements DisplaysOnCalendar, Presentable
      */
     public function markAsComplete(): static
     {
-        $this->completed_at = now();
-        $this->save();
+        if (! $this->is_completed) {
+            $this->completed_at = now();
+            $this->save();
+        }
 
         return $this;
     }
@@ -718,19 +688,28 @@ class Activity extends Model implements DisplaysOnCalendar, Presentable
     public function scopeWithCommon(Builder $query): void
     {
         $query->withCount(['comments'])->with([
-            'companies.nextActivity',
-            'contacts.nextActivity',
-            'deals.nextActivity',
+            'companies',
+            'contacts',
+            'deals',
             'media',
             'creator',
             'guests.guestable',
         ]);
     }
 
+    public function canSyncToCalendar(): bool
+    {
+        if (Import::$running) {
+            return false;
+        }
+
+        return $this->calendarable && $this->user->canSyncToCalendar() && $this->typeCanBeSynchronizedToCalendar();
+    }
+
     /**
      * Delete the activity from the synced calendar.
      */
-    public function deleteFromCalendar(?User $user = null)
+    public function deleteFromCalendar(User $user = null)
     {
         $user = $user ?: $this->user;
 
@@ -757,15 +736,17 @@ class Activity extends Model implements DisplaysOnCalendar, Presentable
             $this->{$relation}()->withTrashed()->detach();
         }
 
-        $this->guests->each(function ($guest) {
+        $this->loadMissing('guests')->guests->each(function ($guest) {
             $guest->activities()->withTrashed()->detach();
             $guest->delete();
         });
 
         foreach ([Contact::class, Company::class, Deal::class] as $model) {
-            $model::withTrashed()
-                ->where('next_activity_id', $this->getKey())
-                ->update(['next_activity_id' => null]);
+            $model::withoutTimestamps(function () use ($model) {
+                $model::withTrashed()
+                    ->where('next_activity_id', $this->getKey())
+                    ->update(['next_activity_id' => null, 'next_activity_date' => null]);
+            });
         }
     }
 

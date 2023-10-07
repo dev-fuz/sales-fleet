@@ -1,13 +1,13 @@
 <template>
   <TransitionRoot as="template" :show="localVisible">
     <Dialog
-      as="div"
       ref="dialog"
+      as="div"
       static
       :initial-focus="initialFocus"
       class="dialog fixed inset-0 overflow-y-auto"
-      @close="handleDialogClosedEvent"
       :open="localVisible"
+      @close="handleDialogClosedEvent"
     >
       <div
         class="dialog-inner flex min-h-screen items-end justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-1"
@@ -33,6 +33,7 @@
           aria-hidden="true"
           >&#8203;</span
         >
+
         <TransitionChild
           as="template"
           enter="ease-out duration-300"
@@ -44,17 +45,13 @@
         >
           <component
             :is="form ? 'form' : 'div'"
-            @submit.prevent="$emit('submit')"
             :novalidate="form ? true : undefined"
-            @keydown.passive="$emit('keydown', $event)"
             :class="[
-              { 'sm:max-w-lg': size === 'sm' },
-              { 'sm:max-w-2xl': size === 'md' },
-              { 'sm:max-w-3xl': size === 'lg' },
-              { 'sm:max-w-4xl': size === 'xl' },
-              { 'sm:max-w-5xl': size === 'xxl' },
+              sizeClass,
               'relative z-50 inline-block w-full  overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl dark:bg-neutral-900 sm:my-8 sm:align-middle',
             ]"
+            @submit.prevent="$emit('submit')"
+            @keydown.passive="$emit('keydown', $event)"
           >
             <!-- Above, added "relative z-50", removed "transform transition-all" -->
             <!-- For some reason when using fixed popover with the VCalendar package positioning it's not shown correctly in the modal
@@ -64,7 +61,7 @@
             <div class="absolute right-2 top-1 pr-4 pt-4">
               <button
                 type="button"
-                class="rounded-md bg-white text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 hover:text-neutral-500 dark:bg-neutral-800"
+                class="rounded-md bg-white text-neutral-400 hover:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-neutral-800"
                 @click="hide"
               >
                 <Icon icon="X" class="h-6 w-6" />
@@ -76,13 +73,12 @@
               <div>
                 <DialogTitle
                   class="text-lg/6 font-medium text-neutral-700 dark:text-white"
-                >
-                  {{ title }}
-                </DialogTitle>
+                  v-text="title"
+                />
                 <p
-                  v-if="description"
+                  v-if="subTitle"
                   class="text-sm text-neutral-500 dark:text-neutral-300"
-                  v-text="description"
+                  v-text="subTitle"
                 />
               </div>
 
@@ -101,20 +97,20 @@
                       :variant="cancelVariant"
                       :disabled="computedCancelDisabled"
                       :size="cancelSize"
-                      @click="hide"
                       :text="cancelTitle"
+                      @click="hide"
                     />
                   </slot>
                   <slot name="modal-ok" :title="okTitle">
                     <IButton
                       :variant="okVariant"
-                      @click="handleOkClick"
                       :type="form ? 'submit' : 'button'"
                       :size="okSize"
                       class="ml-4"
                       :loading="okLoading"
                       :disabled="computedOkDisabled"
                       :text="okTitle"
+                      @click="handleOkClick"
                     />
                   </slot>
                 </div>
@@ -130,15 +126,16 @@
     </Dialog>
   </TransitionRoot>
 </template>
+
 <script setup>
 import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
   ref,
   toRef,
-  computed,
   watch,
-  nextTick,
-  onMounted,
-  onBeforeUnmount,
 } from 'vue'
 import {
   Dialog,
@@ -149,15 +146,17 @@ import {
 } from '@headlessui/vue'
 
 import { passiveEventArg } from '@/utils'
-import { useDialog } from './useDialog'
-import propsDefinition from './props'
+
 import emitsDefinition from './emits'
+import propsDefinition from './props'
+import { useDialog, useDialogSize } from './useDialog'
 
 const emit = defineEmits(emitsDefinition)
 const props = defineProps(propsDefinition)
 
 useDialog(show, hide, toRef(props, 'id'))
 
+const sizeClass = useDialogSize(toRef(props, 'size'))
 const trackingOverlayHeight = ref(false)
 const localVisible = ref(false)
 const hiding = ref(false)
@@ -253,6 +252,7 @@ function addOverlayEventListeners() {
  */
 function removeOverlayEventListeners() {
   const dialog = document.querySelector('.dialog')
+
   // Perhaps on unmounted, in this case
   // the event will be already removed
   if (dialog) {

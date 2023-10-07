@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,9 +16,10 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Traits\ForwardsCalls;
 use KubAT\PhpSimple\HtmlDomParser;
 use Modules\Core\Models\Media;
-use Modules\Core\Resource\Placeholders;
+use Modules\Core\Support\Placeholders\Placeholders;
 use Modules\MailClient\Client\Client;
 use Modules\MailClient\Client\FolderIdentifier;
+use Modules\MailClient\Support\MailTracker;
 
 abstract class AbstractComposer
 {
@@ -27,7 +28,7 @@ abstract class AbstractComposer
     /**
      * Create new AbstractComposer instance.
      */
-    public function __construct(protected Client $client, ?FolderIdentifier $sentFolder = null)
+    public function __construct(protected Client $client, FolderIdentifier $sentFolder = null)
     {
         if ($sentFolder) {
             $this->setSentFolder($sentFolder);
@@ -52,6 +53,16 @@ abstract class AbstractComposer
         $this->client->setSentFolder(
             $this->client->getFolders()->find($identifier)
         );
+
+        return $this;
+    }
+
+    /**
+     * Add trackers to the message body.
+     */
+    public function withTrackers(): static
+    {
+        (new MailTracker)->createTrackers($this);
 
         return $this;
     }

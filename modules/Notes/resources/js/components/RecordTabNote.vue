@@ -1,13 +1,17 @@
 <template>
   <ITab
-    :badge="record.notes_count"
+    v-memo="[resource.notes_count]"
+    :badge="resource.notes_count"
     badge-variant="neutral"
     :title="$t('notes::note.notes')"
     icon="PencilAlt"
   />
 </template>
-<script setup>
-import { useRecordStore } from '~/Core/resources/js/composables/useRecordStore'
 
-const { record } = useRecordStore()
+<script setup>
+defineProps({
+  resourceName: { required: true, type: String },
+  resourceId: { required: true, type: [String, Number] },
+  resource: { required: true, type: Object },
+})
 </script>

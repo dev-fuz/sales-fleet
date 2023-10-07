@@ -5,7 +5,8 @@
       :class="[
         'card bg-white dark:bg-neutral-900',
         {
-          'ring-1 ring-neutral-600 ring-opacity-5': ring,
+          'ring-1 ring-neutral-600 ring-opacity-5 dark:ring-neutral-700 dark:ring-opacity-50':
+            ring,
           'rounded-lg': rounded,
           shadow: shadow,
           'overflow-hidden': overflowHidden,
@@ -59,11 +60,7 @@
     </component>
   </IOverlay>
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
 defineProps({
   tag: { type: [String, Object], default: 'div' },
@@ -72,12 +69,16 @@ defineProps({
   actionsClass: [String, Array, Object],
   footerClass: [String, Array, Object],
   description: String,
-  condensed: { default: false, type: Boolean },
-  overlay: { default: false, type: Boolean },
+  condensed: Boolean,
+  overlay: Boolean,
   ring: { default: true, type: Boolean },
   rounded: { default: true, type: Boolean },
   shadow: { default: true, type: Boolean },
   overflowHidden: { default: true, type: Boolean },
-  noBody: { default: false, type: Boolean },
+  noBody: Boolean,
+})
+
+defineOptions({
+  inheritAttrs: false,
 })
 </script>

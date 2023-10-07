@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -16,7 +16,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Modules\Core\Http\Controllers\ApiController;
-use Modules\Core\Resource\Http\ResourceRequest;
+use Modules\Core\Http\Requests\ResourceRequest;
 
 class AssociationsSyncController extends ApiController
 {
@@ -93,7 +93,9 @@ class AssociationsSyncController extends ApiController
                 ->detach($ids);
         }
 
-        return $this->response('', 204);
+        return $this->response($request->toResponse(
+            $request->resource()->displayQuery()->find($request->resourceId())
+        ));
     }
 
     /**
@@ -155,8 +157,8 @@ class AssociationsSyncController extends ApiController
 
             if (! $relatedResource ||
                 ! $relatedResource->canBeAssociated($request->resource()->name())) {
-                $message = "The provided resource name \"$resource\" cannot be associated to the {$request->resource()->singularLabel()}";
-                abort(400, $message);
+                $message = "The provided resource name \"$resource\" cannot be associated to {$request->resource()->singularName()}.";
+                abort(409, $message);
             }
         }
     }

@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -24,7 +24,7 @@ return new class extends Migration
     {
         Schema::create('deals', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->string('name')->index();
             $table->uuid('uuid');
             $table->string('swatch_color', 7)->nullable();
             $table->foreignId('pipeline_id')->constrained('pipelines');
@@ -43,6 +43,7 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users');
             $table->foreignId('web_form_id')->nullable()->constrained('web_forms');
             $table->foreignId('next_activity_id')->nullable()->constrained('activities');
+            $table->dateTime('next_activity_date')->nullable()->index();
             $table->softDeletes();
             $table->timestamps();
         });

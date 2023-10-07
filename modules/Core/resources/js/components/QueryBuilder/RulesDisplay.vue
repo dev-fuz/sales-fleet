@@ -17,8 +17,9 @@
 </template>
 
 <script setup>
+import { useQueryBuilder } from '../../composables/useQueryBuilder'
+
 import RuleDisplay from './RuleDisplay.vue'
-import { useQueryBuilder } from './useQueryBuilder'
 
 const props = defineProps({
   view: { required: true, type: String },

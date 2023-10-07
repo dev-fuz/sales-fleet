@@ -9,16 +9,16 @@
   >
     <template #header>
       <p
-        class="font-semibold text-neutral-800 dark:text-neutral-200"
         v-t="'webforms::form.sections.submit.button'"
+        class="font-semibold text-neutral-800 dark:text-neutral-200"
       />
     </template>
     <template #actions>
       <IButtonIcon
+        v-show="!editing"
         icon="PencilAlt"
         class="block md:hidden md:group-hover:block"
         icon-class="h-4 w-4"
-        v-show="!editing"
         @click="setEditingMode"
       />
     </template>
@@ -37,17 +37,17 @@
       </IFormGroup>
       <IFormGroup v-show="reCaptchaConfigured">
         <IFormCheckbox
+          id="spam_protected"
           v-model:checked="spamProtected"
           name="spam_protected"
-          id="spam_protected"
           :label="$t('webforms::form.sections.submit.spam_protected')"
         />
       </IFormGroup>
       <IFormGroup>
         <IFormCheckbox
+          id="require_privacy_policy"
           v-model:checked="privacyPolicyAcceptIsRequired"
           name="require_privacy_policy"
-          id="require_privacy_policy"
           :label="$t('webforms::form.sections.submit.require_privacy_policy')"
         />
       </IFormGroup>
@@ -56,30 +56,26 @@
         :label="$t('webforms::form.sections.submit.privacy_policy_url')"
         label-for="privacy_policy_url"
       >
-        <IFormInput v-model="privacyPolicyUrl" id="privacy_policy_url" />
+        <IFormInput id="privacy_policy_url" v-model="privacyPolicyUrl" />
       </IFormGroup>
       <div class="space-x-2 text-right">
         <IButton
           size="sm"
-          @click="editing = false"
           variant="white"
           :text="$t('core::app.cancel')"
+          @click="editing = false"
         />
         <IButton
           size="sm"
-          @click="requestSectionSave"
           variant="secondary"
           :text="$t('core::app.save')"
+          @click="requestSectionSave"
         />
       </div>
     </div>
   </ICard>
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
 import { ref } from 'vue'
 
@@ -89,6 +85,10 @@ const props = defineProps({
   index: { type: Number },
   form: { type: Object, required: true },
   section: { required: true, type: Object },
+})
+
+defineOptions({
+  inheritAttrs: false,
 })
 
 const editing = ref(false)

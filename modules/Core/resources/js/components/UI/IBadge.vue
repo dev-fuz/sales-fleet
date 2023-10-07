@@ -7,13 +7,23 @@
     </span>
   </span>
 </template>
-<script>
-export default {
-  inheritAttrs: false,
-}
-</script>
+
 <script setup>
 import { computed } from 'vue'
+
+const props = defineProps({
+  variant: { default: 'neutral', type: String },
+  rounded: { type: Boolean, default: true },
+  text: [String, Number],
+  wrapperClass: [String, Array, Object],
+  size: {
+    default: 'sm',
+    type: String,
+    validator(value) {
+      return ['sm', 'lg', 'circle'].includes(value)
+    },
+  },
+})
 
 const colorMaps = {
   neutral: 'bg-neutral-200 text-neutral-700 border border-neutral-300',
@@ -30,18 +40,8 @@ const sizeMaps = {
   circle: 'px-1 min-h-full min-w-full justify-center text-xs',
 }
 
-const props = defineProps({
-  variant: { default: 'neutral', type: String },
-  rounded: { type: Boolean, default: true },
-  text: [String, Number],
-  wrapperClass: [String, Array, Object],
-  size: {
-    default: 'sm',
-    type: String,
-    validator(value) {
-      return ['sm', 'lg', 'circle'].includes(value)
-    },
-  },
+defineOptions({
+  inheritAttrs: false,
 })
 
 const computedClass = computed(() => [

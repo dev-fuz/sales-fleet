@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -14,9 +14,8 @@ namespace Modules\WebForms\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Modules\Core\Facades\Innoclapps;
 use Modules\Core\Http\Controllers\ApiController;
+use Modules\Core\Rules\ValidLocaleRule;
 use Modules\WebForms\Http\Resources\WebFormResource;
 use Modules\WebForms\Models\WebForm;
 
@@ -89,7 +88,7 @@ class WebFormController extends ApiController
     protected function validateForm(Request $request): void
     {
         $request->validate([
-            'locale' => ['sometimes', 'required', 'string', Rule::in(Innoclapps::locales())],
+            'locale' => ['sometimes', 'required', 'string', new ValidLocaleRule],
             'title' => ($request->isMethod('PUT') ? 'sometimes|' : '').'required|string|max:191',
             'styles.primary_color' => ($request->isMethod('PUT') ? 'sometimes|' : '').'required|max:7',
             'styles.background_color' => ($request->isMethod('PUT') ? 'sometimes|' : '').'required|max:7',

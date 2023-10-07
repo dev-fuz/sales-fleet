@@ -1,8 +1,8 @@
 <template>
-  <div class="mx-auto max-w-5xl" v-show="visible">
+  <div v-show="visible" class="mx-auto max-w-5xl">
     <h3
-      class="mb-6 text-lg font-medium text-neutral-800 dark:text-neutral-100"
       v-t="'documents::document.document_products'"
+      class="mb-6 text-base font-medium text-neutral-800 dark:text-neutral-100"
     />
 
     <div
@@ -10,33 +10,35 @@
         'pointer-events-none opacity-70': document.status === 'accepted',
       }"
     >
-      <FormTaxTypes
+      <BillableFormTaxTypes
         v-model="form.billable.tax_type"
         class="mb-4 flex flex-col space-y-1 sm:flex-row sm:space-x-2 sm:space-y-0"
       />
 
-      <FormTableProducts
+      <BillableFormTableProducts
         v-model:products="form.billable.products"
-        v-model:removedProducts="form.billable.removed_products"
+        v-model:removed-products="form.billable.removed_products"
         :tax-type="form.billable.tax_type"
-        @productSelected="
+        @product-selected="
           form.errors.clear('billable.products.' + $event.index + '.name')
         "
-        @productRemoved="handleProductRemovedEvent"
+        @product-removed="handleProductRemovedEvent"
       >
         <template #after-product-select="{ index }">
           <IFormError
             v-text="form.getError('billable.products.' + index + '.name')"
           />
         </template>
-      </FormTableProducts>
+      </BillableFormTableProducts>
     </div>
   </div>
 </template>
+
 <script setup>
+import BillableFormTableProducts from '~/Billable/components/BillableFormTableProducts.vue'
+import BillableFormTaxTypes from '~/Billable/components/BillableFormTaxTypes.vue'
+
 import propsDefinition from './formSectionProps'
-import FormTableProducts from '~/Billable/resources/js/components/Billable/FormTableProducts.vue'
-import FormTaxTypes from '~/Billable/resources/js/components/Billable/FormTaxTypes.vue'
 
 const props = defineProps(propsDefinition)
 

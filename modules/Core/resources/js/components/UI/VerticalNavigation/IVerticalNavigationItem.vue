@@ -2,7 +2,6 @@
   <div>
     <a
       :href="href"
-      @click.prevent="navigate"
       :class="[
         isActive
           ? 'active bg-neutral-200/50 text-primary-600 dark:bg-neutral-700 dark:text-primary-300'
@@ -10,6 +9,7 @@
         'group flex items-center rounded-md px-3 py-2 text-sm font-semibold focus:outline-none',
         linkClass,
       ]"
+      @click.prevent="navigate"
     >
       <slot name="icon">
         <Icon
@@ -29,7 +29,6 @@
           {{ title }}
         </span>
       </slot>
-
       <Icon
         v-if="!fixed && hasChildrens"
         icon="ChevronDown"
@@ -43,34 +42,37 @@
     </a>
 
     <div
+      v-show="collapseVisible"
       :id="itemId"
       ref="childrenRef"
-      v-show="collapseVisible"
       class="ml-5 mt-1"
     >
       <slot></slot>
     </div>
   </div>
 </template>
-<script>
-export default {
-  name: 'IVerticalNavigationItem',
-}
-</script>
+
+<script></script>
+
 <script setup>
-import { ref, watch, nextTick, useSlots, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { randomString } from '@/utils'
+import { computed, nextTick, onMounted, ref, useSlots, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import startsWith from 'lodash/startsWith'
+
+import { randomString } from '@/utils'
 
 const props = defineProps({
   to: [String, Object],
   href: { type: String, default: '#' },
-  fixed: { type: Boolean, default: false },
+  fixed: Boolean,
   linkClass: [Array, Object, String],
   title: String,
   icon: String,
   iconClass: [Array, Object, String],
+})
+
+defineOptions({
+  name: 'IVerticalNavigationItem',
 })
 
 const itemId = ref(randomString())
@@ -135,6 +137,7 @@ function navigate() {
     if (route.path != resolvedRoute.value.path) {
       router.push(props.to)
     }
+
     return
   }
 

@@ -1,17 +1,18 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
  *
  * @copyright Copyright (c) 2022-2023 KONKORD DIGITAL
  */
-import { ref, computed } from 'vue'
-import orderBy from 'lodash/orderBy'
+import { computed, ref } from 'vue'
 import { createGlobalState } from '@vueuse/core'
-import { useLoader } from '~/Core/resources/js/composables/useLoader'
+import orderBy from 'lodash/orderBy'
+
+import { useLoader } from '~/Core/composables/useLoader'
 
 export const useBrands = createGlobalState(() => {
   const { setLoading, isLoading: brandsAreBeingFetched } = useLoader()
@@ -19,6 +20,10 @@ export const useBrands = createGlobalState(() => {
   const brands = ref([])
 
   const brandsByName = computed(() => orderBy(brands.value, 'name'))
+
+  const orderedBrands = computed(() =>
+    orderBy(brands.value, ['is_default', 'name'], ['desc', 'asc'])
+  )
 
   // Only excuted once
   fetchBrands()
@@ -32,26 +37,46 @@ export const useBrands = createGlobalState(() => {
   }
 
   function addBrand(brand) {
+    if (brand.is_default) {
+      unmarkAllAsDefault()
+    }
+
     brands.value.push(brand)
   }
 
   function setBrand(id, brand) {
+    if (brand.is_default) {
+      unmarkAllAsDefault()
+    }
+
     brands.value[idx(id)] = brand
   }
 
   function patchBrand(id, brand) {
+    if (brand.is_default) {
+      unmarkAllAsDefault()
+    }
+
     const brandIndex = idx(id)
+
     brands.value[brandIndex] = Object.assign(brands.value[brandIndex], brand)
   }
 
   async function fetchBrand(id, options = {}) {
     const { data } = await Innoclapps.request().get(`/brands/${id}`, options)
+
     return data
   }
 
   async function deleteBrand(id) {
     await Innoclapps.request().delete(`/brands/${id}`)
     removeBrand(id)
+  }
+
+  function unmarkAllAsDefault() {
+    brands.value.forEach(brand => {
+      brand.is_default = false
+    })
   }
 
   function fetchBrands() {
@@ -66,6 +91,7 @@ export const useBrands = createGlobalState(() => {
   return {
     brands,
     brandsByName,
+    orderedBrands,
     brandsAreBeingFetched,
 
     addBrand,
@@ -76,5 +102,6 @@ export const useBrands = createGlobalState(() => {
     fetchBrands,
     fetchBrand,
     deleteBrand,
+    unmarkAllAsDefault,
   }
 })

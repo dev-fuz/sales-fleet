@@ -2,7 +2,7 @@
 /**
  * Concord CRM - https://www.concordcrm.com
  *
- * @version   1.2.0
+ * @version   1.3.1
  *
  * @link      Releases - https://www.concordcrm.com/releases
  * @link      Terms Of Service - https://www.concordcrm.com/terms
@@ -24,8 +24,8 @@ class DealStatusFilter extends Select
     {
         parent::__construct('status', __('deals::deal.status.status'));
 
-        $this->options(collect(StatusEnum::names())->mapWithKeys(function ($status) {
-            return [$status => __('deals::deal.status.'.$status)];
+        $this->options(collect(StatusEnum::cases())->mapWithKeys(function (StatusEnum $status) {
+            return [$status->name => $status->label()];
         })->all());
 
         $this->query(function ($builder, $value, $condition, $sqlOperator) {
